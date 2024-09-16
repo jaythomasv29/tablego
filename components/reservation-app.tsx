@@ -8,6 +8,20 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
+function Navbar({ businessName }: { businessName: string }) {
+  return (
+    <nav className="bg-white shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16 items-center">
+          <div className="flex-shrink-0">
+            <h1 className="text-xl font-bold">{businessName}</h1>
+          </div>
+        </div>
+      </div>
+    </nav>
+  )
+}
+
 export function ReservationAppComponent() {
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
@@ -16,7 +30,7 @@ export function ReservationAppComponent() {
     firstName: "",
     lastName: "",
     email: "",
-    telephone: ""  // Add this line
+    telephone: ""
   })
 
   const handleNext = () => {
@@ -48,47 +62,50 @@ export function ReservationAppComponent() {
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <Card className="w-full max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle>Make a Reservation</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit}>
-            {step === 1 && (
-              <div className="grid gap-4 py-4">
-                <DatePicker
-                  selectedDate={formData.date}
-                  onSelect={(date) => updateFormData({ date })}
+    <div className="min-h-screen bg-gray-100">
+      <Navbar businessName="Thaiphoon Restaurant" />
+      <div className="container mx-auto p-4 pt-8">
+        <Card className="w-full max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle>Make a Reservation</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit}>
+              {step === 1 && (
+                <div className="grid gap-4 py-4">
+                  <DatePicker
+                    selectedDate={formData.date}
+                    onSelect={(date) => updateFormData({ date })}
+                  />
+                  <TimePicker
+                    selectedDate={formData.date}
+                    selectedTime={formData.time}
+                    onSelect={(time) => updateFormData({ time })}
+                  />
+                  <Button type="button" onClick={handleNext} disabled={!formData.date || !formData.time}>
+                    Next
+                  </Button>
+                </div>
+              )}
+              {step === 2 && (
+                <PersonalInfo
+                  formData={formData}
+                  updateFormData={updateFormData}
+                  onNext={handleNext}
+                  onPrevious={handlePrevious}
                 />
-                <TimePicker
-                  selectedDate={formData.date}
-                  selectedTime={formData.time}
-                  onSelect={(time) => updateFormData({ time })}
+              )}
+              {step === 3 && (
+                <Confirmation
+                  formData={formData}
+                  onPrevious={handlePrevious}
+                  onSubmit={handleSubmit}
                 />
-                <Button type="button" onClick={handleNext} disabled={!formData.date || !formData.time}>
-                  Next
-                </Button>
-              </div>
-            )}
-            {step === 2 && (
-              <PersonalInfo
-                formData={formData}
-                updateFormData={updateFormData}
-                onNext={handleNext}
-                onPrevious={handlePrevious}
-              />
-            )}
-            {step === 3 && (
-              <Confirmation
-                formData={formData}
-                onPrevious={handlePrevious}
-                onSubmit={handleSubmit}
-              />
-            )}
-          </form>
-        </CardContent>
-      </Card>
+              )}
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
@@ -117,7 +134,7 @@ function TimePicker({ selectedDate, selectedTime, onSelect }: {
   onSelect: (time: string) => void
 }) {
   const timeSlots = generateTimeSlots()
-  const [availableTimeSlots, setAvailableTimeSlots] = useState(timeSlots)
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([])
 
   useEffect(() => {
     if (selectedDate) {
@@ -125,28 +142,35 @@ function TimePicker({ selectedDate, selectedTime, onSelect }: {
       const isToday = selectedDate.toDateString() === now.toDateString()
 
       if (isToday) {
-        // Add 2 hours to the current time
-        const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000)
-        const cutoffTime = twoHoursLater.getHours() * 60 + twoHoursLater.getMinutes()
+        // Add 1.5 hours to the current time
+        const oneAndHalfHoursLater = new Date(now.getTime() + 1.5 * 60 * 60 * 1000)
+        const cutoffHour = oneAndHalfHoursLater.getHours()
+        const cutoffMinute = oneAndHalfHoursLater.getMinutes()
 
         const updatedSlots = timeSlots.filter(slot => {
-          const [hours, minutes] = slot.split(":").map(Number)
-          const slotTime = hours * 60 + minutes
-          return slotTime > cutoffTime
+          const [time, period] = slot.split(' ')
+          const [hours, minutes] = time.split(':').map(Number)
+          const slotHour = hours % 12 + (period === 'PM' && hours !== 12 ? 12 : 0)
+
+          if (slotHour > cutoffHour) return true
+          if (slotHour === cutoffHour && minutes > cutoffMinute) return true
+          return false
         })
         setAvailableTimeSlots(updatedSlots)
       } else {
         setAvailableTimeSlots(timeSlots)
       }
+    } else {
+      setAvailableTimeSlots([])
     }
   }, [selectedDate])
 
   return (
     <div className="grid gap-2">
       <Label htmlFor="time">Time</Label>
-      <Select value={selectedTime} onValueChange={onSelect}>
+      <Select value={selectedTime} onValueChange={onSelect} disabled={!selectedDate}>
         <SelectTrigger id="time">
-          <SelectValue placeholder="Select a time" />
+          <SelectValue placeholder={selectedDate ? "Select a time" : "Please select a date first"} />
         </SelectTrigger>
         <SelectContent>
           {availableTimeSlots.map((slot) => (
@@ -165,7 +189,9 @@ function generateTimeSlots() {
   const addSlots = (start: number, end: number) => {
     for (let hour = start; hour < end; hour++) {
       for (let minute = 0; minute < 60; minute += 30) {
-        const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+        const period = hour >= 12 ? 'PM' : 'AM'
+        const displayHour = hour % 12 || 12
+        const time = `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`
         slots.push(time)
       }
     }
@@ -173,7 +199,7 @@ function generateTimeSlots() {
 
   addSlots(11, 14) // 11:00 AM to 2:00 PM
   addSlots(16, 20) // 4:00 PM to 8:00 PM
-  slots.push('20:30') // Add 8:30 PM
+  slots.push('8:30 PM') // Add 8:30 PM
 
   return slots
 }
