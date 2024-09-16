@@ -77,11 +77,13 @@ export function ReservationAppComponent() {
                     selectedDate={formData.date}
                     onSelect={(date) => updateFormData({ date })}
                   />
-                  <TimePicker
-                    selectedDate={formData.date}
-                    selectedTime={formData.time}
-                    onSelect={(time) => updateFormData({ time })}
-                  />
+                  {formData.date && (
+                    <TimePicker
+                      selectedDate={formData.date}
+                      selectedTime={formData.time}
+                      onSelect={(time) => updateFormData({ time })}
+                    />
+                  )}
                   <Button type="button" onClick={handleNext} disabled={!formData.date || !formData.time}>
                     Next
                   </Button>
@@ -152,9 +154,11 @@ function TimePicker({ selectedDate, selectedTime, onSelect }: {
           const [hours, minutes] = time.split(':').map(Number)
           const slotHour = hours % 12 + (period === 'PM' && hours !== 12 ? 12 : 0)
 
-          if (slotHour > cutoffHour) return true
-          if (slotHour === cutoffHour && minutes > cutoffMinute) return true
-          return false
+          // Convert slot time to minutes since midnight for easier comparison
+          const slotTimeInMinutes = slotHour * 60 + minutes
+          const cutoffTimeInMinutes = cutoffHour * 60 + cutoffMinute
+
+          return slotTimeInMinutes > cutoffTimeInMinutes
         })
         setAvailableTimeSlots(updatedSlots)
       } else {
@@ -168,16 +172,20 @@ function TimePicker({ selectedDate, selectedTime, onSelect }: {
   return (
     <div className="grid gap-2">
       <Label htmlFor="time">Time</Label>
-      <Select value={selectedTime} onValueChange={onSelect} disabled={!selectedDate}>
+      <Select value={selectedTime} onValueChange={onSelect}>
         <SelectTrigger id="time">
-          <SelectValue placeholder={selectedDate ? "Select a time" : "Please select a date first"} />
+          <SelectValue placeholder="Select a time" />
         </SelectTrigger>
         <SelectContent>
-          {availableTimeSlots.map((slot) => (
-            <SelectItem key={slot} value={slot}>
-              {slot}
-            </SelectItem>
-          ))}
+          {availableTimeSlots.length > 0 ? (
+            availableTimeSlots.map((slot) => (
+              <SelectItem key={slot} value={slot}>
+                {slot}
+              </SelectItem>
+            ))
+          ) : (
+            <SelectItem value="" disabled>No available times</SelectItem>
+          )}
         </SelectContent>
       </Select>
     </div>
