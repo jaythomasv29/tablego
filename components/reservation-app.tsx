@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { CarTiles } from "@/components/ui/cartiles"
+import { GreetingClock } from "./ui/greetingclock"
 
 function Navbar({ businessName }: { businessName: string }) {
   return (
@@ -26,7 +28,7 @@ export function ReservationAppComponent() {
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
     date: null as Date | null,
-    time: "",
+    time: null as string | null,
     firstName: "",
     lastName: "",
     email: "",
@@ -49,7 +51,7 @@ export function ReservationAppComponent() {
     setStep(1)
     setFormData({
       date: null,
-      time: "",
+      time: null,
       firstName: "",
       lastName: "",
       email: "",
@@ -58,7 +60,13 @@ export function ReservationAppComponent() {
   }
 
   const updateFormData = (newData: Partial<typeof formData>) => {
-    setFormData({ ...formData, ...newData })
+    setFormData(prevData => {
+      // If the date changes, reset the time
+      if (newData.date && newData.date !== prevData.date) {
+        return { ...prevData, ...newData, time: null }
+      }
+      return { ...prevData, ...newData }
+    })
   }
 
   return (
@@ -66,10 +74,7 @@ export function ReservationAppComponent() {
       <Navbar businessName="Thaiphoon Restaurant" />
       <div className="container mx-auto p-4 pt-8">
         <Card className="w-full max-w-md mx-auto">
-          <CardHeader>
-            <CardTitle>Make a Reservation</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="w-full">
             <form onSubmit={handleSubmit}>
               {step === 1 && (
                 <div className="grid gap-4 py-4">
@@ -80,7 +85,7 @@ export function ReservationAppComponent() {
                   {formData.date && (
                     <TimePicker
                       selectedDate={formData.date}
-                      selectedTime={formData.time}
+                      selectedTime={formData.time || ""}
                       onSelect={(time) => updateFormData({ time })}
                     />
                   )}
@@ -107,6 +112,11 @@ export function ReservationAppComponent() {
             </form>
           </CardContent>
         </Card>
+        {/* Add the CarCarousel component here */}
+        <div className="mt-2">
+          <CarTiles />
+        </div>
+        <GreetingClock />
       </div>
     </div>
   )
@@ -114,18 +124,39 @@ export function ReservationAppComponent() {
 
 function DatePicker({ selectedDate, onSelect }: { selectedDate: Date | null, onSelect: (date: Date | null) => void }) {
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-2 w-full">
       <Label htmlFor="date">Date</Label>
-      <Calendar
-        mode="single"
-        selected={selectedDate}
-        onSelect={onSelect}
-        className="rounded-md border"
-        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-        classNames={{
-          day_selected: "border-2 border-black bg-white text-black hover:bg-white hover:text-black focus:bg-white focus:text-black",
-        }}
-      />
+      <div className="w-full">
+        <Calendar
+          mode="single"
+          selected={selectedDate}
+          onSelect={onSelect}
+          className="w-full border rounded-md"
+          classNames={{
+            months: "w-full",
+            month: "w-full",
+            table: "w-full border-collapse",
+            head_row: "flex",
+            head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem] flex-1",
+            row: "flex w-full",
+            cell: "text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20 flex-1",
+            day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100 hover:bg-muted flex items-center justify-center flex-1",
+            day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+            day_today: "bg-accent text-accent-foreground",
+            day_outside: "text-muted-foreground opacity-50",
+            day_disabled: "text-muted-foreground opacity-50",
+            day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+            day_hidden: "invisible",
+            nav: "space-x-1 flex items-center",
+            nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
+            nav_button_previous: "absolute left-1",
+            nav_button_next: "absolute right-1",
+            caption: "flex justify-center pt-1 relative items-center",
+            caption_label: "text-sm font-medium",
+          }}
+          disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+        />
+      </div>
     </div>
   )
 }
