@@ -284,11 +284,13 @@ function Confirmation({ formData, onPrevious, onSubmit }: {
   onPrevious: () => void,
   onSubmit: (e: React.FormEvent) => void
 }) {
+  const displayTime = formData.time.split(' ').slice(0, 2).join(' ');
+
   return (
     <div className="grid gap-4 py-4">
       <h3 className="text-lg font-semibold">Confirm your reservation</h3>
       <p>Date: {formData.date?.toDateString()}</p>
-      <p>Time: {formData.time ? formatTime(formData.time) : ''}</p>
+      <p>Time: {displayTime}</p>
       <p>Name: {formData.firstName} {formData.lastName}</p>
       <p>Email: {formData.email}</p>
       <p>Telephone: {formData.telephone}</p>
