@@ -23,6 +23,8 @@ const config: Config = {
 			meteor: "meteor 5s linear infinite",
 			"border-beam": "border-beam calc(var(--duration)*1s) infinite linear",
 			gradient: "gradient 8s linear infinite",
+			marquee: "marquee var(--duration) linear infinite",
+			"marquee-vertical": "marquee-vertical var(--duration) linear infinite",
 		},
 		keyframes: {
 			meteor: {
@@ -43,6 +45,11 @@ const config: Config = {
 					backgroundPosition: "var(--bg-size) 0",
 				},
 			},
+			marquee: {
+				from: { transform: "translateX(0)" },
+				to: { transform: "translateX(calc(-100% - var(--gap)))" },
+			},
+
 		},
 	},
 	plugins: [require("tailwindcss-animate")],
