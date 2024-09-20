@@ -2,7 +2,7 @@ import React from 'react';
 
 const tiles = [
     { image: '/images/restaurant.jpg', name: 'Thaiphoon Restaurant', description: 'Authentic Thai Cuisine', promotion: 'Happy Hour Everyday from 4pm to 6pm' },
-    { image: '/images/award-dishes.jpg', name: 'Award-Winning Dishes', description: 'Must try our Pad se ew noodles and drunken noodles' },
+    { image: '/images/award-dishes.jpeg', name: 'Award-Winning Dishes', description: 'Must try our Pad se ew noodles and drunken noodles' },
     { image: '/images/catering.jpg', name: 'Cater with Us', description: 'Cater your next event with us' },
 ];
 
