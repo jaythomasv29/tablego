@@ -1,22 +1,26 @@
 "use client"
 
 import React, { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { AccountCircle } from '@mui/icons-material';
 
-import { Card, CardContent } from "@/components/ui/card";
+import { AccountCircle, Book, Mail, Phone } from '@mui/icons-material';
+
+// import { Card, CardContent } from "@/components/ui/card";
 import { CarTiles } from "@/components/ui/cartiles";
 import { GreetingClock } from "./ui/greetingclock";
 import { cn } from "@/lib/utils";
 import DotPattern from "@/components/magicui/dot-pattern";
-import { BorderBeam } from "@/components/magicui/border-beam";
+
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
-import { Select, SelectChangeEvent, MenuItem, FormControl, InputLabel, Input, InputAdornment } from '@mui/material';
-import { saveReservation } from '../firebase'
+import { Button, Select, SelectChangeEvent, MenuItem, FormControl, InputLabel, Input, InputAdornment, TextField, Grid2 } from '@mui/material';
+import { saveReservation, db } from '../firebase'
 import { DateCalendar } from "@mui/x-date-pickers";
 import Marquee from "@/components/magicui/marquee";
+import Cookies from 'js-cookie';
+import { Card, CardContent, Typography, Stack } from '@mui/material';
+import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
+
 
 interface FormData {
   date: Date | null;
@@ -25,11 +29,27 @@ interface FormData {
   lastName: string;
   email: string;
   telephone: string;
+  partySize: number | null;
+  status: string; // Add this line
+  additionalNotes: string;
+}
+
+interface ReservationData {
+  reservationId: string;
+  date: string;
+  time: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  telephone: string;
+  partySize: number | null;
+  status: string; // Add this line
+  additionalNotes: string;
 }
 
 const CateringImage = ({ src }: { src: string }) => {
   return (
-    <Card className="w-96 h-40 mx-0 overflow-hidden">
+    <Card className="w-100 h-40 mx-1 overflow-hidden">
       <img
         src={src}
         alt="Catering"
@@ -46,9 +66,15 @@ export function ReservationAppComponent() {
     firstName: "",
     lastName: "",
     email: "",
-    telephone: ""
+    telephone: "",
+    partySize: 0,
+    status: "active",
+    additionalNotes: "",
   });
   const [openConfirm, setOpenConfirm] = useState(false);
+  const [openConfirmationModal, setOpenConfirmationModal] = useState(false);
+  const [bookedReservation, setBookedReservation] = useState<ReservationData | null>(null);
+  const [isReservationBooked, setIsReservationBooked] = useState(false);
 
   const cateringImages = [
     './images/catering.jpg',
@@ -57,8 +83,15 @@ export function ReservationAppComponent() {
     // Add more image paths as needed
   ];
 
+  const formatPhoneNumber = (phone: string): string => {
+    const cleaned = phone.replace(/\D/g, '');
+    return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const formattedPhone = formatPhoneNumber(formData.telephone);
+    setFormData({ ...formData, telephone: formattedPhone });
     setOpenConfirm(true);
   };
 
@@ -69,10 +102,19 @@ export function ReservationAppComponent() {
         ...formData,
         date: formData.date ? formData.date.toISOString() : '',
         time: formData.time || '',
+        status: "active",
       };
       const reservationId = await saveReservation(reservationData);
+      const fullReservationData = {
+        reservationId,
+        ...reservationData
+      };
+      setBookedReservation(fullReservationData);
       console.log("Reservation saved with ID:", reservationId);
-      // Reset form or show success message
+      resetForm();
+      setOpenConfirmationModal(true);
+      Cookies.set('bookedReservation', JSON.stringify(fullReservationData), { expires: 7 });
+      setIsReservationBooked(true);
     } catch (error) {
       console.error("Error saving reservation:", error);
     }
@@ -93,9 +135,39 @@ export function ReservationAppComponent() {
       firstName: "",
       lastName: "",
       email: "",
-      telephone: ""
+      telephone: "",
+      partySize: null,
+      status: "active",
+      additionalNotes: "",
     });
   };
+
+  const handleCancelReservation = async () => {
+    console.log("Cancel reservation called");
+    try {
+      if (bookedReservation?.reservationId) {
+        const reservationRef = doc(db, 'reservations', bookedReservation.reservationId);
+        await updateDoc(reservationRef, { status: 'canceled' });
+        console.log('Reservation status updated to canceled:', bookedReservation.reservationId);
+        setIsReservationBooked(false);
+        setBookedReservation(null);
+        Cookies.remove('bookedReservation');
+      } else {
+        console.log("No reservation ID found");
+      }
+    } catch (error) {
+      console.error('Error canceling reservation:', error);
+    }
+  };
+
+  useEffect(() => {
+    const savedReservation = Cookies.get('bookedReservation');
+    if (savedReservation) {
+      const parsedReservation = JSON.parse(savedReservation);
+      setBookedReservation(parsedReservation);
+      setIsReservationBooked(true);
+    }
+  }, []);
 
   return (
     <>
@@ -127,99 +199,158 @@ export function ReservationAppComponent() {
                 </Marquee>
               </Card>
             </div>
-            <Card className="w-full max-w-7xl mx-auto shadow-md">
-              <CardContent className="p-6 shadow-lg">
-                <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row justify-between items-start gap-8">
-                  <div className="w-full lg:w-auto flex-shrink-0">
-                    <LocalizationProvider dateAdapter={AdapterDayjs}>
+            {!isReservationBooked ? (
+              <Card className="w-full max-w-7xl mx-auto shadow-md">
+                <CardContent className="p-6 shadow-lg">
+                  <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row justify-between items-start gap-8">
+                    <div className="w-full lg:w-auto flex-shrink-0">
+                      <LocalizationProvider dateAdapter={AdapterDayjs}>
 
-                      <DateCalendar
+                        <DateCalendar
 
-                        value={formData.date ? dayjs(formData.date) : null}
-                        onChange={(newValue) => updateFormData({ date: newValue ? newValue.toDate() : null })}
-                        disablePast
+                          value={formData.date ? dayjs(formData.date) : null}
+                          onChange={(newValue) => updateFormData({ date: newValue ? newValue.toDate() : null })}
+                          disablePast
+                        />
+                      </LocalizationProvider>
+                      <TimePicker
+                        selectedDate={formData.date}
+                        selectedTime={formData.time || ""}
+                        selectedPartySize={formData.partySize || null}
+                        onSelect={(time, partySize) => {
+                          setFormData({ ...formData, time, partySize });
+                        }}
+                        disabled={!formData.date}
                       />
-                    </LocalizationProvider>
-                    <TimePicker
-                      selectedDate={formData.date}
-                      selectedTime={formData.time || ""}
-                      onSelect={(time) => updateFormData({ time })}
-                      disabled={!formData.date}
-                    />
-                  </div>
-                  <div className="w-full my-auto mx-auto mt-3 lg:w-1/2 grid gap-4">
-
-                    <Input
-                      className="mb-7"
-                      id="input-with-icon-adornment"
-                      startAdornment={
-                        <InputAdornment position="start">
-                          <AccountCircle />
-                        </InputAdornment>
-                      }
-                      placeholder="First Name"
-                      value={formData.firstName}
-                      onChange={(e) => updateFormData({ firstName: e.target.value })}
-                    />
-                    <Input
-                      className="mb-7"
-                      id="input-with-icon-adornment"
-                      startAdornment={
-                        <InputAdornment position="start">
-                          <AccountCircle />
-                        </InputAdornment>
-                      }
-                      placeholder="Last Name"
-                      value={formData.lastName}
-                      onChange={(e) => updateFormData({ lastName: e.target.value })}
-                    />
-                    <Input
-                      className="mb-7"
-                      id="input-with-icon-adornment"
-                      startAdornment={
-                        <InputAdornment position="start">
-                          <AccountCircle />
-                        </InputAdornment>
-                      }
-                      type="email"
-                      placeholder="Email"
-                      value={formData.email}
-                      onChange={(e) => updateFormData({ email: e.target.value })}
-                    />
-                    <Input
-                      className="mb-7"
-                      id="input-with-icon-adornment"
-                      startAdornment={
-                        <InputAdornment position="start">
-                          <AccountCircle />
-                        </InputAdornment>
-                      }
-                      type="tel"
-                      placeholder="Telephone"
-                      value={formData.telephone}
-                      onChange={(e) => updateFormData({ telephone: e.target.value })}
-                    />
-                    <div className="flex gap-2 mt-5">
-                      <Button
-                        type="submit"
-                        className="flex-grow"
-                        disabled={!formData.date || !formData.time || !formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim() || !formData.telephone.trim()}
-                      >
-                        Confirm Reservation
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={resetForm}
-                        className="flex-shrink-0"
-                      >
-                        Reset
-                      </Button>
                     </div>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
+                    <div className="w-full my-auto mx-auto mt-3 lg:w-1/2 grid gap-4">
+
+                      <Input
+                        className="mb-6"
+                        id="input-with-icon-adornment"
+                        startAdornment={
+                          <InputAdornment position="start">
+                            <AccountCircle />
+                          </InputAdornment>
+                        }
+                        placeholder="First Name"
+                        value={formData.firstName}
+                        onChange={(e) => updateFormData({ firstName: e.target.value })}
+                      />
+                      <Input
+                        className="mb-6"
+                        id="input-with-icon-adornment"
+                        startAdornment={
+                          <InputAdornment position="start">
+                            <AccountCircle />
+                          </InputAdornment>
+                        }
+                        placeholder="Last Name"
+                        value={formData.lastName}
+                        onChange={(e) => updateFormData({ lastName: e.target.value })}
+                      />
+                      <Input
+                        className="mb-6"
+                        id="input-with-icon-adornment"
+                        startAdornment={
+                          <InputAdornment position="start">
+                            <Mail />
+                          </InputAdornment>
+                        }
+                        type="email"
+                        placeholder="Email"
+                        value={formData.email}
+                        onChange={(e) => updateFormData({ email: e.target.value })}
+                      />
+                      <Input
+                        className="mb-6"
+                        id="input-with-icon-adornment"
+                        startAdornment={
+                          <InputAdornment position="start">
+                            <Phone />
+                          </InputAdornment>
+                        }
+                        type="tel"
+                        placeholder="Telephone"
+                        value={formData.telephone}
+                        onChange={(e) => updateFormData({ telephone: e.target.value })}
+                      />
+                      <Input
+                        className="mb-6"
+                        id="input-with-icon-adornment"
+                        startAdornment={
+                          <InputAdornment position="start">
+                            <Book />
+                          </InputAdornment>
+                        }
+                        type="tel"
+                        placeholder="Any accommodations needed? (Optional)"
+                        value={formData.additionalNotes}
+                        onChange={(e) => updateFormData({ additionalNotes: e.target.value })}
+                      />
+                      <div className="flex gap-2 mt-0">
+                        <Button
+                          type="submit"
+                          className="flex-grow"
+                          disabled={!formData.date || !formData.time || !formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim() || !formData.telephone.trim()}
+                        >
+                          Confirm Reservation
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={resetForm}
+                          className="flex-shrink-0"
+                        >
+                          Reset
+                        </Button>
+                      </div>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent>
+                  <Typography variant="h5" gutterBottom>Your Reservation</Typography>
+                  <Stack direction="row" spacing={2} className="mb-2">
+                    <Typography variant="body1">Date:</Typography>
+                    <Typography variant="body2">
+                      {bookedReservation?.date && new Date(bookedReservation.date).toLocaleDateString('en-US', {
+                        weekday: 'short',
+                        month: '2-digit',
+                        day: '2-digit',
+                        year: '2-digit'
+                      })}
+                    </Typography>
+                  </Stack>
+                  <Stack direction="row" spacing={2} className="mb-2">
+                    <Typography variant="body1">Time:</Typography>
+                    <Typography variant="body2">{bookedReservation?.time}</Typography>
+                  </Stack>
+                  <Stack direction="row" spacing={2} className="mb-2">
+                    <Typography variant="body1">Party Size:</Typography>
+                    <Typography variant="body2">{bookedReservation?.partySize}</Typography>
+                  </Stack>
+                  <Stack direction="row" spacing={2} className="mb-2">
+                    <Typography variant="body1">Name:</Typography>
+                    <Typography variant="body2">{`${bookedReservation?.firstName} ${bookedReservation?.lastName}`}</Typography>
+                  </Stack>
+                  <Stack direction="row" spacing={2} className="mb-2">
+                    <Typography variant="body1">Phone:</Typography>
+                    <Typography variant="body2">{bookedReservation?.telephone}</Typography>
+                  </Stack>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    onClick={handleCancelReservation}
+                    sx={{ mt: 2 }}
+                  >
+                    Cancel Reservation
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
             <div className="mt-10 mx-0">
               <CarTiles />
             </div>
@@ -258,6 +389,28 @@ export function ReservationAppComponent() {
             </div>
           </div>
         </div>
+
+        {/* Confirmation Modal */}
+        <div className={`fixed inset-0 z-50 overflow-y-auto ${openConfirmationModal ? 'flex' : 'hidden'} items-center justify-center`}>
+          <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 z-50 transform transition-all">
+            <div className="bg-green-600 text-white px-6 py-4 rounded-t-lg">
+              <h3 className="text-xl font-semibold">Reservation Confirmed</h3>
+            </div>
+            <div className="px-6 py-4">
+              <p className="text-gray-700">Your reservation has been confirmed. An email will be sent regarding the details. If there are any issues we will reach out to you. Feel free to reach out to us if there are any changes or accommodations needed.</p>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end">
+              <Button
+                onClick={() => setOpenConfirmationModal(false)}
+                variant="contained"
+                color="primary"
+              >
+                OK
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </>
   );
@@ -291,18 +444,25 @@ function FeatureTile({ icon, title, description }: { icon: React.ReactNode, titl
   );
 }
 
-function TimePicker({ selectedDate, selectedTime, onSelect, disabled }: {
+function TimePicker({ selectedDate, selectedTime, selectedPartySize, onSelect, disabled }: {
   selectedDate: Date | null,
   selectedTime: string | null,
-  onSelect: (time: string) => void,
+  selectedPartySize: number | null,
+  onSelect: (time: string, partySize: number) => void,
   disabled: boolean
 }) {
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
   const [localSelectedTime, setLocalSelectedTime] = useState<string>("");
+  const [localSelectedPartySize, setLocalSelectedPartySize] = useState<number | null>(null);
+  const [isCustomSize, setIsCustomSize] = useState(false);
 
   useEffect(() => {
     setLocalSelectedTime(selectedTime || "");
   }, [selectedTime]);
+
+  useEffect(() => {
+    setLocalSelectedPartySize(selectedPartySize);
+  }, [selectedPartySize]);
 
   useEffect(() => {
     if (selectedDate) {
@@ -332,40 +492,90 @@ function TimePicker({ selectedDate, selectedTime, onSelect, disabled }: {
     }
   }, [selectedDate]);
 
-  const handleChange = (event: SelectChangeEvent<string>) => {
+  const handleTimeChange = (event: SelectChangeEvent<string>) => {
     const newTime = event.target.value;
     setLocalSelectedTime(newTime);
-    onSelect(newTime);
-    console.log("Selected time in TimePicker:", newTime);
+    onSelect(newTime, localSelectedPartySize || 1);
   };
 
+  const handlePartySizeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    if (value === 'custom') {
+      setIsCustomSize(true);
+      return;
+    }
+    const newPartySize = parseInt(value, 10);
+    if (!isNaN(newPartySize) && newPartySize > 0 && newPartySize <= 50) {
+      setLocalSelectedPartySize(newPartySize);
+      onSelect(localSelectedTime, newPartySize);
+    }
+  };
+
+  const handleCustomSizeBlur = () => {
+    if (!localSelectedPartySize || localSelectedPartySize < 1 || localSelectedPartySize > 50) {
+      setIsCustomSize(false);
+      setLocalSelectedPartySize(null);
+    }
+  };
+
+  const commonPartySizes = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
   return (
-    <FormControl fullWidth size="small" disabled={disabled}>
-      <InputLabel id="time-select-label">Time</InputLabel>
-      <Select
-        labelId="time-select-label"
-        id="time-select"
-        value={localSelectedTime}
-        label="Time"
-        onChange={handleChange}
-        size="small"
-        disabled={disabled}
-        MenuProps={{
-          PaperProps: {
-            style: {
-              maxHeight: 224,
-            },
-          },
-        }}
-      >
-        <MenuItem value="" disabled>Select a time</MenuItem>
-        {availableTimeSlots.map((slot) => (
-          <MenuItem key={slot} value={slot}>
-            {slot}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
+    <div className="flex space-x-4 w-full">
+      <FormControl size="small" disabled={disabled} className="w-full">
+        <InputLabel id="time-select-label">Time</InputLabel>
+        <Select
+          labelId="time-select-label"
+          id="time-select"
+          value={localSelectedTime}
+          label="Time"
+          onChange={handleTimeChange}
+          disabled={disabled}
+          className="w-full"
+        >
+          <MenuItem value="" disabled>Select a time</MenuItem>
+          {availableTimeSlots.map((slot) => (
+            <MenuItem key={slot} value={slot}>
+              {slot}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+
+      <FormControl size="small" disabled={disabled} className="w-full">
+        {isCustomSize ? (
+          <TextField
+            label="Custom Party Size"
+            type="number"
+            value={localSelectedPartySize || ''}
+            onChange={handlePartySizeChange}
+            onBlur={handleCustomSizeBlur}
+            disabled={disabled}
+            inputProps={{ min: 1, max: 50 }}
+            fullWidth
+            size="small"
+            variant="outlined"
+          />
+        ) : (
+          <>
+            <InputLabel id="party-size-label">Party Size</InputLabel>
+            <Select
+              labelId="party-size-label"
+              value={localSelectedPartySize?.toString() || ''}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handlePartySizeChange(e)}
+              disabled={disabled}
+              label="Party Size"
+              fullWidth
+            >
+              {commonPartySizes.map(size => (
+                <MenuItem key={size} value={size.toString()}>{size} {size === 1 ? 'person' : 'people'}</MenuItem>
+              ))}
+              <MenuItem value="custom">Custom Size</MenuItem>
+            </Select>
+          </>
+        )}
+      </FormControl>
+    </div>
   );
 }
 
