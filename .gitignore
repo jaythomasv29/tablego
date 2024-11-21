@@ -22,10 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-# NPM cache
-tmpnodejsnpm-cache
-**/npm-cache
-**/_cacache
-# Next.js
-.next/
-out/
+.bolt
+C:tmpnodejsnpm-cache
+.env
+.env.local
+.env.*.local
