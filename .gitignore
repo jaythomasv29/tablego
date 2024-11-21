@@ -26,3 +26,6 @@ dist-ssr
 tmpnodejsnpm-cache
 **/npm-cache
 **/_cacache
+# Next.js
+.next/
+out/
