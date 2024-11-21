@@ -28,3 +28,4 @@ C:tmpnodejsnpm-cache
 .env
 .env.local
 .env.*.local
+.next
