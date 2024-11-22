@@ -6,7 +6,7 @@ import { Calendar as CalendarIcon, Clock } from 'lucide-react';
 type Props = {
   date: Date;
   time: string;
-  onUpdate: (data: Partial<ReservationData>) => void;
+  onUpdate: (date: Date, time: string) => void;
   onDateChange: (date: Date) => void;
   availableTimeSlots: string[];
 };
@@ -14,7 +14,7 @@ type Props = {
 interface DateTimePickerProps {
   date: Date;
   time: string;
-  onUpdate: (data: Partial<ReservationData>) => void;
+  onUpdate: (date: Date, time: string) => void;
   onDateChange: (date: Date) => void;
   availableTimeSlots: string[];
 }
@@ -26,10 +26,6 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
   onDateChange,
   availableTimeSlots = []
 }: DateTimePickerProps) => {
-  const handleUpdate = (newDate: Date, newTime: string) => {
-    onUpdate({ date: newDate, time: newTime });
-  };
-
   return (
     <div className="space-y-8">
       <div>
@@ -50,7 +46,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
               onChange={(e) => {
                 const [year, month, day] = e.target.value.split('-').map(Number);
                 const newDate = new Date(year, month - 1, day, 12, 0, 0);
-                handleUpdate(newDate, time);
+                onUpdate(newDate, time);
                 onDateChange(newDate);
               }}
               min={new Date().toISOString().split('T')[0]}
@@ -69,7 +65,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
                   .map((slot) => (
                     <button
                       key={slot.time}
-                      onClick={() => handleUpdate(date, slot.time)}
+                      onClick={() => onUpdate(date, slot.time)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium ${time === slot.time
                         ? 'bg-indigo-600 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -89,7 +85,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
                   .map((slot) => (
                     <button
                       key={slot.time}
-                      onClick={() => handleUpdate(date, slot.time)}
+                      onClick={() => onUpdate(date, slot.time)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium ${time === slot.time
                         ? 'bg-indigo-600 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'

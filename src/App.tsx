@@ -6,7 +6,7 @@ import AdditionalInfo from './components/AdditionalInfo';
 import Confirmation from './components/Confirmation';
 import ProgressBar from './components/ProgressBar';
 
-export type ReservationData = {
+export interface ReservationData {
   date: Date;
   time: string;
   guests: number;
@@ -14,7 +14,7 @@ export type ReservationData = {
   email: string;
   phone: string;
   comments: string;
-};
+}
 
 const initialData: ReservationData = {
   date: new Date(),
@@ -37,8 +37,12 @@ function App() {
     { title: 'Confirmation', icon: Mail },
   ];
 
-  const updateFormData = (data: Partial<ReservationData>) => {
-    setFormData(prev => ({ ...prev, ...data }));
+  const updateFormData = (date: Date, time: string) => {
+    setFormData(prev => ({
+      ...prev,
+      date,
+      time
+    }));
   };
 
   const nextStep = () => setStep(prev => Math.min(prev + 1, steps.length - 1));
