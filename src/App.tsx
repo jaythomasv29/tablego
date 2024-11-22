@@ -5,7 +5,7 @@ import GuestInfo from './components/GuestInfo';
 import AdditionalInfo from './components/AdditionalInfo';
 import Confirmation from './components/Confirmation';
 import ProgressBar from './components/ProgressBar';
-
+import { TimeSlot } from './types/TimeSlot';
 
 export interface ReservationData {
   date: Date;
@@ -26,6 +26,10 @@ const initialData: ReservationData = {
   phone: '',
   comments: '',
 };
+
+// interface TimeSlot {
+//   time: string;
+// }
 
 function App() {
   const [step, setStep] = useState(0);
@@ -105,7 +109,12 @@ function App() {
                 time={formData.time}
                 onUpdate={handleUpdate}
                 onDateChange={handleDateChange}
-                availableTimeSlots={availableTimeSlots}
+                availableTimeSlots={availableTimeSlots.map(time => ({
+                  startTime: new Date(),  // You'll need to convert time to Date
+                  endTime: new Date(),    // You'll need to convert time to Date
+                  period: 'lunch',        // You'll need to determine if lunch or dinner
+                  time: time
+                }))}
               />
             )}
             {step === 1 && (
