@@ -1,14 +1,14 @@
 import React from 'react';
 import { Calendar as CalendarIcon, Clock } from 'lucide-react';
 // import { ReservationData } from './ReservationForm';
-// import { TimeSlot } from '@/types/timeslot';
+import { TimeSlot } from '@/types/TimeSlot';
 
 type Props = {
   date: Date;
   time: string;
   onUpdate: (date: Date, time: string) => void;
   onDateChange: (date: Date) => void;
-  availableTimeSlots: string[];
+  availableTimeSlots: TimeSlot[];
 };
 
 interface DatePickerProps {
@@ -16,8 +16,13 @@ interface DatePickerProps {
   time: string;
   onUpdate: (date: Date, time: string) => void;
   onDateChange: (date: Date) => void;
-  availableTimeSlots: string[];
+  availableTimeSlots: TimeSlot[];
 }
+
+// interface TimeSlot {
+//   period: 'lunch' | 'dinner';
+//   // ... other properties
+// }
 
 const DatePicker: React.FC<DatePickerProps> = ({
   date,
