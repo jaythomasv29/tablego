@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Utensils, Calendar, Users, Mail, MessageSquare } from 'lucide-react';
-import DateTimePicker from './components/DateTimePicker';
+import DateTimePicker from './components/DatePicker';
 import GuestInfo from './components/GuestInfo';
 import AdditionalInfo from './components/AdditionalInfo';
 import Confirmation from './components/Confirmation';
