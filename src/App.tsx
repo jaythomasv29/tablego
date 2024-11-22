@@ -76,7 +76,7 @@ function App() {
     // ...
   ];
 
-  const handleUpdate = (updatedData: UpdatedDataType) => {
+  const handleUpdate = (updatedData: Date) => {
     // Handle the update logic here
     setFormData(prev => ({ ...prev, ...updatedData }));
   };
