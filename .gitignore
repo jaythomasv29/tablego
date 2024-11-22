@@ -53,3 +53,20 @@ npm-debug.log*
 .npm
 **/npm-cache
 **/_cacache
+
+# Build directories
+.next/
+out/
+.bolt/
+
+# Environment variables
+.env
+.env.local
+.env.*
+
+# Cache and dependencies
+node_modules/
+npm-debug.log*
+.npm
+**/npm-cache
+**/_cacache

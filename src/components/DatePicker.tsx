@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Calendar as CalendarIcon, Clock } from 'lucide-react';
 // import { ReservationData } from './ReservationForm';
 // import { TimeSlot } from '@/types/timeslot';
@@ -6,35 +6,29 @@ import { Calendar as CalendarIcon, Clock } from 'lucide-react';
 type Props = {
   date: Date;
   time: string;
-  onUpdate: (date: Date, time: string) => void;
+  onUpdate: (data: Partial<ReservationData>) => void;
   onDateChange: (date: Date) => void;
   availableTimeSlots: string[];
 };
 
-interface DatePickerProps {
+interface DateTimePickerProps {
   date: Date;
   time: string;
-  onUpdate: (date: Date, time: string) => void;
+  onUpdate: (data: Partial<ReservationData>) => void;
   onDateChange: (date: Date) => void;
   availableTimeSlots: string[];
 }
 
-const DatePicker: React.FC<DatePickerProps> = ({
+const DateTimePicker: React.FC<DateTimePickerProps> = ({
   date,
   time,
   onUpdate,
   onDateChange,
   availableTimeSlots = []
-}: DatePickerProps) => {
-
-  // Set tomorrow as default date on component mount
-  useEffect(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
-    onUpdate(tomorrow, time);
-    onDateChange(tomorrow);
-  }, []); // Empty dependency array means this runs once on mount
+}: DateTimePickerProps) => {
+  const handleUpdate = (newDate: Date, newTime: string) => {
+    onUpdate({ date: newDate, time: newTime });
+  };
 
   return (
     <div className="space-y-8">
@@ -56,7 +50,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
               onChange={(e) => {
                 const [year, month, day] = e.target.value.split('-').map(Number);
                 const newDate = new Date(year, month - 1, day, 12, 0, 0);
-                onUpdate(newDate, time);
+                handleUpdate(newDate, time);
                 onDateChange(newDate);
               }}
               min={new Date().toISOString().split('T')[0]}
@@ -75,7 +69,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
                   .map((slot) => (
                     <button
                       key={slot.time}
-                      onClick={() => onUpdate(date, slot.time)}
+                      onClick={() => handleUpdate(date, slot.time)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium ${time === slot.time
                         ? 'bg-indigo-600 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -95,7 +89,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
                   .map((slot) => (
                     <button
                       key={slot.time}
-                      onClick={() => onUpdate(date, slot.time)}
+                      onClick={() => handleUpdate(date, slot.time)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium ${time === slot.time
                         ? 'bg-indigo-600 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -113,4 +107,4 @@ const DatePicker: React.FC<DatePickerProps> = ({
   );
 };
 
-export default DatePicker;
+export default DateTimePicker;
