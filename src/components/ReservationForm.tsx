@@ -75,7 +75,11 @@ export default function ReservationForm() {
   const [reservationDetails, setReservationDetails] = useState<ReservationDetails | null>(null);
   const [businessHours, setBusinessHours] = useState<BusinessHours | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<Date>(initialData.date);
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  });
   const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlot[]>([]);
   console.log(businessHours)
   const steps = [
@@ -123,7 +127,9 @@ export default function ReservationForm() {
       try {
         const hoursDoc = await getDoc(doc(db, 'settings', 'businessHours'));
         if (hoursDoc.exists()) {
-          setBusinessHours(hoursDoc.data() as BusinessHours);
+          const hours = hoursDoc.data() as BusinessHours;
+          console.log('Fetched business hours:', hours);
+          setBusinessHours(hours);
         }
       } catch (error) {
         console.error('Error fetching business hours:', error);
@@ -137,12 +143,61 @@ export default function ReservationForm() {
 
   // Update time slots when date or business hours change
   useEffect(() => {
-    if (selectedDate && businessHours) {
+    if (businessHours) {
+      console.log('Generating initial time slots for:', selectedDate);
+      console.log('Using business hours:', businessHours);
       const newSlots = generateTimeSlots(selectedDate, businessHours);
+      console.log('Generated slots:', newSlots);
       setAvailableTimeSlots(newSlots);
     }
   }, [selectedDate, businessHours]);
 
+  // 1. Add helper function to check if we should show next day
+  const shouldShowNextDay = (hours: BusinessHours): boolean => {
+    const now = new Date();
+    const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const currentHours = hours[currentDay];
+
+    if (!currentHours) return true;
+
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    // Convert closing time to minutes
+    const timeToMinutes = (timeStr: string): number => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
+    // Check if we're past dinner closing time or if both periods are closed
+    const isDinnerClosed = !currentHours.dinner.isOpen ||
+      currentMinutes > timeToMinutes(currentHours.dinner.close) - 30; // 30 min buffer
+    const isLunchClosed = !currentHours.lunch.isOpen ||
+      currentMinutes > timeToMinutes(currentHours.lunch.close) - 30;
+
+    return isDinnerClosed && isLunchClosed;
+  };
+
+  // 2. Update the initial date state
+  // const [selectedDate, setSelectedDate] = useState<Date>(() => {
+  //   const today = new Date();
+  //   today.setHours(0, 0, 0, 0);
+  //   return today;
+  // });
+
+  // 3. Add useEffect to handle initial date setting
+  useEffect(() => {
+    if (businessHours) {
+      if (shouldShowNextDay(businessHours)) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(0, 0, 0, 0);
+        setSelectedDate(tomorrow);
+        updateFormData({ date: tomorrow });
+      }
+    }
+  }, [businessHours]); // Only run when business hours are loaded
+
+  // 4. Update the generateTimeSlots function to handle next day logic
   const generateTimeSlots = (date: Date, hours: BusinessHours): TimeSlot[] => {
     const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
     const dayHours = hours[dayOfWeek];
@@ -150,68 +205,102 @@ export default function ReservationForm() {
 
     if (!dayHours) return slots;
 
-    const generateSlotsForPeriod = (
-      start: string,
-      end: string,
-      period: 'lunch' | 'dinner'
-    ) => {
-      const startTime = new Date(`2000-01-01T${start}`);
-      const endTime = new Date(`2000-01-01T${end}`);
-      const periodSlots: TimeSlot[] = [];
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    const isFutureDate = date > now;
 
-      // Generate slots in 30-minute intervals
-      while (startTime < endTime) {
-        periodSlots.push({
-          time: startTime.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-          }),
-          period
-        });
-        startTime.setMinutes(startTime.getMinutes() + 30);
-      }
-      return periodSlots;
+    const timeToMinutes = (timeStr: string): number => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
     };
 
-    // Generate lunch slots if open
-    if (dayHours.lunch.isOpen) {
-      slots.push(...generateSlotsForPeriod(
-        dayHours.lunch.open,
-        dayHours.lunch.close,
-        'lunch'
-      ));
-    }
+    const minutesToTime = (minutes: number): string => {
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      const period = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours % 12 || 12;
+      return `${displayHours}:${mins.toString().padStart(2, '0')}${period}`;
+    };
 
-    // Generate dinner slots if open
-    if (dayHours.dinner.isOpen) {
-      slots.push(...generateSlotsForPeriod(
-        dayHours.dinner.open,
-        dayHours.dinner.close,
-        'dinner'
-      ));
-    }
+    // For future dates or next day, show all time slots
+    if (isFutureDate || shouldShowNextDay(hours)) {
+      // Add lunch slots
+      if (dayHours.lunch.isOpen) {
+        let startMinutes = timeToMinutes(dayHours.lunch.open);
+        const endMinutes = timeToMinutes(dayHours.lunch.close);
 
-    // Filter out past times if the date is today
-    const today = new Date();
-    if (
-      date.getDate() === today.getDate() &&
-      date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear()
-    ) {
-      const currentTime = today.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      });
-      return slots.filter(slot => slot.time > currentTime);
+        while (startMinutes < endMinutes) {
+          slots.push({
+            time: minutesToTime(startMinutes),
+            period: 'lunch'
+          });
+          startMinutes += 30;
+        }
+      }
+
+      // Add dinner slots
+      if (dayHours.dinner.isOpen) {
+        let startMinutes = timeToMinutes(dayHours.dinner.open);
+        const endMinutes = timeToMinutes(dayHours.dinner.close);
+
+        while (startMinutes < endMinutes) {
+          slots.push({
+            time: minutesToTime(startMinutes),
+            period: 'dinner'
+          });
+          startMinutes += 30;
+        }
+      }
+    } else if (isToday && !shouldShowNextDay(hours)) {
+      // Only show remaining valid times for today
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+      // Add lunch slots for today
+      if (dayHours.lunch.isOpen) {
+        let startMinutes = timeToMinutes(dayHours.lunch.open);
+        const endMinutes = timeToMinutes(dayHours.lunch.close);
+
+        while (startMinutes < endMinutes) {
+          if (startMinutes > currentMinutes + 30) {
+            slots.push({
+              time: minutesToTime(startMinutes),
+              period: 'lunch'
+            });
+          }
+          startMinutes += 30;
+        }
+      }
+
+      // Add dinner slots for today
+      if (dayHours.dinner.isOpen) {
+        let startMinutes = timeToMinutes(dayHours.dinner.open);
+        const endMinutes = timeToMinutes(dayHours.dinner.close);
+
+        while (startMinutes < endMinutes) {
+          if (startMinutes > currentMinutes + 30) {
+            slots.push({
+              time: minutesToTime(startMinutes),
+              period: 'dinner'
+            });
+          }
+          startMinutes += 30;
+        }
+      }
     }
 
     return slots;
   };
 
   const handleDateChange = (date: Date) => {
+    console.log('Date changed to:', date);
     setSelectedDate(date);
+    // If there are available time slots, set the first one as default
+    if (availableTimeSlots.length > 0) {
+      updateFormData({
+        date,
+        time: availableTimeSlots[0].time
+      });
+    }
   };
 
   const handleSubmit = async () => {
@@ -330,15 +419,15 @@ export default function ReservationForm() {
                 {step === 0 && (
                   <>
                     <DatePicker
-                      date={formData.date}
+                      date={selectedDate}
                       time={formData.time}
-                      onUpdate={(date: Date, time: string) => updateFormData({ date, time })}
+                      onUpdate={(date: Date, time: string) => {
+                        updateFormData({ date, time });
+                        setSelectedDate(date);
+                      }}
                       onDateChange={handleDateChange}
                       availableTimeSlots={availableTimeSlots}
                     />
-                    <div className="mt-4 p-4 bg-yellow-100 text-yellow-800 rounded-lg">
-                      *For same day reservations please call (650) 323-7700 for assistance.
-                    </div>
                   </>
                 )}
                 {step === 1 && (

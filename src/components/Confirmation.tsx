@@ -4,11 +4,11 @@ import React from 'react';
 import { Calendar, Users, User, Mail, Phone, MessageSquare, Check, Loader2 } from 'lucide-react';
 import { ReservationData } from './ReservationForm';
 
-type Props = {
+interface Props {
   formData: ReservationData;
-  onSubmit: () => void;
+  onSubmit: () => Promise<void>;
   isSubmitting: boolean;
-};
+}
 
 const Confirmation: React.FC<Props> = ({ formData, onSubmit, isSubmitting }) => {
   const InfoRow = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => (

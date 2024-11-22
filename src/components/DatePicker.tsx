@@ -26,6 +26,14 @@ const DatePicker: React.FC<DatePickerProps> = ({
   onDateChange,
   availableTimeSlots = []
 }: DatePickerProps) => {
+  const isDateDisabled = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day
+
+    // Allow booking for today and future dates
+    return date < today;
+  };
+
   return (
     <div className="space-y-8">
       <div>
