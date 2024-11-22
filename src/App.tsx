@@ -76,7 +76,7 @@ function App() {
               <DateTimePicker
                 date={formData.date}
                 time={formData.time}
-                onUpdate={updateFormData}
+                onUpdate={(date: Date, time: string) => updateFormData({ date, time })}
               />
             )}
             {step === 1 && (
