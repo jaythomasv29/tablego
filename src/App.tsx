@@ -37,11 +37,10 @@ function App() {
     { title: 'Confirmation', icon: Mail },
   ];
 
-  const updateFormData = (date: Date, time: string) => {
+  const updateFormData = (data: Partial<ReservationData>) => {
     setFormData(prev => ({
       ...prev,
-      date,
-      time
+      ...data
     }));
   };
 
@@ -83,7 +82,7 @@ function App() {
             {step === 1 && (
               <GuestInfo
                 formData={formData}
-                onUpdate={updateFormData}
+                onUpdate={(data: Partial<ReservationData>) => updateFormData(data)}
               />
             )}
             {step === 2 && (
