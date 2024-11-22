@@ -36,3 +36,20 @@ C:tmpnodejsnpm-cache
 C:tmpnodejsnpm-cache
 **/npm-cache
 **/_cacache
+
+
+# Add to .gitignore
+# Next.js build output
+.next/
+out/
+
+# Firebase/Bolt
+.bolt/
+*.bolt.json
+
+# NPM
+node_modules/
+npm-debug.log*
+.npm
+**/npm-cache
+**/_cacache
