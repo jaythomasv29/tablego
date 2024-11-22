@@ -11,7 +11,7 @@ type Props = {
   availableTimeSlots: string[];
 };
 
-interface DateTimePickerProps {
+interface DatePickerProps {
   date: Date;
   time: string;
   onUpdate: (date: Date, time: string) => void;
@@ -19,13 +19,13 @@ interface DateTimePickerProps {
   availableTimeSlots: string[];
 }
 
-const DateTimePicker: React.FC<DateTimePickerProps> = ({
+const DatePicker: React.FC<DatePickerProps> = ({
   date,
   time,
   onUpdate,
   onDateChange,
   availableTimeSlots = []
-}: DateTimePickerProps) => {
+}: DatePickerProps) => {
   return (
     <div className="space-y-8">
       <div>
@@ -103,4 +103,4 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
   );
 };
 
-export default DateTimePicker;
+export default DatePicker;

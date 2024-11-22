@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Utensils, Calendar, Users, Mail, MessageSquare } from 'lucide-react';
-import DatePicker from './components/DatePicker';
+import DateTimePicker from './components/DateTimePicker';
 import GuestInfo from './components/GuestInfo';
 import AdditionalInfo from './components/AdditionalInfo';
 import Confirmation from './components/Confirmation';
@@ -74,7 +74,7 @@ function App() {
 
           <div className="mt-8">
             {step === 0 && (
-              <DatePicker
+              <DateTimePicker
                 date={formData.date}
                 time={formData.time}
                 onUpdate={updateFormData}
