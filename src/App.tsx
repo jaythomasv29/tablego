@@ -5,7 +5,6 @@ import GuestInfo from './components/GuestInfo';
 import AdditionalInfo from './components/AdditionalInfo';
 import Confirmation from './components/Confirmation';
 import ProgressBar from './components/ProgressBar';
-import TimeSlots from './components/TimeSlots';
 
 
 export interface ReservationData {
@@ -32,10 +31,6 @@ function App() {
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<ReservationData>(initialData);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [timeSlots, setTimeSlots] = useState<string[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   const steps = [
     { title: 'Date & Time', icon: Calendar },
@@ -43,29 +38,6 @@ function App() {
     { title: 'Additional Details', icon: MessageSquare },
     { title: 'Confirmation', icon: Mail },
   ];
-
-  useEffect(() => {
-    const fetchTimeSlots = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const formattedDate = selectedDate.toISOString().split('T')[0];
-        const response = await fetch(`/api/timeslots?date=${formattedDate}`);
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        const data = await response.json();
-        setTimeSlots(data);
-      } catch (err) {
-        setError('Failed to load time slots.');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTimeSlots();
-  }, [selectedDate]);
 
   const updateFormData = (data: Partial<ReservationData>) => {
     setFormData(prev => ({
@@ -92,7 +64,7 @@ function App() {
   };
 
   const handleDateChange = (date: Date) => {
-    setSelectedDate(date);
+    // Implement your date change logic here
     setFormData((prev) => ({ ...prev, date }));
   };
 
@@ -108,9 +80,6 @@ function App() {
     // Handle the update logic here
     setFormData(prev => ({ ...prev, ...updatedData }));
   };
-
-  if (loading) return <p>Loading...</p>;
-  if (error) return <p>{error}</p>;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -136,7 +105,7 @@ function App() {
                 time={formData.time}
                 onUpdate={handleUpdate}
                 onDateChange={handleDateChange}
-                availableTimeSlots={timeSlots}
+                availableTimeSlots={availableTimeSlots}
               />
             )}
             {step === 1 && (
