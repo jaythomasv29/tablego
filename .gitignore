@@ -32,3 +32,7 @@ C:tmpnodejsnpm-cache
 C:tmpnodejsnpm-cache
 **/npm-cache
 **/_cacache
+# NPM cache
+C:tmpnodejsnpm-cache
+**/npm-cache
+**/_cacache
