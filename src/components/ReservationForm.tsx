@@ -10,8 +10,9 @@ import ProgressBar from './ProgressBar';
 import Cookies from 'js-cookie';
 import { db } from '../firebase';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
-import CancelButton from './CancelButton';
+import { CancelButton } from './CancelButton';
 import Navbar from './Navbar';
+import { TimeSlot } from '@/types/TimeSlot';
 
 
 export type ReservationData = {
@@ -62,9 +63,11 @@ interface BusinessHours {
   };
 }
 
-interface TimeSlot {
-  time: string;
-  period: 'lunch' | 'dinner';
+
+interface Props {
+  currentStep: number;
+  steps: { title: string; icon: LucideIcon; }[];
+  onStepClick: (stepIndex: number) => void;
 }
 
 export default function ReservationForm() {
@@ -151,7 +154,7 @@ export default function ReservationForm() {
       setAvailableTimeSlots(newSlots);
     }
   }, [selectedDate, businessHours]);
-
+  const slotDuration = 30;
   // 1. Add helper function to check if we should show next day
   const shouldShowNextDay = (hours: BusinessHours): boolean => {
     const now = new Date();
@@ -230,9 +233,12 @@ export default function ReservationForm() {
         const endMinutes = timeToMinutes(dayHours.lunch.close);
 
         while (startMinutes < endMinutes) {
+          const today = new Date().toISOString().split('T')[0]; // Gets YYYY-MM-DD
           slots.push({
-            time: minutesToTime(startMinutes),
-            period: 'lunch'
+            period: startMinutes < 900 ? "lunch" : "dinner", // 900 minutes = 15:00
+            time: new Date(new Date().setHours(Math.floor(startMinutes / 60), startMinutes % 60)).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            startTime: new Date(new Date().setHours(Math.floor(startMinutes / 60), startMinutes % 60)),
+            endTime: new Date(new Date().setHours(Math.floor((startMinutes + slotDuration) / 60), (startMinutes + slotDuration) % 60))
           });
           startMinutes += 30;
         }
@@ -244,9 +250,12 @@ export default function ReservationForm() {
         const endMinutes = timeToMinutes(dayHours.dinner.close);
 
         while (startMinutes < endMinutes) {
+          const today = new Date().toISOString().split('T')[0]; // Gets YYYY-MM-DD
           slots.push({
-            time: minutesToTime(startMinutes),
-            period: 'dinner'
+            period: startMinutes < 900 ? "lunch" : "dinner", // 900 minutes = 15:00
+            time: new Date(new Date().setHours(Math.floor(startMinutes / 60), startMinutes % 60)).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            startTime: new Date(new Date().setHours(Math.floor(startMinutes / 60), startMinutes % 60)),
+            endTime: new Date(new Date().setHours(Math.floor((startMinutes + slotDuration) / 60), (startMinutes + slotDuration) % 60))
           });
           startMinutes += 30;
         }
@@ -262,9 +271,12 @@ export default function ReservationForm() {
 
         while (startMinutes < endMinutes) {
           if (startMinutes > currentMinutes + 30) {
+            const today = new Date().toISOString().split('T')[0]; // Gets YYYY-MM-DD
             slots.push({
-              time: minutesToTime(startMinutes),
-              period: 'lunch'
+              period: startMinutes < 900 ? "lunch" : "dinner", // 900 minutes = 15:00
+              time: new Date(new Date().setHours(Math.floor(startMinutes / 60), startMinutes % 60)).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+              startTime: new Date(new Date().setHours(Math.floor(startMinutes / 60), startMinutes % 60)),
+              endTime: new Date(new Date().setHours(Math.floor((startMinutes + slotDuration) / 60), (startMinutes + slotDuration) % 60))
             });
           }
           startMinutes += 30;
@@ -278,9 +290,12 @@ export default function ReservationForm() {
 
         while (startMinutes < endMinutes) {
           if (startMinutes > currentMinutes + 30) {
+            const today = new Date().toISOString().split('T')[0]; // Gets YYYY-MM-DD
             slots.push({
-              time: minutesToTime(startMinutes),
-              period: 'dinner'
+              period: startMinutes < 900 ? "lunch" : "dinner", // 900 minutes = 15:00
+              time: new Date(new Date().setHours(Math.floor(startMinutes / 60), startMinutes % 60)).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+              startTime: new Date(new Date().setHours(Math.floor(startMinutes / 60), startMinutes % 60)),
+              endTime: new Date(new Date().setHours(Math.floor((startMinutes + slotDuration) / 60), (startMinutes + slotDuration) % 60))
             });
           }
           startMinutes += 30;

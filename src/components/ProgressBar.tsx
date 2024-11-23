@@ -1,17 +1,13 @@
 import React from 'react';
 import { LucideIcon } from 'lucide-react';
 
-type Step = {
-  title: string;
-  icon: LucideIcon;
-};
-
-type Props = {
+interface Props {
   currentStep: number;
-  steps: Step[];
-};
+  steps: { title: string; icon: LucideIcon; }[];
+  onStepClick: (stepIndex: number) => void;
+}
 
-const ProgressBar: React.FC<Props> = ({ currentStep, steps }) => {
+const ProgressBar: React.FC<Props> = ({ currentStep, steps, onStepClick }) => {
   return (
     <div className="relative">
       <div className="absolute top-5 w-full h-0.5 bg-gray-200">
@@ -31,8 +27,8 @@ const ProgressBar: React.FC<Props> = ({ currentStep, steps }) => {
             >
               <div
                 className={`w-10 h-10 rounded-full flex items-center justify-center ${index <= currentStep
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-200 text-gray-400'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-gray-200 text-gray-400'
                   }`}
               >
                 <Icon className="w-5 h-5" />

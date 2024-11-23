@@ -7,12 +7,15 @@ interface CancelButtonProps {
   onSuccess?: () => void;
 }
 
-export default function CancelButton({ onSuccess }: { onSuccess?: () => void }) {
+interface CancelButtonProps {
+  reservationId: string;
+  onSuccess?: () => void;
+}
+
+export const CancelButton: React.FC<CancelButtonProps> = ({ reservationId, onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleCancel = async () => {
-    const reservationId = Cookies.get('reservationId');
-
     if (!reservationId) {
       alert('No reservation ID found in cookies. Please make sure you have an active reservation.');
       return;
