@@ -100,7 +100,11 @@ function App() {
 
       <main className="max-w-3xl mx-auto px-4 py-8">
         <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
-          <ProgressBar currentStep={step} steps={steps} />
+          <ProgressBar
+            currentStep={step}
+            steps={steps}
+            onStepClick={(index) => setStep(index)}
+          />
 
           <div className="mt-8">
             {step === 0 && (

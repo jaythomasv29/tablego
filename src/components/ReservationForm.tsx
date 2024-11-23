@@ -44,10 +44,6 @@ type ReservationDetails = {
   email: string;
 };
 
-interface CancelButtonProps {
-  reservationId: string;
-}
-
 interface BusinessHours {
   [key: string]: {
     lunch: {
@@ -61,13 +57,6 @@ interface BusinessHours {
       isOpen: boolean;
     };
   };
-}
-
-
-interface Props {
-  currentStep: number;
-  steps: { title: string; icon: LucideIcon; }[];
-  onStepClick: (stepIndex: number) => void;
 }
 
 export default function ReservationForm() {
@@ -84,7 +73,6 @@ export default function ReservationForm() {
     return today;
   });
   const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlot[]>([]);
-  console.log(businessHours)
   const steps = [
     { title: 'Date & Time', icon: Calendar },
     { title: 'Guest Information', icon: Users },
@@ -179,13 +167,6 @@ export default function ReservationForm() {
 
     return isDinnerClosed && isLunchClosed;
   };
-
-  // 2. Update the initial date state
-  // const [selectedDate, setSelectedDate] = useState<Date>(() => {
-  //   const today = new Date();
-  //   today.setHours(0, 0, 0, 0);
-  //   return today;
-  // });
 
   // 3. Add useEffect to handle initial date setting
   useEffect(() => {
