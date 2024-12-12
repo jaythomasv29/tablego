@@ -12,13 +12,8 @@ import { db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { CancelButton } from './CancelButton';
 import Navbar from './Navbar';
+import { TimeSlot } from '@/types/TimeSlot';
 
-interface TimeSlot {
-  period: 'lunch' | 'dinner';
-  time: string;
-  startTime: string;
-  endTime: string;
-}
 
 export type ReservationData = {
   date: Date;
@@ -270,8 +265,8 @@ export default function ReservationForm() {
         lunchSlots.push({
           period: 'lunch',
           time: minutesToTime(startMinutes),
-          startTime: minutesToTime(startMinutes),
-          endTime: minutesToTime(startMinutes + slotDuration)
+          startTime: new Date(minutesToTime(startMinutes)),
+          endTime: new Date(minutesToTime(startMinutes + slotDuration))
         });
         startMinutes += slotDuration;
       }
@@ -286,8 +281,8 @@ export default function ReservationForm() {
         dinnerSlots.push({
           period: 'dinner',
           time: minutesToTime(startMinutes),
-          startTime: minutesToTime(startMinutes),
-          endTime: minutesToTime(startMinutes + slotDuration)
+          startTime: new Date(minutesToTime(startMinutes)),
+          endTime: new Date(minutesToTime(startMinutes + slotDuration))
         });
         startMinutes += slotDuration;
       }
