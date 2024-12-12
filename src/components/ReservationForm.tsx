@@ -12,8 +12,13 @@ import { db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { CancelButton } from './CancelButton';
 import Navbar from './Navbar';
-import { TimeSlot } from '@/types/TimeSlot';
 
+interface TimeSlot {
+  period: 'lunch' | 'dinner';
+  time: string;
+  startTime: string;
+  endTime: string;
+}
 
 export type ReservationData = {
   date: Date;
