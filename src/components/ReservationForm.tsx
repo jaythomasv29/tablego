@@ -68,7 +68,7 @@ export default function ReservationForm() {
   const [businessHours, setBusinessHours] = useState<BusinessHours | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
-    const today = new Date();
+    const today = new Date(getPSTDate());
     today.setHours(0, 0, 0, 0);
     return today;
   });
@@ -145,8 +145,11 @@ export default function ReservationForm() {
   const slotDuration = 30;
   // 1. Add helper function to check if we should show next day
   const shouldShowNextDay = (hours: BusinessHours): boolean => {
-    const now = new Date();
-    const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const now = new Date(getPSTDate());
+    const currentDay = now.toLocaleDateString('en-US', {
+      weekday: 'long',
+      timeZone: "America/Los_Angeles"
+    }).toLowerCase();
     const currentHours = hours[currentDay];
 
     if (!currentHours) return true;
@@ -183,13 +186,16 @@ export default function ReservationForm() {
 
   // 4. Update the generateTimeSlots function to handle next day logic
   const generateTimeSlots = (date: Date, hours: BusinessHours): TimeSlot[] => {
-    const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const now = new Date(getPSTDate());
+    const dayOfWeek = date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      timeZone: "America/Los_Angeles"
+    }).toLowerCase();
     const dayHours = hours[dayOfWeek];
     const slots: TimeSlot[] = [];
 
     if (!dayHours) return slots;
 
-    const now = new Date();
     const isToday = date.toDateString() === now.toDateString();
     const isFutureDate = date > now;
 
@@ -476,3 +482,9 @@ export default function ReservationForm() {
     </div>
   );
 }
+
+const getPSTDate = () => {
+  return new Date().toLocaleString("en-US", {
+    timeZone: "America/Los_Angeles"
+  });
+};
