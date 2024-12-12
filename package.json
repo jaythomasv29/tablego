@@ -9,6 +9,11 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/material": "^6.2.0",
+    "@mui/x-date-pickers": "^7.23.1",
+    "date-fns": "^2.30.0",
     "firebase": "^11.0.1",
     "js-cookie": "^3.0.5",
     "lucide-react": "^0.344.0",

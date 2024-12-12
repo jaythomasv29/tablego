@@ -1,15 +1,10 @@
 import React from 'react';
-import { Calendar as CalendarIcon, Clock } from 'lucide-react';
-// import { ReservationData } from './ReservationForm';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import { TimeSlot } from '@/types/TimeSlot';
-
-type Props = {
-  date: Date;
-  time: string;
-  onUpdate: (date: Date, time: string) => void;
-  onDateChange: (date: Date) => void;
-  availableTimeSlots: TimeSlot[];
-};
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { DatePicker as MuiDatePicker } from '@mui/x-date-pickers/DatePicker';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
 
 interface DatePickerProps {
   date: Date;
@@ -19,10 +14,13 @@ interface DatePickerProps {
   availableTimeSlots: TimeSlot[];
 }
 
-// interface TimeSlot {
-//   period: 'lunch' | 'dinner';
-//   // ... other properties
-// }
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#4F46E5', // Indigo-600 to match your current theme
+    },
+  },
+});
 
 const DatePicker: React.FC<DatePickerProps> = ({
   date,
@@ -30,12 +28,10 @@ const DatePicker: React.FC<DatePickerProps> = ({
   onUpdate,
   onDateChange,
   availableTimeSlots = []
-}: DatePickerProps) => {
+}) => {
   const isDateDisabled = (date: Date) => {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time to start of day
-
-    // Allow booking for today and future dates
+    today.setHours(0, 0, 0, 0);
     return date < today;
   };
 
@@ -53,18 +49,29 @@ const DatePicker: React.FC<DatePickerProps> = ({
                 <span>Date</span>
               </div>
             </label>
-            <input
-              type="date"
-              value={date.toISOString().split('T')[0]}
-              onChange={(e) => {
-                const [year, month, day] = e.target.value.split('-').map(Number);
-                const newDate = new Date(year, month - 1, day, 12, 0, 0);
-                onUpdate(newDate, time);
-                onDateChange(newDate);
-              }}
-              min={new Date().toISOString().split('T')[0]}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
-            />
+            <ThemeProvider theme={theme}>
+              <LocalizationProvider dateAdapter={AdapterDateFns}>
+                <MuiDatePicker
+                  value={date}
+                  onChange={(newDate) => {
+                    if (newDate) {
+                      newDate.setHours(12, 0, 0, 0);
+                      onUpdate(newDate, time);
+                      onDateChange(newDate);
+                    }
+                  }}
+                  disablePast
+                  sx={{
+                    width: '100%',
+                    '& .MuiOutlinedInput-root': {
+                      '&:hover fieldset': {
+                        borderColor: '#4F46E5',
+                      },
+                    },
+                  }}
+                />
+              </LocalizationProvider>
+            </ThemeProvider>
           </div>
 
           <div>
@@ -80,8 +87,8 @@ const DatePicker: React.FC<DatePickerProps> = ({
                       key={slot.time}
                       onClick={() => onUpdate(date, slot.time)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium ${time === slot.time
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                     >
                       {slot.time}
@@ -100,8 +107,8 @@ const DatePicker: React.FC<DatePickerProps> = ({
                       key={slot.time}
                       onClick={() => onUpdate(date, slot.time)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium ${time === slot.time
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                     >
                       {slot.time}

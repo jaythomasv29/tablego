@@ -9,7 +9,7 @@ import Confirmation from './Confirmation';
 import ProgressBar from './ProgressBar';
 import Cookies from 'js-cookie';
 import { db } from '../firebase';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { CancelButton } from './CancelButton';
 import Navbar from './Navbar';
 import { TimeSlot } from '@/types/TimeSlot';
@@ -44,6 +44,7 @@ type ReservationDetails = {
   email: string;
 };
 
+
 interface BusinessHours {
   [key: string]: {
     lunch: {
@@ -59,6 +60,8 @@ interface BusinessHours {
   };
 }
 
+const slotDuration = 30; // If it's a fixed value
+
 export default function ReservationForm() {
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<ReservationData>(initialData);
@@ -68,11 +71,12 @@ export default function ReservationForm() {
   const [businessHours, setBusinessHours] = useState<BusinessHours | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
-    const today = new Date(getPSTDate());
-    today.setHours(0, 0, 0, 0);
-    return today;
+    const pstToday = getPSTDate();
+    pstToday.setHours(12, 0, 0, 0);
+    return pstToday;
   });
   const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlot[]>([]);
+  console.log(businessHours)
   const steps = [
     { title: 'Date & Time', icon: Calendar },
     { title: 'Guest Information', icon: Users },
@@ -134,19 +138,24 @@ export default function ReservationForm() {
 
   // Update time slots when date or business hours change
   useEffect(() => {
-    if (businessHours) {
-      console.log('Generating initial time slots for:', selectedDate);
-      console.log('Using business hours:', businessHours);
+    if (businessHours && selectedDate) {
+      console.log('Generating time slots for:', selectedDate);
       const newSlots = generateTimeSlots(selectedDate, businessHours);
-      console.log('Generated slots:', newSlots);
       setAvailableTimeSlots(newSlots);
+
+      // If we have slots and no time is selected, select the first available slot
+      if (newSlots.length > 0 && !formData.time) {
+        updateFormData({
+          time: newSlots[0].time
+        });
+      }
     }
   }, [selectedDate, businessHours]);
-  const slotDuration = 30;
+
   // 1. Add helper function to check if we should show next day
   const shouldShowNextDay = (hours: BusinessHours): boolean => {
-    const now = new Date(getPSTDate());
-    const currentDay = now.toLocaleDateString('en-US', {
+    const pstNow = getPSTDate();
+    const currentDay = pstNow.toLocaleDateString('en-US', {
       weekday: 'long',
       timeZone: "America/Los_Angeles"
     }).toLowerCase();
@@ -154,12 +163,21 @@ export default function ReservationForm() {
 
     if (!currentHours) return true;
 
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const currentMinutes = pstNow.getHours() * 60 + pstNow.getMinutes();
 
     // Convert closing time to minutes
     const timeToMinutes = (timeStr: string): number => {
-      const [hours, minutes] = timeStr.split(':').map(Number);
-      return hours * 60 + minutes;
+      const [time, period] = timeStr.split(' ');
+      let [hours, minutes] = time.split(':').map(Number);
+
+      // Convert to 24-hour format if needed
+      if (period === 'PM' && hours !== 12) {
+        hours += 12;
+      } else if (period === 'AM' && hours === 12) {
+        hours = 0;
+      }
+
+      return hours * 60 + (minutes || 0);
     };
 
     // Check if we're past dinner closing time or if both periods are closed
@@ -170,6 +188,13 @@ export default function ReservationForm() {
 
     return isDinnerClosed && isLunchClosed;
   };
+
+  // 2. Update the initial date state
+  // const [selectedDate, setSelectedDate] = useState<Date>(() => {
+  //   const today = new Date();
+  //   today.setHours(0, 0, 0, 0);
+  //   return today;
+  // });
 
   // 3. Add useEffect to handle initial date setting
   useEffect(() => {
@@ -186,122 +211,125 @@ export default function ReservationForm() {
 
   // 4. Update the generateTimeSlots function to handle next day logic
   const generateTimeSlots = (date: Date, hours: BusinessHours): TimeSlot[] => {
-    const now = new Date(getPSTDate());
     const dayOfWeek = date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      timeZone: "America/Los_Angeles"
+      weekday: 'long'
     }).toLowerCase();
+
     const dayHours = hours[dayOfWeek];
-    const slots: TimeSlot[] = [];
+    const lunchSlots: TimeSlot[] = [];
+    const dinnerSlots: TimeSlot[] = [];
 
-    if (!dayHours) return slots;
+    if (!dayHours) return [];
 
-    const isToday = date.toDateString() === now.toDateString();
-    const isFutureDate = date > now;
-
+    // Helper to convert "HH:mm" to minutes since midnight
     const timeToMinutes = (timeStr: string): number => {
       const [hours, minutes] = timeStr.split(':').map(Number);
       return hours * 60 + minutes;
     };
 
+    // Helper to convert minutes to "HH:mm AM/PM" format
     const minutesToTime = (minutes: number): string => {
       const hours = Math.floor(minutes / 60);
       const mins = minutes % 60;
       const period = hours >= 12 ? 'PM' : 'AM';
       const displayHours = hours % 12 || 12;
-      return `${displayHours}:${mins.toString().padStart(2, '0')}${period}`;
+      return `${displayHours}:${mins.toString().padStart(2, '0')} ${period}`;
     };
 
-    // For future dates or next day, show all time slots
-    if (isFutureDate || shouldShowNextDay(hours)) {
-      // Add lunch slots
-      if (dayHours.lunch.isOpen) {
-        let startMinutes = timeToMinutes(dayHours.lunch.open);
-        const endMinutes = timeToMinutes(dayHours.lunch.close);
+    // Helper to convert "H:mm AM/PM" to minutes for sorting
+    const timeStringToMinutes = (timeStr: string): number => {
+      // Split into time and period (e.g., "1:00" and "PM")
+      const [timeComponent, period] = timeStr.trim().split(' ');
 
-        while (startMinutes < endMinutes) {
-          const today = new Date().toISOString().split('T')[0]; // Gets YYYY-MM-DD
-          slots.push({
-            period: startMinutes < 900 ? "lunch" : "dinner", // 900 minutes = 15:00
-            time: new Date(new Date().setHours(Math.floor(startMinutes / 60), startMinutes % 60)).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-            startTime: new Date(new Date().setHours(Math.floor(startMinutes / 60), startMinutes % 60)),
-            endTime: new Date(new Date().setHours(Math.floor((startMinutes + slotDuration) / 60), (startMinutes + slotDuration) % 60))
-          });
-          startMinutes += 30;
-        }
+      // Split hours and minutes
+      const [hoursStr, minutesStr] = timeComponent.split(':');
+      let hours = parseInt(hoursStr, 10);
+      const minutes = parseInt(minutesStr, 10);
+
+      // Convert to 24-hour format
+      if (period === 'PM' && hours !== 12) {
+        hours += 12;
+      } else if (period === 'AM' && hours === 12) {
+        hours = 0;
       }
 
-      // Add dinner slots
-      if (dayHours.dinner.isOpen) {
-        let startMinutes = timeToMinutes(dayHours.dinner.open);
-        const endMinutes = timeToMinutes(dayHours.dinner.close);
+      return (hours * 60) + minutes;
+    };
 
-        while (startMinutes < endMinutes) {
-          const today = new Date().toISOString().split('T')[0]; // Gets YYYY-MM-DD
-          slots.push({
-            period: startMinutes < 900 ? "lunch" : "dinner", // 900 minutes = 15:00
-            time: new Date(new Date().setHours(Math.floor(startMinutes / 60), startMinutes % 60)).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-            startTime: new Date(new Date().setHours(Math.floor(startMinutes / 60), startMinutes % 60)),
-            endTime: new Date(new Date().setHours(Math.floor((startMinutes + slotDuration) / 60), (startMinutes + slotDuration) % 60))
-          });
-          startMinutes += 30;
-        }
-      }
-    } else if (isToday && !shouldShowNextDay(hours)) {
-      // Only show remaining valid times for today
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    // Generate lunch slots
+    if (dayHours.lunch.isOpen) {
+      let startMinutes = timeToMinutes(dayHours.lunch.open);
+      const endMinutes = timeToMinutes(dayHours.lunch.close) - 30;
 
-      // Add lunch slots for today
-      if (dayHours.lunch.isOpen) {
-        let startMinutes = timeToMinutes(dayHours.lunch.open);
-        const endMinutes = timeToMinutes(dayHours.lunch.close);
-
-        while (startMinutes < endMinutes) {
-          if (startMinutes > currentMinutes + 30) {
-            const today = new Date().toISOString().split('T')[0]; // Gets YYYY-MM-DD
-            slots.push({
-              period: startMinutes < 900 ? "lunch" : "dinner", // 900 minutes = 15:00
-              time: new Date(new Date().setHours(Math.floor(startMinutes / 60), startMinutes % 60)).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-              startTime: new Date(new Date().setHours(Math.floor(startMinutes / 60), startMinutes % 60)),
-              endTime: new Date(new Date().setHours(Math.floor((startMinutes + slotDuration) / 60), (startMinutes + slotDuration) % 60))
-            });
-          }
-          startMinutes += 30;
-        }
-      }
-
-      // Add dinner slots for today
-      if (dayHours.dinner.isOpen) {
-        let startMinutes = timeToMinutes(dayHours.dinner.open);
-        const endMinutes = timeToMinutes(dayHours.dinner.close);
-
-        while (startMinutes < endMinutes) {
-          if (startMinutes > currentMinutes + 30) {
-            const today = new Date().toISOString().split('T')[0]; // Gets YYYY-MM-DD
-            slots.push({
-              period: startMinutes < 900 ? "lunch" : "dinner", // 900 minutes = 15:00
-              time: new Date(new Date().setHours(Math.floor(startMinutes / 60), startMinutes % 60)).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-              startTime: new Date(new Date().setHours(Math.floor(startMinutes / 60), startMinutes % 60)),
-              endTime: new Date(new Date().setHours(Math.floor((startMinutes + slotDuration) / 60), (startMinutes + slotDuration) % 60))
-            });
-          }
-          startMinutes += 30;
-        }
+      while (startMinutes <= endMinutes) {
+        lunchSlots.push({
+          period: 'lunch',
+          time: minutesToTime(startMinutes),
+          startTime: minutesToTime(startMinutes),
+          endTime: minutesToTime(startMinutes + slotDuration)
+        });
+        startMinutes += slotDuration;
       }
     }
 
-    return slots;
+    // Generate dinner slots
+    if (dayHours.dinner.isOpen) {
+      let startMinutes = timeToMinutes(dayHours.dinner.open);
+      const endMinutes = timeToMinutes(dayHours.dinner.close) - 30;
+
+      while (startMinutes <= endMinutes) {
+        dinnerSlots.push({
+          period: 'dinner',
+          time: minutesToTime(startMinutes),
+          startTime: minutesToTime(startMinutes),
+          endTime: minutesToTime(startMinutes + slotDuration)
+        });
+        startMinutes += slotDuration;
+      }
+    }
+
+    // Sort lunch and dinner slots by time
+    const sortByTime = (a: TimeSlot, b: TimeSlot) => {
+      const minutesA = timeStringToMinutes(a.time);
+      const minutesB = timeStringToMinutes(b.time);
+      return minutesA - minutesB;
+    };
+
+    // Sort lunch slots separately
+    const sortedLunchSlots = [...lunchSlots].sort(sortByTime);
+    const sortedDinnerSlots = [...dinnerSlots].sort(sortByTime);
+
+    return [...sortedLunchSlots, ...sortedDinnerSlots];
   };
 
   const handleDateChange = (date: Date) => {
     console.log('Date changed to:', date);
-    setSelectedDate(date);
-    // If there are available time slots, set the first one as default
-    if (availableTimeSlots.length > 0) {
+
+    // Create a new date object for the selected date
+    const newDate = new Date(date);
+    newDate.setHours(12, 0, 0, 0);
+
+    // First update the selected date
+    setSelectedDate(newDate);
+
+    // Generate new time slots for the selected date if we have business hours
+    if (businessHours) {
+      console.log('Generating slots for new date:', newDate);
+      console.log('Using business hours:', businessHours);
+
+      const newSlots = generateTimeSlots(newDate, businessHours);
+      console.log('Generated new slots:', newSlots);
+
+      // Update available time slots
+      setAvailableTimeSlots(newSlots);
+
+      // Update form data with the new date and first available time slot
       updateFormData({
-        date,
-        time: availableTimeSlots[0].time
+        date: newDate,
+        time: newSlots.length > 0 ? newSlots[0].time : ''
       });
+    } else {
+      console.warn('No business hours available when changing date');
     }
   };
 
@@ -483,8 +511,11 @@ export default function ReservationForm() {
   );
 }
 
-const getPSTDate = () => {
-  return new Date().toLocaleString("en-US", {
-    timeZone: "America/Los_Angeles"
-  });
+const getPSTDate = (date?: Date): Date => {
+  const targetDate = date || new Date();
+  return new Date(
+    targetDate.toLocaleString("en-US", {
+      timeZone: "America/Los_Angeles",
+    })
+  );
 };

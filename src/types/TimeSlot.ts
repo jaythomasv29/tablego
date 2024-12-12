@@ -1,6 +1,6 @@
-export type TimeSlot = {
-    startTime: Date;
-    endTime: Date;
+export interface TimeSlot {
     period: 'lunch' | 'dinner';
     time: string;
-};
+    startTime: string;
+    endTime: string;
+}
