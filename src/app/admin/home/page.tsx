@@ -2,22 +2,51 @@
 
 import AdminLayout from '@/components/AdminLayout';
 import { useEffect, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/firebase';
 
 interface DashboardMetrics {
     totalReservations: number;
     uniqueCustomers: number;
     todayReservations: number;
+
 }
 
 export default function AdminHome() {
+    const [pageViews, setPageViews] = useState<{ id: string, views: string }[]>([]);
+
+
     const [metrics, setMetrics] = useState<DashboardMetrics>({
         totalReservations: 0,
         uniqueCustomers: 0,
         todayReservations: 0,
+
     });
     const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchAnalytics() {
+            try {
+                const analyticsRef = collection(db, 'analytics');
+                const q = query(analyticsRef, orderBy('date', 'desc'), limit(50));
+                const snapshot = await getDocs(q);
+
+                const views = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    views: doc.data().views || '0'
+                }));
+
+                setPageViews(views);
+            } catch (error) {
+                console.error('Error fetching analytics:', error);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        fetchAnalytics();
+    }, []);
+
 
     useEffect(() => {
         async function fetchMetrics() {
@@ -46,6 +75,7 @@ export default function AdminHome() {
                     totalReservations: snapshot.size,
                     uniqueCustomers: uniqueEmails.size + uniquePhones.size,
                     todayReservations: todayCount,
+
                 });
             } catch (error) {
                 console.error('Error fetching metrics:', error);
@@ -56,6 +86,7 @@ export default function AdminHome() {
 
         fetchMetrics();
     }, []);
+    console.log(pageViews)
 
     return (
         <AdminLayout>
@@ -67,6 +98,20 @@ export default function AdminHome() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {/* Total Page Views Card */}
+                    <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-gray-600">Total Page Views</p>
+                                <p className="text-3xl font-bold text-gray-900">{(Number(pageViews[0]?.views) / 2) ?? 0}</p>
+                            </div>
+                            <div className="p-3 bg-blue-50 rounded-full">
+                                <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
                     {/* Total Reservations Card */}
                     <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
                         <div className="flex items-center justify-between">

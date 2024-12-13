@@ -13,6 +13,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { CancelButton } from './CancelButton';
 import Navbar from './Navbar';
 import { TimeSlot } from '@/types/TimeSlot';
+import { usePageTracking } from './usePageTracking';
 
 
 export type ReservationData = {
@@ -75,6 +76,7 @@ export default function ReservationForm() {
     pstToday.setHours(12, 0, 0, 0);
     return pstToday;
   });
+  usePageTracking();
   const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlot[]>([]);
   console.log(businessHours)
   const steps = [

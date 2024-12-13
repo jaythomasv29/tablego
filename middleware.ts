@@ -1,22 +1,21 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-import { getToken } from 'next-auth/jwt'
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
     if (request.nextUrl.pathname.startsWith('/admin')) {
-        // Get the token using next-auth
-        const token = await getToken({
-            req: request,
-            secret: process.env.NEXTAUTH_SECRET
-        })
+        // Check for company password cookie
+        const companyAuth = request.cookies.get('company-auth');
 
-        const isAuthenticated = !!token && token.role === 'admin' // Check for admin role
+        if (!companyAuth) {
+            // Store the original URL they were trying to access
+            const callbackUrl = request.nextUrl.pathname + request.nextUrl.search;
+            const loginUrl = new URL('/login', request.url);
+            loginUrl.searchParams.set('callbackUrl', callbackUrl);
 
-        if (!isAuthenticated) {
-            return NextResponse.redirect(new URL('/login', request.url))
+            return NextResponse.redirect(loginUrl);
         }
     }
-    return NextResponse.next()
+    return NextResponse.next();
 }
 
 export const config = {
