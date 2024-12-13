@@ -144,7 +144,9 @@ export default function ReservationAdminPage() {
                 {/* Reservations Table */}
                 <div className="overflow-x-auto">
                     {loading ? (
-                        <div className="text-center py-4 text-gray-600">Loading reservations...</div>
+                        <div className="flex justify-center items-center h-64">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                        </div>
                     ) : (
                         <table className="min-w-full bg-white rounded-lg shadow-md">
                             <thead className="bg-gray-200">

@@ -103,7 +103,9 @@ export default function AdminHome() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-gray-600">Total Page Views</p>
-                                <p className="text-3xl font-bold text-gray-900">{(Number(pageViews[0]?.views) / 2) ?? 0}</p>
+                                <p className="text-3xl font-bold text-gray-900">
+                                    {pageViews[0]?.views ? Number(pageViews[0].views) / 2 : 0}
+                                </p>
                             </div>
                             <div className="p-3 bg-blue-50 rounded-full">
                                 <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
