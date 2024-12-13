@@ -27,7 +27,7 @@ export default function Navbar() {
 
                         <div className="flex items-center space-x-6">
                             <Link
-                                href="/order"
+                                href="https://order.online/business/Thaiphoon-450?utm_source=sdk&visitorId=193be2bc7cf1d9e9c"
                                 className="flex items-center space-x-2 text-gray-600 hover:text-indigo-600 transition-colors"
                             >
                                 <ShoppingBag className="h-5 w-5" />

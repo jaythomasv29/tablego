@@ -5,6 +5,7 @@ import { db } from '../../../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AdminLayout from '@/components/AdminLayout';
 
 interface BusinessHours {
     [key: string]: {
@@ -120,122 +121,126 @@ export default function BusinessHoursAdmin() {
     if (isLoading) return <div>Loading...</div>;
 
     return (
-        <div className="max-w-4xl mx-auto p-6">
-            <Link
-                href="/admin/home"
-                className="inline-flex items-center mb-4 text-gray-600 hover:text-gray-800"
-            >
-                <svg
-                    className="w-6 h-6 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+        <AdminLayout>
+
+
+            <div className="max-w-4xl mx-auto p-6">
+                <Link
+                    href="/admin/home"
+                    className="inline-flex items-center mb-4 text-gray-600 hover:text-gray-800"
                 >
-                    <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                    />
-                </svg>
-                Back to Dashboard
-            </Link>
+                    <svg
+                        className="w-6 h-6 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                        />
+                    </svg>
+                    Back to Dashboard
+                </Link>
 
-            <h1 className="text-2xl font-bold mb-6">Business Hours Management</h1>
+                <h1 className="text-2xl font-bold mb-6">Business Hours Management</h1>
 
-            <div className="bg-white shadow rounded-lg p-6">
-                {Object.entries(hours).map(([day, mealTimes]) => (
-                    <div key={day} className="mb-6 p-4 border rounded">
-                        <h2 className="text-lg font-semibold capitalize mb-4">{day}</h2>
+                <div className="bg-white shadow rounded-lg p-6">
+                    {Object.entries(hours).map(([day, mealTimes]) => (
+                        <div key={day} className="mb-6 p-4 border rounded">
+                            <h2 className="text-lg font-semibold capitalize mb-4">{day}</h2>
 
-                        {/* Lunch Hours */}
-                        <div className="mb-4">
-                            <div className="flex items-center justify-between mb-2">
-                                <h3 className="text-md font-medium">Lunch Hours</h3>
-                                <label className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        checked={mealTimes.lunch.isOpen}
-                                        onChange={(e) => handleChange(day, 'lunch', 'isOpen', e.target.checked)}
-                                        className="mr-2"
-                                    />
-                                    Open for Lunch
-                                </label>
+                            {/* Lunch Hours */}
+                            <div className="mb-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-md font-medium">Lunch Hours</h3>
+                                    <label className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={mealTimes.lunch.isOpen}
+                                            onChange={(e) => handleChange(day, 'lunch', 'isOpen', e.target.checked)}
+                                            className="mr-2"
+                                        />
+                                        Open for Lunch
+                                    </label>
+                                </div>
+
+                                {mealTimes.lunch.isOpen && (
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Opening Time</label>
+                                            <input
+                                                type="time"
+                                                value={mealTimes.lunch.open}
+                                                onChange={(e) => handleChange(day, 'lunch', 'open', e.target.value)}
+                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Closing Time</label>
+                                            <input
+                                                type="time"
+                                                value={mealTimes.lunch.close}
+                                                onChange={(e) => handleChange(day, 'lunch', 'close', e.target.value)}
+                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
-                            {mealTimes.lunch.isOpen && (
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Opening Time</label>
+                            {/* Dinner Hours */}
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-md font-medium">Dinner Hours</h3>
+                                    <label className="flex items-center">
                                         <input
-                                            type="time"
-                                            value={mealTimes.lunch.open}
-                                            onChange={(e) => handleChange(day, 'lunch', 'open', e.target.value)}
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                            type="checkbox"
+                                            checked={mealTimes.dinner.isOpen}
+                                            onChange={(e) => handleChange(day, 'dinner', 'isOpen', e.target.checked)}
+                                            className="mr-2"
                                         />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Closing Time</label>
-                                        <input
-                                            type="time"
-                                            value={mealTimes.lunch.close}
-                                            onChange={(e) => handleChange(day, 'lunch', 'close', e.target.value)}
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                        />
-                                    </div>
+                                        Open for Dinner
+                                    </label>
                                 </div>
-                            )}
-                        </div>
 
-                        {/* Dinner Hours */}
-                        <div>
-                            <div className="flex items-center justify-between mb-2">
-                                <h3 className="text-md font-medium">Dinner Hours</h3>
-                                <label className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        checked={mealTimes.dinner.isOpen}
-                                        onChange={(e) => handleChange(day, 'dinner', 'isOpen', e.target.checked)}
-                                        className="mr-2"
-                                    />
-                                    Open for Dinner
-                                </label>
+                                {mealTimes.dinner.isOpen && (
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Opening Time</label>
+                                            <input
+                                                type="time"
+                                                value={mealTimes.dinner.open}
+                                                onChange={(e) => handleChange(day, 'dinner', 'open', e.target.value)}
+                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Closing Time</label>
+                                            <input
+                                                type="time"
+                                                value={mealTimes.dinner.close}
+                                                onChange={(e) => handleChange(day, 'dinner', 'close', e.target.value)}
+                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-
-                            {mealTimes.dinner.isOpen && (
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Opening Time</label>
-                                        <input
-                                            type="time"
-                                            value={mealTimes.dinner.open}
-                                            onChange={(e) => handleChange(day, 'dinner', 'open', e.target.value)}
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Closing Time</label>
-                                        <input
-                                            type="time"
-                                            value={mealTimes.dinner.close}
-                                            onChange={(e) => handleChange(day, 'dinner', 'close', e.target.value)}
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                        />
-                                    </div>
-                                </div>
-                            )}
                         </div>
-                    </div>
-                ))}
+                    ))}
 
-                <button
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    className="w-full mt-4 bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
-                >
-                    {isSaving ? 'Saving...' : 'Save Changes'}
-                </button>
+                    <button
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className="w-full mt-4 bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+                    >
+                        {isSaving ? 'Saving...' : 'Save Changes'}
+                    </button>
+                </div>
             </div>
-        </div>
+        </AdminLayout>
     );
 }
