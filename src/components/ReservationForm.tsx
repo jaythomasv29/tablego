@@ -211,6 +211,10 @@ export default function ReservationForm() {
 
   // 4. Update the generateTimeSlots function to handle next day logic
   const generateTimeSlots = (date: Date, hours: BusinessHours): TimeSlot[] => {
+    const pstNow = getPSTDate();
+    const isToday = date.toDateString() === pstNow.toDateString();
+    const currentMinutes = isToday ? pstNow.getHours() * 60 + pstNow.getMinutes() : 0;
+
     const dayOfWeek = date.toLocaleDateString('en-US', {
       weekday: 'long'
     }).toLowerCase();
@@ -262,12 +266,14 @@ export default function ReservationForm() {
       const endMinutes = timeToMinutes(dayHours.lunch.close) - 30;
 
       while (startMinutes <= endMinutes) {
-        lunchSlots.push({
-          period: 'lunch',
-          time: minutesToTime(startMinutes),
-          startTime: new Date(minutesToTime(startMinutes)),
-          endTime: new Date(minutesToTime(startMinutes + slotDuration))
-        });
+        if (!isToday || startMinutes > currentMinutes + 30) {
+          lunchSlots.push({
+            period: 'lunch',
+            time: minutesToTime(startMinutes),
+            startTime: minutesToTime(startMinutes),
+            endTime: minutesToTime(startMinutes + slotDuration)
+          });
+        }
         startMinutes += slotDuration;
       }
     }
@@ -278,12 +284,14 @@ export default function ReservationForm() {
       const endMinutes = timeToMinutes(dayHours.dinner.close) - 30;
 
       while (startMinutes <= endMinutes) {
-        dinnerSlots.push({
-          period: 'dinner',
-          time: minutesToTime(startMinutes),
-          startTime: new Date(minutesToTime(startMinutes)),
-          endTime: new Date(minutesToTime(startMinutes + slotDuration))
-        });
+        if (!isToday || startMinutes > currentMinutes + 30) {
+          dinnerSlots.push({
+            period: 'dinner',
+            time: minutesToTime(startMinutes),
+            startTime: minutesToTime(startMinutes),
+            endTime: minutesToTime(startMinutes + slotDuration)
+          });
+        }
         startMinutes += slotDuration;
       }
     }

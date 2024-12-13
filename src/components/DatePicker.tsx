@@ -67,6 +67,12 @@ const DatePicker: React.FC<DatePickerProps> = ({
                       '&:hover fieldset': {
                         borderColor: '#4F46E5',
                       },
+                      '& fieldset': {
+                        borderColor: 'rgba(0, 0, 0, 0.23)',
+                      },
+                      '&.Mui-error fieldset': {
+                        borderColor: 'rgba(0, 0, 0, 0.23)',
+                      }
                     },
                   }}
                 />
@@ -87,8 +93,8 @@ const DatePicker: React.FC<DatePickerProps> = ({
                       key={slot.time}
                       onClick={() => onUpdate(date, slot.time)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium ${time === slot.time
-                          ? 'bg-indigo-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                     >
                       {slot.time}
@@ -107,8 +113,8 @@ const DatePicker: React.FC<DatePickerProps> = ({
                       key={slot.time}
                       onClick={() => onUpdate(date, slot.time)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium ${time === slot.time
-                          ? 'bg-indigo-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                     >
                       {slot.time}
