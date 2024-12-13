@@ -114,8 +114,8 @@ function App() {
                 onUpdate={handleUpdate}
                 onDateChange={handleDateChange}
                 availableTimeSlots={availableTimeSlots.map(time => ({
-                  startTime: new Date(),  // You'll need to convert time to Date
-                  endTime: new Date(),    // You'll need to convert time to Date
+                  startTime: new Date().toISOString(),  // Convert to ISO string
+                  endTime: new Date().toISOString(),    // Convert to ISO string
                   period: 'lunch',        // You'll need to determine if lunch or dinner
                   time: time
                 }))}

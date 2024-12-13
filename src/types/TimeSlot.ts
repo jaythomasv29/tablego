@@ -1,6 +1,6 @@
 export type TimeSlot = {
-    startTime: Date;
-    endTime: Date;
+    startTime: string;
+    endTime: string;
     period: 'lunch' | 'dinner';
     time: string;
 };
