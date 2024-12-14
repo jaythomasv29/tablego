@@ -110,6 +110,15 @@ export default function AdminSidebar() {
                                 Reservations
                             </Link>
                         </li>
+                        <li>
+                            <Link
+                                href="/admin/menu"
+                                className={`block py-2 px-3 rounded text-sm hover:bg-gray-700 transition-colors ${isActiveLink('/admin/menu')}`}
+                                onClick={() => setIsOpen(false)}
+                            >
+                                Menu
+                            </Link>
+                        </li>
                     </ul>
                 </nav>
             </div>
