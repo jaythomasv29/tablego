@@ -3,6 +3,8 @@ import Footer from '@/components/Footer';
 import ReservationForm from '../components/ReservationForm';
 import { useState } from 'react';
 import MenuCard from '@/components/MenuCard';
+import Link from 'next/link';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 
 export default function Home() {
   const [activeCard, setActiveCard] = useState<'reservation' | 'other'>('reservation');
@@ -12,25 +14,13 @@ export default function Home() {
       {/* Left Arrow with Tooltip - Only show when on Menu view */}
       {activeCard === 'other' && (
         <div className="absolute left-[1%] top-1/2 -translate-y-1/2 flex flex-col items-center">
-          <button
-            onClick={() => setActiveCard('reservation')}
-            className="bg-white p-2 rounded-full shadow-lg hover:bg-gray-100"
-            aria-label="Previous card"
+          <Link
+            href="/"
+            className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors cursor-pointer"
+            passHref
           >
-            <svg
-              className="w-6 h-6 text-gray-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </button>
+            <ArrowLeft className="h-6 w-6 text-gray-600" />
+          </Link>
           <div className="mt-2 bg-gray-800/40 text-white text-sm px-2 py-1 rounded whitespace-nowrap">
             Reservations
           </div>
@@ -48,27 +38,15 @@ export default function Home() {
 
       {/* Right Arrow with Tooltip - Only show when on Reservation view */}
       {activeCard === 'reservation' && (
-        <div className="absolute right-[1%] top-1/2 -translate-y-1/2 flex flex-col items-center">
-          <button
-            onClick={() => setActiveCard('other')}
-            className="bg-white p-2 rounded-full shadow-lg hover:bg-gray-100"
-            aria-label="Next card"
+        <div className="absolute right-[1%] transform -translate-y-1/2 flex flex-col items-center gap-2 z-20">
+          <Link
+            href="/menu"
+            className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors cursor-pointer"
+            passHref
           >
-            <svg
-              className="w-6 h-6 text-gray-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
-          </button>
-          <div className="mt-2 bg-gray-800/40 text-white text-sm px-2 py-1 rounded whitespace-nowrap">
+            <ArrowRight className="h-6 w-6 text-gray-600" />
+          </Link>
+          <div className="mt-2 text-sm font-medium text-gray-600 bg-white/80 backdrop-blur-sm px-2 py-1 rounded shadow-sm">
             View Menu
           </div>
         </div>
