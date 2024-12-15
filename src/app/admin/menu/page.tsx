@@ -197,7 +197,7 @@ export default function MenuManagement() {
     };
 
     const handleDeleteItem = async (id: string) => {
-        if (window.confirm('Are you sure you want to delete this item?')) {
+        if (typeof window !== 'undefined' && window.confirm('Are you sure you want to delete this item?')) {
             try {
                 await deleteDoc(doc(db, 'menu', id));
                 fetchMenuItems();
@@ -240,7 +240,7 @@ export default function MenuManagement() {
     };
 
     const handleSeedMenu = async () => {
-        if (window.confirm('Are you sure you want to seed the menu? This might create duplicate items.')) {
+        if (typeof window !== 'undefined' && window.confirm('Are you sure you want to seed the menu? This might create duplicate items.')) {
             await seedMenu();
             fetchMenuItems();
         }
