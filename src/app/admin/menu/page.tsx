@@ -1,4 +1,3 @@
-// src/app/admin/menu/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -237,13 +236,6 @@ export default function MenuManagement() {
         setSelectedItem(item);
         setModalOpen(true);
 
-    };
-
-    const handleSeedMenu = async () => {
-        if (typeof window !== 'undefined' && window.confirm('Are you sure you want to seed the menu? This might create duplicate items.')) {
-            await seedMenu();
-            fetchMenuItems();
-        }
     };
 
     return (
