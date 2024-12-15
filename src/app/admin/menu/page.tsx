@@ -30,13 +30,14 @@ const groupByCategory = (items: MenuItem[]) => {
 
 const CATEGORY_ORDER = [
     'Appetizers',
-    'Salads',
-    'Soups',
+    'Salad',
+    'Soup',
     'Signature Dishes',
-    'Wok Dishes',
-    'Curry Dishes',
+    'Wok',
+    'Curry',
     'Noodles',
     'Fried Rice',
+    'Grill',
     'Sides'
 ];
 
@@ -156,7 +157,8 @@ export default function MenuManagement() {
     const [isEditing, setIsEditing] = useState(false);
     const [editingId, setEditingId] = useState('');
     const [modalOpen, setModalOpen] = useState(false);
-    const [selectedItem, setSelectedItem] = useState(null);
+    const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+    const [viewMode, setViewMode] = useState<'store' | 'multi'>('store');
 
     useEffect(() => {
         fetchMenuItems();
@@ -267,173 +269,296 @@ export default function MenuManagement() {
                     Back to Dashboard
                 </Link>
 
-                <h1 className="text-2xl font-bold mb-6">Menu Management</h1>
-
-                {/* Quick Navigation Links */}
-                <div className="mb-8 bg-white p-4 rounded-lg shadow sticky top-0 z-10">
-                    <h3 className="text-lg font-semibold mb-2">Quick Navigation</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {CATEGORY_ORDER.map(category => (
-                            <a
-                                key={category}
-                                href={`#${category.toLowerCase().replace(/\s+/g, '-')}`}
-                                className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-sm text-gray-700 transition-colors"
-                            >
-                                {category}
-                            </a>
-                        ))}
+                <div className="flex justify-between items-center mb-6">
+                    <h1 className="text-2xl font-bold">Menu Management</h1>
+                    <div className="space-x-4">
+                        <button
+                            onClick={() => setViewMode('store')}
+                            className={`px-4 py-2 rounded ${viewMode === 'store'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                }`}
+                        >
+                            Store View
+                        </button>
+                        <button
+                            onClick={() => setViewMode('multi')}
+                            className={`px-4 py-2 rounded ${viewMode === 'multi'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                }`}
+                        >
+                            Multi Edit View
+                        </button>
                     </div>
                 </div>
 
-                {/* Add/Edit Form */}
-                <form onSubmit={(e) => {
-                    e.preventDefault();
-                    isEditing ? handleEditItem({ ...newItem, price: Number(newItem.price) }) : handleAddItem({ ...newItem, price: Number(newItem.price) });
-                }} className="mb-8 bg-white p-6 rounded-lg shadow">
-                    <h2 className="text-xl font-semibold mb-4">{isEditing ? 'Edit Menu Item' : 'Add New Menu Item'}</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Name</label>
-                            <input
-                                type="text"
-                                value={newItem.name}
-                                onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                required
-                            />
+                {viewMode === 'store' ? (
+                    <>
+                        {/* Quick Navigation Links */}
+                        <div className="mb-8 bg-white p-4 rounded-lg shadow sticky top-0 z-10">
+                            <h3 className="text-lg font-semibold mb-2">Quick Navigation</h3>
+                            <div className="flex flex-wrap gap-2">
+                                {CATEGORY_ORDER.map(category => (
+                                    <a
+                                        key={category}
+                                        href={`#${category.toLowerCase().replace(/\s+/g, '-')}`}
+                                        className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-sm text-gray-700 transition-colors"
+                                    >
+                                        {category}
+                                    </a>
+                                ))}
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Category</label>
-                            <input
-                                type="text"
-                                value={newItem.category}
-                                onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Price</label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                value={newItem.price}
-                                onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Description</label>
-                            <textarea
-                                value={newItem.description}
-                                onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Image URL (optional)</label>
-                            <input
-                                type="url"
-                                value={newItem.imageUrl || ''}
-                                onChange={(e) => setNewItem({ ...newItem, imageUrl: e.target.value })}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                placeholder="https://example.com/image.jpg"
-                            />
-                        </div>
-                    </div>
-                    <div className="mt-4">
-                        <button
-                            type="submit"
-                            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                        >
-                            {isEditing ? 'Update Item' : 'Add Item'}
-                        </button>
-                        {isEditing && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setIsEditing(false);
-                                    setEditingId('');
-                                    setNewItem({ name: '', description: '', price: '', category: '', imageUrl: '' });
-                                }}
-                                className="ml-2 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-                            >
-                                Cancel
-                            </button>
-                        )}
-                    </div>
-                </form>
-                {/* <button onClick={handleSeedMenu} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-                    Seed Menu
-                </button> */}
-                {/* Menu Items Display */}
-                {loading ? (
-                    <div className="flex justify-center items-center h-64">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-                    </div>
-                ) : (
-                    <div className="space-y-12">
-                        {sortByCategory(menuItems).map(({ category, items }) => (
-                            <div
-                                key={category}
-                                id={category.toLowerCase().replace(/\s+/g, '-')}
-                                className="scroll-mt-24" // Add padding for sticky header
-                            >
-                                <div className="flex items-center mb-6">
-                                    <h2 className="text-2xl font-bold text-gray-800">{category}</h2>
-                                    <div className="ml-4 flex-grow border-b border-gray-300"></div>
+
+                        {/* Add/Edit Form */}
+                        <form onSubmit={(e) => {
+                            e.preventDefault();
+                            isEditing ? handleEditItem({ ...newItem, price: Number(newItem.price) }) : handleAddItem({ ...newItem, price: Number(newItem.price) });
+                        }} className="mb-8 bg-white p-6 rounded-lg shadow">
+                            <h2 className="text-xl font-semibold mb-4">{isEditing ? 'Edit Menu Item' : 'Add New Menu Item'}</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Name</label>
+                                    <input
+                                        type="text"
+                                        value={newItem.name}
+                                        onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        required
+                                    />
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {items.map((item) => (
-                                        <div key={item.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                                            <div className="h-48 bg-gray-200">
-                                                <img
-                                                    src={item.imageUrl || "https://placehold.co/400x300/e2e8f0/666666?text=Plate+of+Food"}
-                                                    alt={item.name}
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            </div>
-                                            <div className="p-4">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <h3 className="text-lg font-semibold">{item.name}</h3>
-                                                    <span className="text-green-600 font-bold">
-                                                        ${item.price?.toFixed(2) || '0.00'}
-                                                    </span>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Category</label>
+                                    <input
+                                        type="text"
+                                        value={newItem.category}
+                                        onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Price</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={newItem.price}
+                                        onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Description</label>
+                                    <textarea
+                                        value={newItem.description}
+                                        onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Image URL (optional)</label>
+                                    <input
+                                        type="url"
+                                        value={newItem.imageUrl || ''}
+                                        onChange={(e) => setNewItem({ ...newItem, imageUrl: e.target.value })}
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        placeholder="https://example.com/image.jpg"
+                                    />
+                                </div>
+                            </div>
+                            <div className="mt-4">
+                                <button
+                                    type="submit"
+                                    className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                                >
+                                    {isEditing ? 'Update Item' : 'Add Item'}
+                                </button>
+                                {isEditing && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsEditing(false);
+                                            setEditingId('');
+                                            setNewItem({ name: '', description: '', price: '', category: '', imageUrl: '' });
+                                        }}
+                                        className="ml-2 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+                                    >
+                                        Cancel
+                                    </button>
+                                )}
+                            </div>
+                        </form>
+                        {/* <button onClick={handleSeedMenu} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                            Seed Menu
+                        </button> */}
+                        {/* Menu Items Display */}
+                        {loading ? (
+                            <div className="flex justify-center items-center h-64">
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                            </div>
+                        ) : (
+                            <div className="space-y-12">
+                                {sortByCategory(menuItems).map(({ category, items }) => (
+                                    <div
+                                        key={category}
+                                        id={category.toLowerCase().replace(/\s+/g, '-')}
+                                        className="scroll-mt-24" // Add padding for sticky header
+                                    >
+                                        <div className="flex items-center mb-6">
+                                            <h2 className="text-2xl font-bold text-gray-800">{category}</h2>
+                                            <div className="ml-4 flex-grow border-b border-gray-300"></div>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                            {items.map((item) => (
+                                                <div key={item.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                                                    <div className="h-48 bg-gray-200">
+                                                        <img
+                                                            src={item.imageUrl || "https://placehold.co/400x300/e2e8f0/666666?text=Plate+of+Food"}
+                                                            alt={item.name}
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    </div>
+                                                    <div className="p-4">
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <h3 className="text-lg font-semibold">{item.name}</h3>
+                                                            <span className="text-green-600 font-bold">
+                                                                ${item.price?.toFixed(2) || '0.00'}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-gray-600 text-sm mb-4">
+                                                            {item.description}
+                                                        </p>
+                                                        <div className="flex justify-end space-x-2">
+                                                            <button
+                                                                onClick={() => startEditing(item)}
+                                                                className="text-indigo-600 hover:text-indigo-900 text-sm"
+                                                            >
+                                                                Edit
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteItem(item?.id || '')}
+                                                                className="text-red-600 hover:text-red-900 text-sm"
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <p className="text-gray-600 text-sm mb-4">
-                                                    {item.description}
-                                                </p>
-                                                <div className="flex justify-end space-x-2">
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {modalOpen && selectedItem && (
+                            <EditModal
+                                item={selectedItem}
+                                isOpen={modalOpen}
+                                onClose={() => setModalOpen(false)}
+                                onSave={handleEditItem}
+                            />
+                        )}
+                    </>
+                ) : (
+                    <div>
+                        <h2 className="text-xl font-semibold mb-4">Multi Edit View</h2>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full bg-white">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image URL</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    {sortByCategory(menuItems).flatMap(({ category, items }) =>
+                                        items.map((item) => (
+                                            <tr key={item.id}>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <img
+                                                        src={item.imageUrl || "https://placehold.co/400x300/e2e8f0/666666?text=Plate+of+Food"}
+                                                        alt={item.name}
+                                                        className="w-20 h-20 object-cover rounded"
+                                                    />
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <input
+                                                        type="text"
+                                                        defaultValue={item.name}
+                                                        className="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                        onBlur={(e) => handleEditItem({
+                                                            ...item,
+                                                            name: e.target.value
+                                                        })}
+                                                    />
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <input
+                                                        type="text"
+                                                        defaultValue={item.category}
+                                                        className="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                        onBlur={(e) => handleEditItem({
+                                                            ...item,
+                                                            category: e.target.value
+                                                        })}
+                                                    />
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        defaultValue={item.price}
+                                                        className="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                        onBlur={(e) => handleEditItem({
+                                                            ...item,
+                                                            price: parseFloat(e.target.value)
+                                                        })}
+                                                    />
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <textarea
+                                                        defaultValue={item.description}
+                                                        className="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                        onBlur={(e) => handleEditItem({
+                                                            ...item,
+                                                            description: e.target.value
+                                                        })}
+                                                    />
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <input
+                                                        type="url"
+                                                        defaultValue={item.imageUrl}
+                                                        className="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                        onBlur={(e) => handleEditItem({
+                                                            ...item,
+                                                            imageUrl: e.target.value
+                                                        })}
+                                                    />
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                     <button
-                                                        onClick={() => startEditing(item)}
-                                                        className="text-indigo-600 hover:text-indigo-900 text-sm"
-                                                    >
-                                                        Edit
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteItem(item?.id || '')}
-                                                        className="text-red-600 hover:text-red-900 text-sm"
+                                                        onClick={() => handleDeleteItem(item.id || '')}
+                                                        className="text-red-600 hover:text-red-900"
                                                     >
                                                         Delete
                                                     </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                )}
-                {modalOpen && selectedItem && (
-                    <EditModal
-                        item={selectedItem}
-                        isOpen={modalOpen}
-                        onClose={() => setModalOpen(false)}
-                        onSave={handleEditItem}
-                    />
                 )}
             </div>
         </AdminLayout>

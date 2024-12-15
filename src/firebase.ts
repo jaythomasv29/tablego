@@ -22,6 +22,8 @@ const firebaseApp = initializeApp(firebaseConfig);
 // const analytics = getAnalytics(firebaseApp);
 
 import { getFirestore, collection, query, where, getDocs, addDoc } from "firebase/firestore";
+import { getStorage } from 'firebase/storage';
 
 export const db = getFirestore(firebaseApp);
+export const storage = getStorage(firebaseApp);
 

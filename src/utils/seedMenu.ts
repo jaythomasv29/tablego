@@ -1,4 +1,4 @@
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase';
 
 interface MenuItem {
@@ -446,12 +446,21 @@ const menuItems: MenuItem[] = [
 
 export async function seedMenu() {
     try {
+        // First get all existing menu items
+        const querySnapshot = await getDocs(collection(db, 'menu'));
+        const existingItems = querySnapshot.docs.map(doc => doc.data().name);
+
         for (const item of menuItems) {
-            await addDoc(collection(db, 'menu'), {
-                ...item,
-                price: item?.price || 0, // Default price if not specified
-            });
-            console.log(`Added ${item.name} to menu collection`);
+            // Check if item already exists
+            if (!existingItems.includes(item.name)) {
+                await addDoc(collection(db, 'menu'), {
+                    ...item,
+                    price: item?.price || 0,
+                });
+                console.log(`Added ${item.name} to menu collection`);
+            } else {
+                console.log(`Skipped ${item.name} - already exists`);
+            }
         }
         console.log('Menu seeding completed!');
     } catch (error) {

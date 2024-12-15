@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, Users, Mail, MessageSquare } from 'lucide-react';
 import DatePicker from './DatePicker';
 import GuestInfo from './GuestInfo';
-import AdditionalInfo from './AdditionalInfo';
-import Confirmation from './Confirmation';
+// import AdditionalInfo from './AdditionalInfo';
+// import Confirmation from './Confirmation';
 import ProgressBar from './ProgressBar';
 import Cookies from 'js-cookie';
 import { db } from '../firebase';
@@ -14,7 +14,12 @@ import { CancelButton } from './CancelButton';
 import Navbar from './Navbar';
 import { TimeSlot } from '@/types/TimeSlot';
 import { usePageTracking } from './usePageTracking';
+import dynamic from 'next/dynamic';
 
+// Lazy load components that aren't needed immediately
+const AdditionalInfo = dynamic(() => import('./AdditionalInfo'));
+const Confirmation = dynamic(() => import('./Confirmation'));
+// const SuccessScreen = dynamic(() => import('./SuccessScreen'));
 
 export type ReservationData = {
   date: Date;
@@ -78,7 +83,9 @@ export default function ReservationForm() {
   });
   usePageTracking();
   const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlot[]>([]);
-  console.log(businessHours)
+  // console.log(businessHours)
+  // console.log('Generating time slots for:', selectedDate);
+  // etc...
   const steps = [
     { title: 'Date & Time', icon: Calendar },
     { title: 'Guest Information', icon: Users },
