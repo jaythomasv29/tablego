@@ -314,7 +314,11 @@ export default function MenuManagement() {
                         {/* Add/Edit Form */}
                         <form onSubmit={(e) => {
                             e.preventDefault();
-                            isEditing ? handleEditItem({ ...newItem, price: Number(newItem.price) }) : handleAddItem({ ...newItem, price: Number(newItem.price) });
+                            if (isEditing) {
+                                handleEditItem({ ...newItem, price: Number(newItem.price) } as MenuItem);
+                            } else {
+                                handleAddItem(e);
+                            }
                         }} className="mb-8 bg-white p-6 rounded-lg shadow">
                             <h2 className="text-xl font-semibold mb-4">{isEditing ? 'Edit Menu Item' : 'Add New Menu Item'}</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
