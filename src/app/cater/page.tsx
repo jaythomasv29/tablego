@@ -49,7 +49,9 @@ const CateringPage = () => {
                 const querySnapshot = await getDocs(collection(db, 'menu'));
                 const items = querySnapshot.docs.map(doc => ({
                     id: doc.id,
-                    ...doc.data()
+                    name: doc.data().name || '',
+                    description: doc.data().description || '',
+                    imageUrl: doc.data().imageUrl
                 }));
                 setMenuItems(items);
             } catch (error) {
@@ -330,92 +332,9 @@ const CateringPage = () => {
                             )}
 
                             {step === 4 && (
-                                <div className="space-y-6">
-                                    <div className="mb-8 text-gray-600 border-b pb-6">
-                                        <p className="text-base leading-relaxed">
-                                            Please review your catering inquiry details below. Once submitted, our team will reach out within 24-48 hours to discuss your event in detail.
-                                        </p>
-                                    </div>
-
-                                    <div className="space-y-6">
-                                        {/* Customer Details Section */}
-                                        <div className="bg-gray-50 rounded-lg p-4">
-                                            <h4 className="text-sm font-medium text-gray-900 mb-4">Customer Details</h4>
-                                            <div className="grid grid-cols-2 gap-4 text-sm">
-                                                <div>
-                                                    <span className="text-gray-500">Name:</span>
-                                                    <p className="font-medium text-gray-900">{formData.name}</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-500">Email:</span>
-                                                    <p className="font-medium text-gray-900">{formData.email}</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-500">Phone:</span>
-                                                    <p className="font-medium text-gray-900">{formData.phone}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Event Details Section */}
-                                        <div className="bg-gray-50 rounded-lg p-4">
-                                            <h4 className="text-sm font-medium text-gray-900 mb-4">Event Details</h4>
-                                            <div className="grid grid-cols-2 gap-4 text-sm">
-                                                <div>
-                                                    <span className="text-gray-500">Event Address:</span>
-                                                    <p className="font-medium text-gray-900">{formData.address}</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-500">Date:</span>
-                                                    <p className="font-medium text-gray-900">{formData.date}</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-500">Time:</span>
-                                                    <p className="font-medium text-gray-900">{formData.time}</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-500">Party Size:</span>
-                                                    <p className="font-medium text-gray-900">{formData.partySize} people</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-500">Approximate Budget:</span>
-                                                    <p className="font-medium text-gray-900">${formData.budget}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Selected Dishes Section */}
-                                        <div className="bg-gray-50 rounded-lg p-4">
-                                            <h4 className="text-sm font-medium text-gray-900 mb-4">
-                                                Selected Dishes ({formData.selectedDishes.length})
-                                            </h4>
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                                {formData.selectedDishes.map((id) => {
-                                                    const item = menuItems.find(item => item.id === id);
-                                                    return (
-                                                        <div key={id} className="flex items-start space-x-3">
-                                                            <div className="h-12 w-12 flex-shrink-0">
-                                                                <img
-                                                                    src={item?.imageUrl || "https://placehold.co/400x300"}
-                                                                    alt={item?.name}
-                                                                    className="h-full w-full object-cover rounded"
-                                                                />
-                                                            </div>
-                                                            <div className="flex-1">
-                                                                <p className="text-sm font-medium text-gray-900">{item?.name}</p>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-
-                                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                                            <p className="text-sm text-yellow-800">
-                                                By submitting this inquiry, you acknowledge that this is an initial request and final details will be confirmed by our catering team. Prices and availability may vary.
-                                            </p>
-                                        </div>
-                                    </div>
+                                <div>
+                                    <h3 className="text-lg font-medium text-gray-700 mb-4">Confirm Your Details</h3>
+                                    {/* Add confirmation summary here */}
                                 </div>
                             )}
 
