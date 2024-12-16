@@ -2,9 +2,28 @@
 import MenuCard from '@/components/MenuCard';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import React from 'react';
+import React, { useState } from 'react';
+
+const CATEGORY_ORDER = [
+    'Appetizers',
+    'Salad',
+    'Soup',
+    'Signature Dishes',
+    'Wok',
+    'Curry',
+    'Noodles',
+    'Fried Rice',
+    'Grill',
+    'Sides'
+];
 
 const MenuPage = () => {
+    const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+    const scrollToCategory = (category: string) => {
+        setActiveCategory(category);
+    };
+
     return (
         <div className="relative">
             <Link
@@ -19,7 +38,21 @@ const MenuPage = () => {
                     Reserve
                 </span>
             </Link>
-            <MenuCard />
+
+            <div className="fixed right-4 top-1/2 transform -translate-y-1/2 flex flex-col gap-2 z-20">
+                {CATEGORY_ORDER.map((category) => (
+                    <button
+                        key={category}
+                        onClick={() => scrollToCategory(category)}
+                        className="text-sm font-medium text-gray-600 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-lg 
+                        shadow-sm hover:bg-white hover:shadow-md transition-all duration-200"
+                    >
+                        {category}
+                    </button>
+                ))}
+            </div>
+
+            <MenuCard activeCategory={activeCategory} />
         </div>
     );
 };

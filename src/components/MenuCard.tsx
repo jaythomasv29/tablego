@@ -16,7 +16,6 @@ interface MenuItem {
 
 const CATEGORY_ORDER = [
     'Appetizers',
-    'Salad',
     'Soup',
     'Salad',
     'Signature Dishes',
@@ -28,7 +27,11 @@ const CATEGORY_ORDER = [
     'Sides'
 ];
 
-export default function MenuCard() {
+interface MenuCardProps {
+    activeCategory: string | null;
+}
+
+export default function MenuCard({ activeCategory }: MenuCardProps) {
     const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -50,6 +53,16 @@ export default function MenuCard() {
 
         fetchMenuItems();
     }, []);
+
+    useEffect(() => {
+        if (activeCategory) {
+            const elementId = activeCategory.toLowerCase().replace(/\s+/g, '-');
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+    }, [activeCategory]);
 
     const groupByCategory = (items: MenuItem[]) => {
         return CATEGORY_ORDER.map(category => ({
@@ -73,7 +86,10 @@ export default function MenuCard() {
                     <div className="space-y-12">
                         {groupByCategory(menuItems).map(({ category, items }) => (
                             <div key={category} className="space-y-4">
-                                <h2 className="text-2xl font-bold text-gray-800 sticky top-20 bg-gradient-to-br from-gray-50 to-gray-100 py-2 z-10">
+                                <h2
+                                    id={category.toLowerCase().replace(/\s+/g, '-')}
+                                    className="text-2xl font-bold text-gray-800 sticky top-20 bg-gradient-to-br from-gray-50 to-gray-100 py-2 z-10"
+                                >
                                     {category}
                                 </h2>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
