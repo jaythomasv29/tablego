@@ -28,7 +28,7 @@ const CATEGORY_ORDER = [
 ];
 
 interface MenuCardProps {
-    activeCategory: string | null;
+    activeCategory?: string | null;
 }
 
 export default function MenuCard({ activeCategory }: MenuCardProps) {
