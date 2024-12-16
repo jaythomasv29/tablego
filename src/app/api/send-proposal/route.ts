@@ -3,6 +3,28 @@ import { db } from '../../../firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import nodemailer from 'nodemailer';
 
+// Add these interfaces
+interface Dish {
+    id: string;
+    name: string;
+    description: string;
+    imageUrl?: string;
+    category: string;
+}
+
+interface CateringFormData {
+    name: string;
+    email: string;
+    phone: string;
+    address: string;
+    budget: string;
+    date: string;
+    time: string;
+    partySize: string;
+    specialRequests?: string;
+    selectedDishes: Dish[];
+}
+
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT || '587'),
@@ -15,7 +37,7 @@ const transporter = nodemailer.createTransport({
 
 export async function POST(request: Request) {
     try {
-        const { formData } = await request.json();
+        const { formData } = await request.json() as { formData: CateringFormData };
 
         // Save to Firebase
         const cateringRef = await addDoc(collection(db, 'catering'), {
@@ -31,7 +53,7 @@ export async function POST(request: Request) {
             day: 'numeric'
         });
 
-        const selectedDishesHTML = formData.selectedDishes.map(dish => `
+        const selectedDishesHTML = formData.selectedDishes.map((dish: Dish) => `
           <div style="display: inline-block; margin: 10px; text-align: center; width: 200px;">
             <img 
               src="${dish.imageUrl}" 
