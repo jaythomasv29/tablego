@@ -138,7 +138,7 @@ const CateringPage = () => {
         } catch (error) {
             console.error('Error submitting form:', error);
             // Only show error alert if email wasn't sent
-            if (!error.message.includes('200')) {
+            if (error instanceof Error && !error.message.includes('200')) {
                 alert('Failed to submit inquiry. Please try again.');
             }
         }
