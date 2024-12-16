@@ -46,6 +46,8 @@ const CateringPage = () => {
         category: string;
     }>>([]);
 
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+
     useEffect(() => {
         const fetchMenuItems = async () => {
             try {
@@ -85,8 +87,61 @@ const CateringPage = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Handle form submission here
-        console.log(formData);
+
+        try {
+            const selectedDishesWithDetails = formData.selectedDishes.map(id => {
+                const dish = menuItems.find(item => item.id === id);
+                return {
+                    id: dish?.id,
+                    name: dish?.name,
+                    description: dish?.description,
+                    imageUrl: dish?.imageUrl
+                };
+            });
+
+            const response = await fetch('/api/send-proposal', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    formData: {
+                        ...formData,
+                        selectedDishes: selectedDishesWithDetails
+                    }
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            // If we reach here, the submission was successful
+            setShowSuccessModal(true);
+            // Reset form
+            setFormData({
+                name: '',
+                email: '',
+                phone: '',
+                address: '',
+                budget: '',
+                date: '',
+                time: '',
+                partySize: '',
+                specialRequests: '',
+                selectedDishes: [],
+            });
+            setStep(1);
+
+        } catch (error) {
+            console.error('Error submitting form:', error);
+            // Only show error alert if email wasn't sent
+            if (!error.message.includes('200')) {
+                alert('Failed to submit inquiry. Please try again.');
+            }
+        }
     };
 
     const inputClassName = "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500";
@@ -455,6 +510,45 @@ const CateringPage = () => {
                 </main>
             </div>
             <Footer />
+
+            {/* Success Modal */}
+            {showSuccessModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+                        <div className="text-center">
+                            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                                <svg
+                                    className="h-6 w-6 text-green-600"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="2"
+                                        d="M5 13l4 4L19 7"
+                                    />
+                                </svg>
+                            </div>
+                            <h3 className="mt-4 text-lg font-medium text-gray-900">
+                                Catering Inquiry Submitted!
+                            </h3>
+                            <p className="mt-2 text-sm text-gray-500">
+                                Thank you for your interest in our catering services. Our team will review your request and contact you within 24-48 hours to discuss the details.
+                            </p>
+                            <div className="mt-6">
+                                <button
+                                    onClick={() => setShowSuccessModal(false)}
+                                    className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-green-500"
+                                >
+                                    Got it, thanks!
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 };

@@ -140,7 +140,7 @@ export async function POST(request: Request) {
         // Send to business
         await transporter.sendMail({
             from: process.env.EMAIL_USER,
-            to: process.env.BUSINESS_EMAIL,
+            to: process.env.EMAIL_USER,
             subject: 'Action Required: New Catering Inquiry',
             html: emailContent,
         });
