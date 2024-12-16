@@ -18,6 +18,7 @@ const CATEGORY_ORDER = [
     'Appetizers',
     'Salad',
     'Soup',
+    'Salad',
     'Signature Dishes',
     'Wok',
     'Curry',

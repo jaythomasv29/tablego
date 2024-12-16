@@ -18,6 +18,7 @@ interface FormData {
     date: string;
     time: string;
     partySize: string;
+    specialRequests?: string;
     // Step 3
     selectedDishes: string[];
 }
@@ -33,6 +34,7 @@ const CateringPage = () => {
         date: '',
         time: '',
         partySize: '',
+        specialRequests: '',
         selectedDishes: [],
     });
 
@@ -41,6 +43,7 @@ const CateringPage = () => {
         name: string;
         description: string;
         imageUrl?: string;
+        category: string;
     }>>([]);
 
     useEffect(() => {
@@ -51,8 +54,10 @@ const CateringPage = () => {
                     id: doc.id,
                     name: doc.data().name || '',
                     description: doc.data().description || '',
-                    imageUrl: doc.data().imageUrl
+                    imageUrl: doc.data().imageUrl,
+                    category: doc.data().category || ''
                 }));
+                console.log('Fetched menu items:', items);
                 setMenuItems(items);
             } catch (error) {
                 console.error('Error fetching menu items:', error);
@@ -86,12 +91,6 @@ const CateringPage = () => {
 
     const inputClassName = "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500";
 
-    const calculateMaxItems = (partySize: number): number => {
-        if (partySize <= 25) return 4;
-        if (partySize > 25 && partySize <= 30) return Math.round(partySize / 7);
-        return Math.round(partySize / 6);
-    };
-
     const handleDishSelection = (itemId: string) => {
         setFormData(prev => {
             if (prev.selectedDishes.includes(itemId)) {
@@ -100,10 +99,6 @@ const CateringPage = () => {
                     selectedDishes: prev.selectedDishes.filter(id => id !== itemId)
                 };
             }
-
-            const maxItems = calculateMaxItems(parseInt(prev.partySize));
-            if (prev.selectedDishes.length >= maxItems) return prev;
-
             return {
                 ...prev,
                 selectedDishes: [...prev.selectedDishes, itemId]
@@ -256,6 +251,19 @@ const CateringPage = () => {
                                             required
                                         />
                                     </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Special Requests</label>
+                                        <textarea
+                                            name="specialRequests"
+                                            value={formData.specialRequests}
+                                            onChange={(e) => setFormData(prev => ({
+                                                ...prev,
+                                                specialRequests: e.target.value
+                                            }))}
+                                            className={`${inputClassName} min-h-[100px]`}
+                                            placeholder="Any dietary restrictions, allergies, or special accommodations?"
+                                        />
+                                    </div>
                                 </div>
                             )}
 
@@ -263,56 +271,55 @@ const CateringPage = () => {
                                 <div className="space-y-6">
                                     <div className="mb-8 text-gray-600 border-b pb-6">
                                         <p className="text-base leading-relaxed">
-                                            Based on your party size of {formData.partySize}, you can select up to {calculateMaxItems(parseInt(formData.partySize))} dishes.
-                                        </p>
-                                        <p className="text-base leading-relaxed mt-4">
-                                            Click on the dishes you'd like to include in your catering package:
+                                            Select the dishes you'd like to include in your catering package:
                                         </p>
                                     </div>
 
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                        {menuItems.map((item) => (
-                                            <button
-                                                key={item.id}
-                                                type="button"
-                                                onClick={() => handleDishSelection(item.id)}
-                                                disabled={
-                                                    !formData.selectedDishes.includes(item.id) &&
-                                                    formData.selectedDishes.length >= calculateMaxItems(parseInt(formData.partySize))
-                                                }
-                                                className={`
-                                                    relative p-4 rounded-lg border transition-all
-                                                    ${formData.selectedDishes.includes(item.id)
-                                                        ? 'border-green-500 bg-green-50'
-                                                        : 'border-gray-200 hover:border-gray-300'
-                                                    }
-                                                    ${formData.selectedDishes.includes(item.id)
-                                                        ? 'ring-2 ring-green-500 ring-opacity-50'
-                                                        : ''
-                                                    }
-                                                    ${(!formData.selectedDishes.includes(item.id) &&
-                                                        formData.selectedDishes.length >= calculateMaxItems(parseInt(formData.partySize)))
-                                                        ? 'opacity-50 cursor-not-allowed'
-                                                        : 'cursor-pointer'
-                                                    }
-                                                `}
-                                            >
-                                                <div className="h-24 w-full mb-2">
-                                                    <img
-                                                        src={item.imageUrl || "https://placehold.co/400x300"}
-                                                        alt={item.name}
-                                                        className="h-full w-full object-cover rounded"
-                                                    />
+                                    {/* Categories in order */}
+                                    {['Appetizers', 'Soup', 'Salad', 'Signature Dishes', 'Wok', 'Curry', 'Sides'].map(category => {
+                                        const categoryItems = menuItems.filter(item => item.category === category);
+
+                                        return categoryItems.length > 0 ? (
+                                            <div key={category} className="mb-8">
+                                                <h3 className="text-lg font-medium text-gray-800 mb-4">{category}</h3>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                                    {categoryItems.map((item) => (
+                                                        <button
+                                                            key={item.id}
+                                                            type="button"
+                                                            onClick={() => handleDishSelection(item.id)}
+                                                            className={`
+                                                                relative p-4 rounded-lg border transition-all
+                                                                ${formData.selectedDishes.includes(item.id)
+                                                                    ? 'border-green-500 bg-green-50'
+                                                                    : 'border-gray-200 hover:border-gray-300'
+                                                                }
+                                                                ${formData.selectedDishes.includes(item.id)
+                                                                    ? 'ring-2 ring-green-500 ring-opacity-50'
+                                                                    : ''
+                                                                }
+                                                                cursor-pointer
+                                                            `}
+                                                        >
+                                                            <div className="h-24 w-full mb-2">
+                                                                <img
+                                                                    src={item.imageUrl || "https://placehold.co/400x300"}
+                                                                    alt={item.name}
+                                                                    className="h-full w-full object-cover rounded"
+                                                                />
+                                                            </div>
+                                                            <h3 className="text-sm font-medium text-gray-900">{item.name}</h3>
+                                                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">{item.description}</p>
+                                                        </button>
+                                                    ))}
                                                 </div>
-                                                <h3 className="text-sm font-medium text-gray-900">{item.name}</h3>
-                                                <p className="text-xs text-gray-500 mt-1 line-clamp-2">{item.description}</p>
-                                            </button>
-                                        ))}
-                                    </div>
+                                            </div>
+                                        ) : null;
+                                    })}
 
                                     <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                                         <p className="text-sm text-gray-600">
-                                            Selected dishes ({formData.selectedDishes.length}/{calculateMaxItems(parseInt(formData.partySize))}):
+                                            Selected dishes ({formData.selectedDishes.length}):
                                         </p>
                                         <div className="mt-2 flex flex-wrap gap-2">
                                             {formData.selectedDishes.map((id) => {
@@ -332,9 +339,87 @@ const CateringPage = () => {
                             )}
 
                             {step === 4 && (
-                                <div>
+                                <div className="space-y-6">
                                     <h3 className="text-lg font-medium text-gray-700 mb-4">Confirm Your Details</h3>
-                                    {/* Add confirmation summary here */}
+
+                                    {/* Personal Details */}
+                                    <div className="bg-gray-50 rounded-lg p-4">
+                                        <h4 className="text-md font-medium text-gray-700 mb-3">Personal Information</h4>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <p className="text-sm text-gray-500">Name</p>
+                                                <p className="text-sm font-medium">{formData.name}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-gray-500">Email</p>
+                                                <p className="text-sm font-medium">{formData.email}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-gray-500">Phone</p>
+                                                <p className="text-sm font-medium">{formData.phone}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Event Details */}
+                                    <div className="bg-gray-50 rounded-lg p-4">
+                                        <h4 className="text-md font-medium text-gray-700 mb-3">Event Information</h4>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <p className="text-sm text-gray-500">Date</p>
+                                                <p className="text-sm font-medium">{new Date(formData.date).toLocaleDateString()}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-gray-500">Time</p>
+                                                <p className="text-sm font-medium">{formData.time}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-gray-500">Party Size</p>
+                                                <p className="text-sm font-medium">{formData.partySize} guests</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-gray-500">Budget</p>
+                                                <p className="text-sm font-medium">${formData.budget}</p>
+                                            </div>
+                                            <div className="col-span-2">
+                                                <p className="text-sm text-gray-500">Event Address</p>
+                                                <p className="text-sm font-medium">{formData.address}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Selected Dishes */}
+                                    <div className="bg-gray-50 rounded-lg p-4">
+                                        <h4 className="text-md font-medium text-gray-700 mb-3">
+                                            Selected Dishes ({formData.selectedDishes.length})
+                                        </h4>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                            {formData.selectedDishes.map((id) => {
+                                                const item = menuItems.find(item => item.id === id);
+                                                return item ? (
+                                                    <div key={id} className="bg-white rounded-lg p-3 shadow-sm">
+                                                        <div className="h-24 w-full mb-2">
+                                                            <img
+                                                                src={item.imageUrl || "https://placehold.co/400x300"}
+                                                                alt={item.name}
+                                                                className="h-full w-full object-cover rounded"
+                                                            />
+                                                        </div>
+                                                        <h5 className="text-sm font-medium text-gray-900">{item.name}</h5>
+                                                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                                                            {item.description}
+                                                        </p>
+                                                    </div>
+                                                ) : null;
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+                                        <p className="text-sm text-blue-700">
+                                            Please review all details before submitting. Our team will contact you within 24-48 hours to discuss your catering request.
+                                        </p>
+                                    </div>
                                 </div>
                             )}
 
