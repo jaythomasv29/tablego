@@ -350,7 +350,41 @@ export default function ReservationForm() {
     }
   };
 
+  const validateSteps = () => {
+    // Validate Step 1 (Date & Time)
+    const isStep1Valid = formData.date && formData.time;
+
+    // Validate Step 2 (Guest Information)
+    const isStep2Valid =
+      formData.name.trim() !== '' &&
+      formData.email.trim() !== '' &&
+      formData.phone.trim() !== '' &&
+      formData.guests > 0;
+
+    return {
+      isValid: isStep1Valid && isStep2Valid,
+      isStep1Valid,
+      isStep2Valid
+    };
+  };
+
   const handleSubmit = async () => {
+    const validation = validateSteps();
+
+    if (!validation.isValid) {
+      if (!validation.isStep1Valid) {
+        alert('Please complete all required fields in Date & Time');
+        setStep(0);
+        return;
+      }
+      if (!validation.isStep2Valid) {
+        alert('Please complete all required fields in Guest Information');
+        setStep(1);
+        return;
+      }
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const response = await fetch('/api/send-confirmation', {
@@ -407,7 +441,7 @@ export default function ReservationForm() {
         </div>
       )}
 
-      <CancelButton reservationId={reservationDetails?.reservationId || ""} />
+      {/* <CancelButton reservationId={reservationDetails?.reservationId || ""} /> */}
 
       <button
         onClick={() => {
@@ -418,7 +452,7 @@ export default function ReservationForm() {
         }}
         className="inline-flex items-center px-6 py-3 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
       >
-        Make Another Reservation
+        Home
         <ChevronRight className="w-4 h-4 ml-2" />
       </button>
     </div>
@@ -494,6 +528,7 @@ export default function ReservationForm() {
                     formData={formData}
                     onSubmit={handleSubmit}
                     isSubmitting={isSubmitting}
+                    isValid={validateSteps().isValid}
                   />
                 )}
               </div>

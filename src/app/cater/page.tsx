@@ -85,8 +85,20 @@ const CateringPage = () => {
         setStep(prev => prev - 1);
     };
 
+    const validateStep1 = () => {
+        return formData.name.trim() !== '' &&
+            formData.email.trim() !== '' &&
+            formData.phone.trim() !== '';
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!validateStep1()) {
+            alert('Please fill in all required fields in Step 1');
+            setStep(1);
+            return;
+        }
 
         try {
             const selectedDishesWithDetails = formData.selectedDishes.map(id => {
@@ -499,7 +511,11 @@ const CateringPage = () => {
                                 ) : (
                                     <button
                                         type="submit"
-                                        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors ml-auto"
+                                        className={`${validateStep1()
+                                                ? 'bg-green-600 hover:bg-green-700'
+                                                : 'bg-gray-400 cursor-not-allowed'
+                                            } text-white px-4 py-2 rounded transition-colors ml-auto`}
+                                        disabled={!validateStep1()}
                                     >
                                         Submit Inquiry
                                     </button>

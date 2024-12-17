@@ -4,13 +4,14 @@ import React from 'react';
 import { Calendar, Users, User, Mail, Phone, MessageSquare, Check, Loader2 } from 'lucide-react';
 import { ReservationData } from './ReservationForm';
 
-interface Props {
+interface ConfirmationProps {
   formData: ReservationData;
-  onSubmit: () => Promise<void>;
+  onSubmit: () => void;
   isSubmitting: boolean;
+  isValid: boolean;
 }
 
-const Confirmation: React.FC<Props> = ({ formData, onSubmit, isSubmitting }) => {
+const Confirmation: React.FC<ConfirmationProps> = ({ formData, onSubmit, isSubmitting, isValid }) => {
   const InfoRow = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => (
     <div className="flex items-start space-x-3 py-3">
       <Icon className="w-5 h-5 text-gray-500 mt-0.5" />
@@ -62,23 +63,18 @@ const Confirmation: React.FC<Props> = ({ formData, onSubmit, isSubmitting }) => 
         )}
       </div>
 
-      <button
-        onClick={onSubmit}
-        disabled={isSubmitting}
-        className="w-full flex items-center justify-center px-6 py-3 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-      >
-        {isSubmitting ? (
-          <>
-            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-            Processing...
-          </>
-        ) : (
-          <>
-            <Check className="w-5 h-5 mr-2" />
-            Confirm Reservation
-          </>
-        )}
-      </button>
+      <div className="flex justify-center">
+        <button
+          onClick={onSubmit}
+          disabled={isSubmitting || !isValid}
+          className={`${isValid
+            ? 'bg-indigo-600 hover:bg-indigo-700'
+            : 'bg-gray-400 cursor-not-allowed'
+            } text-white px-6 py-2 rounded-lg transition-colors`}
+        >
+          {isSubmitting ? 'Submitting...' : 'Confirm Reservation'}
+        </button>
+      </div>
 
       <p className="text-sm text-gray-500 text-center">
         By confirming, you agree to our reservation policy. A confirmation email will be sent to your email address.
