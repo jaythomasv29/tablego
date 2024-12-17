@@ -86,16 +86,17 @@ function App() {
   };
 
   // Add validation function at the component level
-  const validateSteps = () => {
+  const validateSteps = (): boolean => {
     // Validate Step 1 (Date & Time)
-    const isStep1Valid = formData.date && formData.time;
+    const isStep1Valid = Boolean(formData.date && formData.time);
 
     // Validate Step 2 (Guest Information)
-    const isStep2Valid =
+    const isStep2Valid = Boolean(
       formData.name.trim() !== '' &&
       formData.email.trim() !== '' &&
       formData.phone.trim() !== '' &&
-      formData.guests > 0;
+      formData.guests > 0
+    );
 
     return isStep1Valid && isStep2Valid;
   };

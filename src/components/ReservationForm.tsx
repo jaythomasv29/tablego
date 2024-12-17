@@ -528,7 +528,7 @@ export default function ReservationForm() {
                     formData={formData}
                     onSubmit={handleSubmit}
                     isSubmitting={isSubmitting}
-                    isValid={validateSteps().isValid}
+                    isValid={!!validateSteps().isValid}
                   />
                 )}
               </div>
