@@ -50,6 +50,9 @@ const MenuPage = () => {
                         {category}
                     </button>
                 ))}
+                <p className="text-xs text-gray-500 text-center mt-2 px-2">
+                    *Prices may vary
+                </p>
             </div>
 
             <MenuCard activeCategory={activeCategory} />

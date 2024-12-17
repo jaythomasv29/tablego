@@ -2,14 +2,22 @@
 
 import AdminLayout from '@/components/AdminLayout';
 import { useEffect, useState } from 'react';
-import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, where, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 
 interface DashboardMetrics {
     totalReservations: number;
     uniqueCustomers: number;
     todayReservations: number;
+    totalCatering: number;
+    newCatering: number;
+}
 
+interface Reservation {
+    name: string;
+    time: string;
+    guests: number;
+    date: string;
 }
 
 export default function AdminHome() {
@@ -20,9 +28,12 @@ export default function AdminHome() {
         totalReservations: 0,
         uniqueCustomers: 0,
         todayReservations: 0,
+        totalCatering: 0,
+        newCatering: 0,
 
     });
     const [loading, setLoading] = useState(true);
+    const [todaysReservations, setTodaysReservations] = useState<Reservation[]>([]);
 
     useEffect(() => {
         async function fetchAnalytics() {
@@ -48,45 +59,95 @@ export default function AdminHome() {
     }, []);
 
 
-    useEffect(() => {
-        async function fetchMetrics() {
-            try {
-                const reservationsRef = collection(db, 'reservations');
-                const snapshot = await getDocs(reservationsRef);
+    const fetchMetrics = async () => {
+        try {
+            const reservationsRef = collection(db, 'reservations');
+            const snapshot = await getDocs(reservationsRef);
+            const today = new Date().toDateString();
+            const uniqueEmails = new Set(snapshot.docs.map(doc => doc.data().email));
+            const uniquePhones = new Set(snapshot.docs.map(doc => doc.data().phone));
+            let todayCount = 0;
+            // Store today's reservations
+            const todaysList: Reservation[] = [];
 
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                if (new Date(data.date).toDateString() === today) {
+                    todaysList.push({
+                        name: data.name,
+                        time: data.time,
+                        guests: data.guests,
+                        date: data.date
+                    });
+                }
                 // Get unique customers by email and phone
-                const uniqueEmails = new Set();
-                const uniquePhones = new Set();
-                let todayCount = 0;
-                const today = new Date().toDateString();
 
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    if (data.email) uniqueEmails.add(data.email);
-                    if (data.phone) uniquePhones.add(data.phone);
 
-                    // Count today's reservations
-                    if (new Date(data.date).toDateString() === today) {
-                        todayCount++;
-                    }
-                });
+                // const today = new Date().toDateString();
 
-                setMetrics({
-                    totalReservations: snapshot.size,
-                    uniqueCustomers: uniqueEmails.size + uniquePhones.size,
-                    todayReservations: todayCount,
+                if (data.email) uniqueEmails.add(data.email);
+                if (data.phone) uniquePhones.add(data.phone);
 
-                });
-            } catch (error) {
-                console.error('Error fetching metrics:', error);
-            } finally {
-                setLoading(false);
-            }
+                // Count today's reservations
+                if (new Date(data.date).toDateString() === today) {
+                    todayCount++;
+                }
+            });
+
+            setTodaysReservations(todaysList);
+
+            // Add catering fetch
+            const cateringRef = collection(db, 'catering');
+            const cateringSnapshot = await getDocs(cateringRef);
+
+            // Count new (uncompleted) catering requests
+            const newCateringCount = cateringSnapshot.docs.filter(
+                doc => doc.data().status === 'pending'
+            ).length;
+
+            setMetrics({
+                totalReservations: snapshot.size,
+                uniqueCustomers: uniqueEmails.size + uniquePhones.size,
+                todayReservations: todayCount,
+                totalCatering: cateringSnapshot.size,
+                newCatering: newCateringCount,
+
+            });
+        } catch (error) {
+            console.error('Error fetching metrics:', error);
+        } finally {
+            setLoading(false);
         }
+    };
 
+    useEffect(() => {
         fetchMetrics();
     }, []);
+
     console.log(pageViews)
+
+    // Add new state for loading
+    const [markingAsRead, setMarkingAsRead] = useState(false);
+
+    const markAllCateringRead = async () => {
+        setMarkingAsRead(true);
+        try {
+            const cateringRef = collection(db, 'catering');
+            const unreadQuery = query(cateringRef, where('status', '==', 'pending'));
+            const snapshot = await getDocs(unreadQuery);
+
+            const updatePromises = snapshot.docs.map(doc =>
+                updateDoc(doc.ref, { status: 'completed' })
+            );
+
+            await Promise.all(updatePromises);
+            await fetchMetrics();
+        } catch (error) {
+            console.error('Error marking catering as read:', error);
+        } finally {
+            setMarkingAsRead(false);
+        }
+    };
 
     return (
         <AdminLayout>
@@ -104,7 +165,7 @@ export default function AdminHome() {
                             <div>
                                 <p className="text-sm font-medium text-gray-600">Total Page Views</p>
                                 <p className="text-3xl font-bold text-gray-900">
-                                    {pageViews[0]?.views ? Number(pageViews[0].views) / 2 : 0}
+                                    {pageViews[0]?.views ? Number(pageViews[0].views) : 0}
                                 </p>
                             </div>
                             <div className="p-3 bg-blue-50 rounded-full">
@@ -145,15 +206,61 @@ export default function AdminHome() {
                     </div>
 
                     {/* Today's Reservations Card */}
-                    <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
+                    <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow relative group">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-gray-600">Today's Reservations</p>
                                 <p className="text-3xl font-bold text-gray-900">{metrics.todayReservations}</p>
+
+                                {/* Tooltip */}
+                                {todaysReservations.length > 0 && (
+                                    <div className="absolute left-0 top-full mt-2 w-64 bg-white shadow-lg rounded-lg p-4 hidden group-hover:block z-10">
+                                        <div className="max-h-48 overflow-y-auto">
+                                            {todaysReservations.map((res, index) => (
+                                                <div key={index} className="mb-2 pb-2 border-b border-gray-100 last:border-0">
+                                                    <p className="font-medium">{res.name}</p>
+                                                    <p className="text-sm text-gray-600">
+                                                        {res.time} • {res.guests} guests
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                             <div className="p-3 bg-purple-50 rounded-full">
                                 <svg className="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Total Catering Deals Card */}
+                    <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-gray-600">
+                                    New Catering Requests
+                                    <span className="text-xs text-gray-400 ml-2">
+                                        (Total: {metrics.totalCatering})
+                                    </span>
+                                </p>
+                                <p className="text-3xl font-bold text-gray-900">
+                                    {markingAsRead ? (
+                                        <span className="inline-block animate-spin">⌛</span>
+                                    ) : metrics.newCatering}
+                                </p>
+                                <button
+                                    onClick={markAllCateringRead}
+                                    className="mt-2 text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-2 py-1 rounded-md transition-colors"
+                                >
+                                    Mark All Read
+                                </button>
+                            </div>
+                            <div className="p-3 bg-yellow-50 rounded-full">
+                                <svg className="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                                 </svg>
                             </div>
                         </div>
