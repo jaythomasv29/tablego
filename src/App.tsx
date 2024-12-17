@@ -85,6 +85,21 @@ function App() {
     setFormData(prev => ({ ...prev, ...updatedData }));
   };
 
+  // Add validation function at the component level
+  const validateSteps = () => {
+    // Validate Step 1 (Date & Time)
+    const isStep1Valid = formData.date && formData.time;
+
+    // Validate Step 2 (Guest Information)
+    const isStep2Valid =
+      formData.name.trim() !== '' &&
+      formData.email.trim() !== '' &&
+      formData.phone.trim() !== '' &&
+      formData.guests > 0;
+
+    return isStep1Valid && isStep2Valid;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <nav className="bg-white shadow-sm">
@@ -138,6 +153,7 @@ function App() {
                 formData={formData}
                 onSubmit={handleSubmit}
                 isSubmitting={isSubmitting}
+                isValid={validateSteps()}
               />
             )}
           </div>

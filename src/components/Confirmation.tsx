@@ -63,18 +63,16 @@ const Confirmation: React.FC<ConfirmationProps> = ({ formData, onSubmit, isSubmi
         )}
       </div>
 
-      <div className="flex justify-center">
-        <button
-          onClick={onSubmit}
-          disabled={isSubmitting || !isValid}
-          className={`${isValid
-            ? 'bg-indigo-600 hover:bg-indigo-700'
-            : 'bg-gray-400 cursor-not-allowed'
-            } text-white px-6 py-2 rounded-lg transition-colors`}
-        >
-          {isSubmitting ? 'Submitting...' : 'Confirm Reservation'}
-        </button>
-      </div>
+      <button
+        onClick={onSubmit}
+        disabled={isSubmitting || !isValid}
+        className={`${isValid
+          ? 'bg-indigo-600 hover:bg-indigo-700'
+          : 'bg-gray-400 cursor-not-allowed'
+          } text-white px-6 py-2 rounded-lgtransition-colors`}
+      >
+        {isSubmitting ? 'Submitting...' : 'Confirm Reservation'}
+      </button>
 
       <p className="text-sm text-gray-500 text-center">
         By confirming, you agree to our reservation policy. A confirmation email will be sent to your email address.
