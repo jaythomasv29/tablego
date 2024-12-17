@@ -112,6 +112,15 @@ export default function AdminSidebar() {
                         </li>
                         <li>
                             <Link
+                                href="/admin/cater"
+                                className={`block py-2 px-3 rounded text-sm hover:bg-gray-700 transition-colors ${isActiveLink('/admin/reservation')}`}
+                                onClick={() => setIsOpen(false)}
+                            >
+                                Catering
+                            </Link>
+                        </li>
+                        <li>
+                            <Link
                                 href="/admin/menu"
                                 className={`block py-2 px-3 rounded text-sm hover:bg-gray-700 transition-colors ${isActiveLink('/admin/menu')}`}
                                 onClick={() => setIsOpen(false)}
