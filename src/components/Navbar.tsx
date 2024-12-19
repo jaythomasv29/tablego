@@ -20,9 +20,9 @@ export default function Navbar() {
                             <Utensils className="h-6 w-6 text-indigo-600" />
                             <div className="relative">
                                 <span className="text-xl font-semibold text-gray-900">Thaiphoon</span>
-                                <span className="absolute -bottom-3 right-0 text-[10px] text-gray-400">
+                                {/* <span className="absolute -bottom-3 right-0 text-[10px] text-gray-400">
                                     by tablego
-                                </span>
+                                </span> */}
                             </div>
                         </Link>
 

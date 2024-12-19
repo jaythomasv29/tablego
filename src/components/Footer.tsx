@@ -48,12 +48,10 @@ export default function Footer() {
                         </p>
                         <p>
                             <a
-                                href="https://github.com/yourusername/yourrepo"
-                                target="_blank"
-                                rel="noopener noreferrer"
+                                href="mailto:thaiphoonpaloalto@gmail.com"
                                 className="hover:text-indigo-600 transition-colors"
                             >
-                                Inquire about Tablego?
+                                Contact Us
                             </a>
                         </p>
                     </div>
