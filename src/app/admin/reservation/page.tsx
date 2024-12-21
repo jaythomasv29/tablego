@@ -92,7 +92,7 @@ export default function ReservationAdminPage() {
 
     return (
         <AdminLayout>
-            <div className="p-6 bg-gray-100 min-h-screen">
+            <div className="p-4 sm:p-6 bg-gray-100 min-h-screen">
                 <Link
                     href="/admin/home"
                     className="inline-flex items-center mb-4 text-gray-600 hover:text-gray-800"
@@ -112,71 +112,107 @@ export default function ReservationAdminPage() {
                     </svg>
                     Back to Dashboard
                 </Link>
-                <h1 className="text-3xl font-bold mb-6 text-center text-gray-800">Reservation Overview</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-center text-gray-800">Reservation Overview</h1>
 
                 {/* View Mode Selector */}
-                <div className="mb-6 flex justify-center">
-                    <div className="flex gap-4">
+                <div className="mb-6">
+                    <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
                         <button
-                            className={`px-6 py-2 rounded-lg shadow-md transition-colors duration-300 ${viewMode === 'past' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'
+                            className={`px-4 sm:px-6 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base ${viewMode === 'past' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'
                                 }`}
                             onClick={() => setViewMode('past')}
                         >
-                            Past Reservations
+                            Past
                         </button>
                         <button
-                            className={`px-6 py-2 rounded-lg shadow-md transition-colors duration-300 ${viewMode === 'today' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'
+                            className={`px-4 sm:px-6 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base ${viewMode === 'today' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'
                                 }`}
                             onClick={() => setViewMode('today')}
                         >
-                            Today's Reservations
+                            Today
                         </button>
                         <button
-                            className={`px-6 py-2 rounded-lg shadow-md transition-colors duration-300 ${viewMode === 'future' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'
+                            className={`px-4 sm:px-6 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base ${viewMode === 'future' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'
                                 }`}
                             onClick={() => setViewMode('future')}
                         >
-                            Future Reservations
+                            Future
                         </button>
                     </div>
                 </div>
 
-                {/* Reservations Table */}
-                <div className="overflow-x-auto">
+                {/* Reservations Table/Cards */}
+                <div className="w-full">
                     {loading ? (
                         <div className="flex justify-center items-center h-64">
                             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
                         </div>
                     ) : (
-                        <table className="min-w-full bg-white rounded-lg shadow-md">
-                            <thead className="bg-gray-200">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-gray-600 font-semibold">Date & Time</th>
-                                    <th className="px-6 py-3 text-left text-gray-600 font-semibold">Customer Name</th>
-                                    <th className="px-6 py-3 text-left text-gray-600 font-semibold">Party Size</th>
-                                    <th className="px-6 py-3 text-left text-gray-600 font-semibold">Phone</th>
-                                    <th className="px-6 py-3 text-left text-gray-600 font-semibold">Email</th>
-                                    <th className="px-6 py-3 text-left text-gray-600 font-semibold">Special Requests</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                        <div className="grid gap-4">
+                            {/* Mobile View (Cards) */}
+                            <div className="block sm:hidden">
                                 {reservations.map((reservation) => (
-                                    <tr key={reservation.id} className="border-b hover:bg-gray-100 transition-colors duration-200">
-                                        <td className="px-6 py-4">
-                                            {reservation.date?.toDate?.() ?
-                                                `${reservation.date.toDate().toLocaleDateString()} ${reservation.time}`
-                                                : 'Invalid Date'
-                                            }
-                                        </td>
-                                        <td className="px-6 py-4">{reservation.name}</td>
-                                        <td className="px-6 py-4">{reservation.guests}</td>
-                                        <td className="px-6 py-4">{reservation.phone}</td>
-                                        <td className="px-6 py-4">{reservation.email}</td>
-                                        <td className="px-6 py-4">{reservation.comments}</td>
-                                    </tr>
+                                    <div key={reservation.id} className="bg-white rounded-lg shadow-md p-4 mb-4">
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between items-center border-b pb-2">
+                                                <div className="font-semibold">{reservation.name}</div>
+                                                <div className="text-sm text-gray-600">
+                                                    {reservation.guests} guests
+                                                </div>
+                                            </div>
+                                            <div className="text-sm">
+                                                <p className="text-gray-600">
+                                                    {reservation.date?.toDate?.() ?
+                                                        `${reservation.date.toDate().toLocaleDateString()} ${reservation.time}`
+                                                        : 'Invalid Date'
+                                                    }
+                                                </p>
+                                                <p className="text-gray-600">{reservation.phone}</p>
+                                                <p className="text-gray-600">{reservation.email}</p>
+                                                {reservation.comments && (
+                                                    <p className="text-gray-600 mt-2">
+                                                        <span className="font-medium">Notes:</span> {reservation.comments}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
                                 ))}
-                            </tbody>
-                        </table>
+                            </div>
+
+                            {/* Desktop View (Table) */}
+                            <div className="hidden sm:block overflow-x-auto">
+                                <table className="min-w-full bg-white rounded-lg shadow-md">
+                                    <thead className="bg-gray-200">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-gray-600 font-semibold">Date & Time</th>
+                                            <th className="px-6 py-3 text-left text-gray-600 font-semibold">Customer Name</th>
+                                            <th className="px-6 py-3 text-left text-gray-600 font-semibold">Party Size</th>
+                                            <th className="px-6 py-3 text-left text-gray-600 font-semibold">Phone</th>
+                                            <th className="px-6 py-3 text-left text-gray-600 font-semibold">Email</th>
+                                            <th className="px-6 py-3 text-left text-gray-600 font-semibold">Special Requests</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {reservations.map((reservation) => (
+                                            <tr key={reservation.id} className="border-b hover:bg-gray-100 transition-colors duration-200">
+                                                <td className="px-6 py-4">
+                                                    {reservation.date?.toDate?.() ?
+                                                        `${reservation.date.toDate().toLocaleDateString()} ${reservation.time}`
+                                                        : 'Invalid Date'
+                                                    }
+                                                </td>
+                                                <td className="px-6 py-4">{reservation.name}</td>
+                                                <td className="px-6 py-4">{reservation.guests}</td>
+                                                <td className="px-6 py-4">{reservation.phone}</td>
+                                                <td className="px-6 py-4">{reservation.email}</td>
+                                                <td className="px-6 py-4">{reservation.comments}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     )}
                 </div>
             </div>
