@@ -31,10 +31,17 @@ const initialData: ReservationData = {
 //   time: string;
 // }
 
+// Add SpecialDate interface
+interface SpecialDate {
+  date: string;
+  reason: string;
+}
+
 function App() {
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<ReservationData>(initialData);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [specialDates] = useState<SpecialDate[]>([]); // Initialize with empty array
 
   const steps = [
     { title: 'Date & Time', icon: Calendar },
@@ -135,6 +142,7 @@ function App() {
                   period: 'lunch',        // You'll need to determine if lunch or dinner
                   time: time
                 }))}
+                specialDates={specialDates}
               />
             )}
             {step === 1 && (
