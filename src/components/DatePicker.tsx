@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { TimeSlot } from '@/types/TimeSlot';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker as MuiDatePicker } from '@mui/x-date-pickers/DatePicker';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { db } from '@/firebase';
+import { collection, getDocs } from 'firebase/firestore';
 
 interface DatePickerProps {
   date: Date;
@@ -12,6 +14,12 @@ interface DatePickerProps {
   onUpdate: (date: Date, time: string) => void;
   onDateChange: (date: Date) => void;
   availableTimeSlots: TimeSlot[];
+  specialDates: SpecialDate[];
+}
+
+interface SpecialDate {
+  date: string;
+  reason: string;
 }
 
 const theme = createTheme({
@@ -22,21 +30,58 @@ const theme = createTheme({
   },
 });
 
+const isSameMonthAndDay = (date1: Date, date2: Date): boolean => {
+  return date1.getMonth() === date2.getMonth() &&
+    date1.getDate() === date2.getDate();
+};
+
 const DatePicker: React.FC<DatePickerProps> = ({
   date,
   time,
   onUpdate,
   onDateChange,
-  availableTimeSlots = []
+  availableTimeSlots = [],
+  specialDates = []
 }) => {
   const isDateDisabled = (date: Date) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return date < today;
+
+    // Check if date is in the past
+    if (date < today) return true;
+
+    // Check if date is a holiday
+    return specialDates.some(specialDate => {
+      const holidayDate = new Date(specialDate.date);
+      return isSameMonthAndDay(date, holidayDate);
+    });
   };
 
   return (
     <div className="space-y-8">
+      {specialDates.length > 0 && (
+        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Holiday Closures</h3>
+          <div className="flex flex-wrap gap-2">
+            {specialDates.map((specialDate, index) => {
+              const date = new Date(specialDate.date);
+              return (
+                <div
+                  key={index}
+                  className="inline-flex items-center bg-white px-3 py-1 rounded-full border border-gray-200 text-sm"
+                >
+                  <span className="font-medium text-gray-700">
+                    {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+                  <span className="mx-1 text-gray-400">•</span>
+                  <span className="text-gray-600">{specialDate.reason}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div>
         <h2 className="text-2xl font-semibold text-gray-900 mb-6">
           Select Date & Time
@@ -60,7 +105,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
                       onDateChange(newDate);
                     }
                   }}
-                  disablePast
+                  shouldDisableDate={isDateDisabled}
                   sx={{
                     width: '100%',
                     '& .MuiOutlinedInput-root': {
@@ -125,6 +170,11 @@ const DatePicker: React.FC<DatePickerProps> = ({
           </div>
         </div>
       </div>
+      {availableTimeSlots.length === 0 && (
+        <p className="text-red-500 text-sm mt-2">
+          No time slots available for this date. Please select another date.
+        </p>
+      )}
     </div>
   );
 };

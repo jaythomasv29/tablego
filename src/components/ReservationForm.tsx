@@ -9,11 +9,11 @@ import GuestInfo from './GuestInfo';
 import ProgressBar from './ProgressBar';
 import Cookies from 'js-cookie';
 import { db } from '../firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { CancelButton } from './CancelButton';
 import Navbar from './Navbar';
 import { TimeSlot } from '@/types/TimeSlot';
-import { usePageTracking } from './usePageTracking';
+// import { usePageTracking } from './usePageTracking';
 import dynamic from 'next/dynamic';
 
 // Lazy load components that aren't needed immediately
@@ -68,6 +68,16 @@ interface BusinessHours {
 
 const slotDuration = 30; // If it's a fixed value
 
+interface SpecialDate {
+  date: string;
+  reason: string;
+}
+
+const isSameMonthAndDay = (date1: Date, date2: Date): boolean => {
+  return date1.getMonth() === date2.getMonth() &&
+    date1.getDate() === date2.getDate();
+};
+
 export default function ReservationForm() {
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<ReservationData>(initialData);
@@ -81,8 +91,9 @@ export default function ReservationForm() {
     pstToday.setHours(12, 0, 0, 0);
     return pstToday;
   });
-  usePageTracking();
+  // usePageTracking();
   const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlot[]>([]);
+  const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
   // console.log(businessHours)
   // console.log('Generating time slots for:', selectedDate);
   // etc...
@@ -144,6 +155,21 @@ export default function ReservationForm() {
 
     fetchBusinessHours();
   }, []); // Empty dependency array means this runs once on mount
+
+  // Add this useEffect to fetch special dates
+  useEffect(() => {
+    const loadSpecialDates = async () => {
+      try {
+        const snapshot = await getDocs(collection(db, 'specialDates'));
+        const dates = snapshot.docs.map(doc => doc.data()) as SpecialDate[];
+        setSpecialDates(dates);
+      } catch (error) {
+        console.error('Error loading special dates:', error);
+      }
+    };
+
+    loadSpecialDates();
+  }, []);
 
   // Update time slots when date or business hours change
   useEffect(() => {
@@ -220,6 +246,17 @@ export default function ReservationForm() {
 
   // 4. Update the generateTimeSlots function to handle next day logic
   const generateTimeSlots = (date: Date, hours: BusinessHours): TimeSlot[] => {
+    // First check if the date is a holiday
+    const isHoliday = specialDates.some(specialDate => {
+      const holidayDate = new Date(specialDate.date);
+      return isSameMonthAndDay(date, holidayDate);
+    });
+
+    // If it's a holiday, return empty array (no time slots available)
+    if (isHoliday) {
+      return [];
+    }
+
     const pstNow = getPSTDate();
     const isToday = date.toDateString() === pstNow.toDateString();
     const currentMinutes = isToday ? pstNow.getHours() * 60 + pstNow.getMinutes() : 0;
@@ -322,6 +359,17 @@ export default function ReservationForm() {
   const handleDateChange = (date: Date) => {
     console.log('Date changed to:', date);
 
+    // Check if selected date is a holiday
+    const holiday = specialDates.find(specialDate => {
+      const holidayDate = new Date(specialDate.date);
+      return isSameMonthAndDay(date, holidayDate);
+    });
+
+    if (holiday) {
+      alert(`Sorry, we're closed on this date (${holiday.reason})`);
+      return;
+    }
+
     // Create a new date object for the selected date
     const newDate = new Date(date);
     newDate.setHours(12, 0, 0, 0);
@@ -332,8 +380,6 @@ export default function ReservationForm() {
     // Generate new time slots for the selected date if we have business hours
     if (businessHours) {
       console.log('Generating slots for new date:', newDate);
-      console.log('Using business hours:', businessHours);
-
       const newSlots = generateTimeSlots(newDate, businessHours);
       console.log('Generated new slots:', newSlots);
 
@@ -345,8 +391,6 @@ export default function ReservationForm() {
         date: newDate,
         time: newSlots.length > 0 ? newSlots[0].time : ''
       });
-    } else {
-      console.warn('No business hours available when changing date');
     }
   };
 
@@ -508,6 +552,7 @@ export default function ReservationForm() {
                       }}
                       onDateChange={handleDateChange}
                       availableTimeSlots={availableTimeSlots}
+                      specialDates={specialDates}
                     />
                   </>
                 )}

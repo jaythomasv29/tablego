@@ -4,7 +4,7 @@ import AdminLayout from '@/components/AdminLayout';
 import { useEffect, useState } from 'react';
 import { collection, getDocs, query, orderBy, limit, where, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
-import { getTotalPageViews, getDailyPageViews } from '@/utils/analytics';
+// import { getTotalPageViews } from '@/utils/analytics';
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -61,12 +61,12 @@ export default function AdminHome() {
     useEffect(() => {
         async function fetchAnalytics() {
             try {
-                const [views, daily] = await Promise.all([
-                    getTotalPageViews(),
-                    getDailyPageViews(7) // Get last 7 days
-                ]);
-                setTotalViews(views);
-                setDailyViews(daily);
+                const response = await fetch('/api/analytics');
+                const data = await response.json();
+                console.log('Vercel Analytics Data:', data);
+
+                setTotalViews(data.pageViews?.value || 0);
+                setDailyViews(data.dailyViews || []);
             } catch (error) {
                 console.error('Error fetching analytics:', error);
             } finally {

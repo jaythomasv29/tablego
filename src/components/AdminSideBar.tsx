@@ -103,6 +103,15 @@ export default function AdminSidebar() {
                         </li>
                         <li>
                             <Link
+                                href="/admin/special-dates"
+                                className={`block py-2 px-3 rounded text-sm hover:bg-gray-700 transition-colors ${isActiveLink('/admin/special-dates')}`}
+                                onClick={() => setIsOpen(false)}
+                            >
+                                Holidays
+                            </Link>
+                        </li>
+                        <li>
+                            <Link
                                 href="/admin/reservation"
                                 className={`block py-2 px-3 rounded text-sm hover:bg-gray-700 transition-colors ${isActiveLink('/admin/reservation')}`}
                                 onClick={() => setIsOpen(false)}

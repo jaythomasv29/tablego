@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '../../../firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AdminLayout from '@/components/AdminLayout';
@@ -20,6 +20,12 @@ interface BusinessHours {
             isOpen: boolean;
         };
     };
+}
+
+interface SpecialDate {
+    id: string;
+    date: string;
+    reason: string;
 }
 
 const defaultHours: BusinessHours = {
@@ -55,13 +61,30 @@ const defaultHours: BusinessHours = {
 
 export default function BusinessHoursAdmin() {
     const [hours, setHours] = useState<BusinessHours>(defaultHours);
+    const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
 
     useEffect(() => {
-        loadBusinessHours();
+        Promise.all([
+            loadBusinessHours(),
+            loadSpecialDates()
+        ]).finally(() => setIsLoading(false));
     }, []);
+
+    const loadSpecialDates = async () => {
+        try {
+            const snapshot = await getDocs(collection(db, 'specialDates'));
+            const dates = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            })) as SpecialDate[];
+            setSpecialDates(dates);
+        } catch (error) {
+            console.error('Error loading special dates:', error);
+        }
+    };
 
     const loadBusinessHours = async () => {
         try {
@@ -81,8 +104,6 @@ export default function BusinessHoursAdmin() {
         } catch (error) {
             console.error('Error loading business hours:', error);
             alert('Failed to load business hours');
-        } finally {
-            setIsLoading(false);
         }
     };
 
@@ -128,8 +149,6 @@ export default function BusinessHoursAdmin() {
 
     return (
         <AdminLayout>
-
-
             <div className="max-w-4xl mx-auto p-6">
                 <Link
                     href="/admin/home"
@@ -152,6 +171,38 @@ export default function BusinessHoursAdmin() {
                 </Link>
 
                 <h1 className="text-2xl font-bold mb-6">Business Hours Management</h1>
+
+                {/* Add Holiday Closures Section */}
+                {specialDates.length > 0 && (
+                    <div className="bg-white shadow rounded-lg p-6 mb-6">
+                        <h2 className="text-lg font-semibold mb-4">Holiday Closures</h2>
+                        <div className="flex flex-wrap gap-2">
+                            {specialDates.map((specialDate) => {
+                                const date = new Date(specialDate.date);
+                                return (
+                                    <div
+                                        key={specialDate.id}
+                                        className="inline-flex items-center bg-gray-50 px-3 py-1 rounded-full border border-gray-200 text-sm"
+                                    >
+                                        <span className="font-medium text-gray-700">
+                                            {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                        </span>
+                                        <span className="mx-1 text-gray-400">•</span>
+                                        <span className="text-gray-600">{specialDate.reason}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="mt-4">
+                            <Link
+                                href="/admin/special-dates"
+                                className="text-sm text-indigo-600 hover:text-indigo-800"
+                            >
+                                Manage Holiday Closures →
+                            </Link>
+                        </div>
+                    </div>
+                )}
 
                 <div className="bg-white shadow rounded-lg p-6">
                     {Object.entries(hours).map(([day, mealTimes]) => (
