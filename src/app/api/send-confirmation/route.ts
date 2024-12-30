@@ -28,11 +28,11 @@ export async function POST(request: Request) {
       pass: process.env.EMAIL_PASS ? 'Set' : 'Not Set'
     });
 
-    // Save to Firebase first
+    // Save to Firebase with pending status
     const reservationRef = await addDoc(collection(db, 'reservations'), {
       ...formData,
       createdAt: new Date(),
-      status: 'confirmed'
+      status: 'pending'
     });
 
     const readableDate = new Date(formData.date).toLocaleDateString('en-US', {
@@ -53,7 +53,8 @@ export async function POST(request: Request) {
 
     // Send email with better error handling
     try {
-      const info = await transporter.sendMail({
+      // Send to customer
+      await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: formData.email,
         subject: 'Your Thaiphoon Restaurant Reservation Confirmation',
@@ -143,7 +144,96 @@ export async function POST(request: Request) {
           </html>
         `,
       });
-      console.log('Email sent:', info.messageId);
+
+      // Send copy to restaurant
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: process.env.EMAIL_USER,
+        subject: `New Reservation Request - ${formData.name}`,
+        html: `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <title>New Reservation Request</title>
+            </head>
+            <body style="margin: 0; padding: 0; background-color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="100%" style="max-width: 600px; margin: 40px auto;">
+                <tr>
+                  <td style="padding: 40px 30px; text-align: center; background: #4f46e5; border-radius: 8px 8px 0 0;">
+                    <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">New Reservation Request</h1>
+                  </td>
+                </tr>
+                
+                <tr>
+                  <td style="background: white; padding: 40px 30px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-radius: 0 0 8px 8px;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 30px 0; background: #f8fafc; border-radius: 8px; padding: 24px;">
+                      <tr>
+                        <td style="padding: 12px 0;">
+                          <strong style="color: #4f46e5; display: inline-block; width: 140px;">Customer:</strong>
+                          <span style="color: #374151;">${formData.name}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px 0;">
+                          <strong style="color: #4f46e5; display: inline-block; width: 140px;">Date:</strong>
+                          <span style="color: #374151;">${readableDate}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px 0;">
+                          <strong style="color: #4f46e5; display: inline-block; width: 140px;">Time:</strong>
+                          <span style="color: #374151;">${formData.time}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px 0;">
+                          <strong style="color: #4f46e5; display: inline-block; width: 140px;">Party Size:</strong>
+                          <span style="color: #374151;">${formData.guests} guests</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px 0;">
+                          <strong style="color: #4f46e5; display: inline-block; width: 140px;">Phone:</strong>
+                          <span style="color: #374151;">${formData.phone}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px 0;">
+                          <strong style="color: #4f46e5; display: inline-block; width: 140px;">Email:</strong>
+                          <span style="color: #374151;">${formData.email}</span>
+                        </td>
+                      </tr>
+                      ${formData.comments ? `
+                        <tr>
+                          <td style="padding: 12px 0;">
+                            <strong style="color: #4f46e5; display: inline-block; width: 140px;">Special Requests:</strong>
+                            <span style="color: #374151;">${formData.comments}</span>
+                          </td>
+                        </tr>
+                      ` : ''}
+                      <tr>
+                        <td style="padding: 12px 0;">
+                          <strong style="color: #4f46e5; display: inline-block; width: 140px;">Status:</strong>
+                          <span style="color: #374151;">Pending Confirmation</span>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <div style="margin: 30px 0; padding: 20px; border-left: 4px solid #4f46e5; background: #eef2ff;">
+                      <p style="margin: 0; color: #374151; font-size: 14px;">
+                        Please review and confirm this reservation in the admin panel.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </body>
+          </html>
+        `,
+      });
+
+      console.log('Emails sent successfully');
     } catch (error) {
       console.error('Failed to send email:', error);
       throw new Error('Failed to send confirmation email');

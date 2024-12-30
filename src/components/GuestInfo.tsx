@@ -27,7 +27,7 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate }) => {
             onChange={(e) => onUpdate({ guests: parseInt(e.target.value) })}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
           >
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30].map((num) => (
               <option key={num} value={num}>
                 {num} {num === 1 ? 'Guest' : 'Guests'}
               </option>
