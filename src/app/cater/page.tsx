@@ -210,7 +210,7 @@ const CateringPage = () => {
                                 <div className="space-y-4">
                                     <div className="mb-8 text-gray-600 border-b pb-6">
                                         <p className="text-base leading-relaxed">
-                                            We appreciate your interest in our catering services and are happy to fire up our woks for you!
+                                            We appreciate your interest in our catering services and are happy to fire up our woks for you! (For immediate inquiries, please call us at 650-222-2222 or email us at thaiphoonpaloalto@gmail.com)
                                         </p>
                                         <p className="text-base leading-relaxed mt-4">
                                             Let's get started by entering some customer details:
@@ -512,8 +512,8 @@ const CateringPage = () => {
                                     <button
                                         type="submit"
                                         className={`${validateStep1()
-                                                ? 'bg-green-600 hover:bg-green-700'
-                                                : 'bg-gray-400 cursor-not-allowed'
+                                            ? 'bg-green-600 hover:bg-green-700'
+                                            : 'bg-gray-400 cursor-not-allowed'
                                             } text-white px-4 py-2 rounded transition-colors ml-auto`}
                                         disabled={!validateStep1()}
                                     >

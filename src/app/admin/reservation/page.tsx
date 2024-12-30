@@ -21,6 +21,7 @@ export default function ReservationAdminPage() {
     const [viewMode, setViewMode] = useState<'past' | 'today' | 'future'>('today');
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
     console.log(reservations);
 
     useEffect(() => {
@@ -90,6 +91,13 @@ export default function ReservationAdminPage() {
         fetchReservations();
     }, [viewMode]);
 
+    // Filter reservations based on search term (only for past reservations)
+    const filteredReservations = viewMode === 'past' && searchTerm
+        ? reservations.filter(reservation =>
+            reservation.name.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        : reservations;
+
     return (
         <AdminLayout>
             <div className="p-4 sm:p-6 bg-gray-100 min-h-screen">
@@ -112,28 +120,30 @@ export default function ReservationAdminPage() {
                     </svg>
                     Back to Dashboard
                 </Link>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-center text-gray-800">Reservation Overview</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-center text-gray-800">
+                    Reservation Overview
+                </h1>
 
                 {/* View Mode Selector */}
                 <div className="mb-6">
                     <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
                         <button
-                            className={`px-4 sm:px-6 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base ${viewMode === 'past' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'
-                                }`}
+                            className={`px-4 sm:px-6 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base 
+                                ${viewMode === 'past' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}
                             onClick={() => setViewMode('past')}
                         >
                             Past
                         </button>
                         <button
-                            className={`px-4 sm:px-6 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base ${viewMode === 'today' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'
-                                }`}
+                            className={`px-4 sm:px-6 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base 
+                                ${viewMode === 'today' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}
                             onClick={() => setViewMode('today')}
                         >
                             Today
                         </button>
                         <button
-                            className={`px-4 sm:px-6 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base ${viewMode === 'future' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'
-                                }`}
+                            className={`px-4 sm:px-6 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base 
+                                ${viewMode === 'future' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}
                             onClick={() => setViewMode('future')}
                         >
                             Future
@@ -141,77 +151,123 @@ export default function ReservationAdminPage() {
                     </div>
                 </div>
 
-                {/* Reservations Table/Cards */}
+                {/* Search Input - Only show for past reservations */}
+                {viewMode === 'past' && (
+                    <div className="mb-6">
+                        <div className="max-w-md mx-auto">
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="Search by customer name..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full px-4 py-2 pl-10 pr-4 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <svg
+                                        className="h-5 w-5 text-gray-400"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                        />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Reservations Grid */}
                 <div className="w-full">
                     {loading ? (
                         <div className="flex justify-center items-center h-64">
                             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
                         </div>
                     ) : (
-                        <div className="grid gap-4">
-                            {/* Mobile View (Cards) */}
-                            <div className="block sm:hidden">
-                                {reservations.map((reservation) => (
-                                    <div key={reservation.id} className="bg-white rounded-lg shadow-md p-4 mb-4">
-                                        <div className="space-y-2">
-                                            <div className="flex justify-between items-center border-b pb-2">
-                                                <div className="font-semibold">{reservation.name}</div>
-                                                <div className="text-sm text-gray-600">
-                                                    {reservation.guests} guests
-                                                </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {filteredReservations.map((reservation) => (
+                                <div
+                                    key={reservation.id}
+                                    className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow duration-200"
+                                >
+                                    <div className="space-y-3">
+                                        {/* Header with Name and Guest Count */}
+                                        <div className="flex justify-between items-center border-b pb-2">
+                                            <div className="font-semibold text-lg text-gray-800">
+                                                {reservation.name}
                                             </div>
-                                            <div className="text-sm">
-                                                <p className="text-gray-600">
-                                                    {reservation.date?.toDate?.() ?
-                                                        `${reservation.date.toDate().toLocaleDateString()} ${reservation.time}`
-                                                        : 'Invalid Date'
-                                                    }
-                                                </p>
-                                                <p className="text-gray-600">{reservation.phone}</p>
-                                                <p className="text-gray-600">{reservation.email}</p>
-                                                {reservation.comments && (
-                                                    <p className="text-gray-600 mt-2">
-                                                        <span className="font-medium">Notes:</span> {reservation.comments}
-                                                    </p>
-                                                )}
+                                            <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
+                                                {reservation.guests} {reservation.guests === 1 ? 'guest' : 'guests'}
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
 
-                            {/* Desktop View (Table) */}
-                            <div className="hidden sm:block overflow-x-auto">
-                                <table className="min-w-full bg-white rounded-lg shadow-md">
-                                    <thead className="bg-gray-200">
-                                        <tr>
-                                            <th className="px-6 py-3 text-left text-gray-600 font-semibold">Date & Time</th>
-                                            <th className="px-6 py-3 text-left text-gray-600 font-semibold">Customer Name</th>
-                                            <th className="px-6 py-3 text-left text-gray-600 font-semibold">Party Size</th>
-                                            <th className="px-6 py-3 text-left text-gray-600 font-semibold">Phone</th>
-                                            <th className="px-6 py-3 text-left text-gray-600 font-semibold">Email</th>
-                                            <th className="px-6 py-3 text-left text-gray-600 font-semibold">Special Requests</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {reservations.map((reservation) => (
-                                            <tr key={reservation.id} className="border-b hover:bg-gray-100 transition-colors duration-200">
-                                                <td className="px-6 py-4">
-                                                    {reservation.date?.toDate?.() ?
-                                                        `${reservation.date.toDate().toLocaleDateString()} ${reservation.time}`
-                                                        : 'Invalid Date'
-                                                    }
-                                                </td>
-                                                <td className="px-6 py-4">{reservation.name}</td>
-                                                <td className="px-6 py-4">{reservation.guests}</td>
-                                                <td className="px-6 py-4">{reservation.phone}</td>
-                                                <td className="px-6 py-4">{reservation.email}</td>
-                                                <td className="px-6 py-4">{reservation.comments}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                        {/* Date and Time */}
+                                        <div className="flex items-center text-gray-600">
+                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                />
+                                            </svg>
+                                            <span>
+                                                {reservation.date?.toDate?.() ?
+                                                    `${reservation.date.toDate().toLocaleDateString()} at ${reservation.time}`
+                                                    : 'Invalid Date'
+                                                }
+                                            </span>
+                                        </div>
+
+                                        {/* Contact Information */}
+                                        <div className="space-y-1">
+                                            <div className="flex items-center text-gray-600">
+                                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                        d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                                                    />
+                                                </svg>
+                                                <span>{reservation.phone}</span>
+                                            </div>
+                                            <div className="flex items-center text-gray-600">
+                                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                                                    />
+                                                </svg>
+                                                <span className="text-blue-600 hover:text-blue-800">
+                                                    {reservation.email}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Special Requests */}
+                                        {reservation.comments && (
+                                            <div className="border-t pt-2">
+                                                <p className="text-gray-600">
+                                                    <span className="font-medium">Notes:</span>{' '}
+                                                    {reservation.comments}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* No Results Message - Updated to handle search */}
+                    {!loading && filteredReservations.length === 0 && (
+                        <div className="text-center py-12 bg-white rounded-lg shadow-md">
+                            <p className="text-gray-600 text-lg">
+                                {searchTerm
+                                    ? `No reservations found for "${searchTerm}"`
+                                    : 'No reservations found for this period.'
+                                }
+                            </p>
                         </div>
                     )}
                 </div>
