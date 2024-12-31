@@ -17,6 +17,7 @@ import {
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import toast, { Toaster } from 'react-hot-toast';
+import { X } from 'lucide-react';
 
 // Register ChartJS components
 ChartJS.register(
@@ -55,6 +56,62 @@ interface PendingReservation {
     status: string;
 }
 
+interface MobileNotificationProps {
+    count: number;
+    onClose: () => void;
+}
+
+function MobileNotification({ count, onClose }: MobileNotificationProps) {
+    if (count === 0) return null;
+
+    return (
+        <div className="fixed inset-x-0 bottom-0 z-50 p-4 md:hidden">
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg shadow-lg">
+                <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                        <svg
+                            className="h-5 w-5 text-yellow-400"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                            />
+                        </svg>
+                    </div>
+                    <div className="ml-3 flex-1">
+                        <p className="text-sm text-yellow-700">
+                            You have {count} pending {count === 1 ? 'reservation' : 'reservations'} that {count === 1 ? 'needs' : 'need'} confirmation
+                        </p>
+                        <div className="mt-2">
+                            <button
+                                onClick={() => {
+                                    const element = document.getElementById('pending-reservations');
+                                    element?.scrollIntoView({ behavior: 'smooth' });
+                                    onClose();
+                                }}
+                                className="text-sm font-medium text-yellow-700 hover:text-yellow-600"
+                            >
+                                View Reservations →
+                            </button>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="flex-shrink-0 ml-4"
+                    >
+                        <X className="h-4 w-4 text-yellow-500" />
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function AdminHome() {
     const [totalViews, setTotalViews] = useState<number>(0);
     const [dailyViews, setDailyViews] = useState<{ date: string; views: number }[]>([]);
@@ -71,6 +128,7 @@ export default function AdminHome() {
     const [todaysReservations, setTodaysReservations] = useState<Reservation[]>([]);
     const [pendingReservations, setPendingReservations] = useState<PendingReservation[]>([]);
     const [isConfirming, setIsConfirming] = useState<string>('');
+    const [showMobileNotification, setShowMobileNotification] = useState(true);
 
     useEffect(() => {
         async function fetchAnalytics() {
@@ -298,6 +356,12 @@ export default function AdminHome() {
         }
     };
 
+    useEffect(() => {
+        if (pendingReservations.length > 0) {
+            setShowMobileNotification(true);
+        }
+    }, [pendingReservations]);
+
     return (
         <AdminLayout>
             <Toaster
@@ -307,7 +371,14 @@ export default function AdminHome() {
                     style: {
                         background: '#363636',
                         color: '#fff',
+                        zIndex: 9999,
                     },
+                    className: 'sm:max-w-[90vw] md:max-w-md',
+                }}
+                containerStyle={{
+                    top: 40,
+                    left: 20,
+                    right: 20,
                 }}
             />
             <h1 className="text-2xl font-bold mb-6">Dashboard Overview</h1>
@@ -430,7 +501,7 @@ export default function AdminHome() {
                     </div>
 
                     {/* Pending Reservations Card - Full Width */}
-                    <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow mb-6">
+                    <div id="pending-reservations" className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow mb-6">
                         <div className="flex items-center justify-between mb-4">
                             <div>
                                 <p className="text-sm font-medium text-gray-600">Pending Reservations</p>
@@ -498,6 +569,12 @@ export default function AdminHome() {
                     </div>
                 </>
             )}
+
+            {/* Add Mobile Notification */}
+            <MobileNotification
+                count={pendingReservations.length}
+                onClose={() => setShowMobileNotification(false)}
+            />
         </AdminLayout>
     );
 }
