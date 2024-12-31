@@ -2,144 +2,90 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import {
+    Home,
+    Calendar,
+    Clock,
+    Menu as MenuIcon,
+    MessageCircle,
+    Utensils
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/firebase';
 
 export default function AdminSidebar() {
     const pathname = usePathname();
-    const [isOpen, setIsOpen] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
 
-    const isActiveLink = (path: string) => {
-        return pathname === path ? "bg-gray-700" : "";
-    };
+    // Fetch unread messages count
+    useEffect(() => {
+        const fetchUnreadCount = async () => {
+            try {
+                const q = query(
+                    collection(db, 'messages'),
+                    where('status', '==', 'unread')
+                );
+                const snapshot = await getDocs(q);
+                setUnreadCount(snapshot.size);
+            } catch (error) {
+                console.error('Error fetching unread messages:', error);
+            }
+        };
+
+        fetchUnreadCount();
+        // Set up an interval to check for new messages
+        const interval = setInterval(fetchUnreadCount, 30000); // Check every 30 seconds
+
+        return () => clearInterval(interval);
+    }, []);
+
+    const links = [
+        { href: '/admin/home', label: 'Dashboard', icon: Home },
+        { href: '/admin/reservation', label: 'Reservations', icon: Calendar },
+        { href: '/admin/hours', label: 'Hours', icon: Clock },
+        { href: '/admin/menu', label: 'Menu', icon: MenuIcon },
+        { href: '/admin/cater', label: 'Catering', icon: Utensils },
+        {
+            href: '/admin/messages',
+            label: 'Messages',
+            icon: MessageCircle,
+            badge: unreadCount > 0 ? unreadCount : undefined
+        },
+    ];
 
     return (
-        <>
-            {/* Hamburger Menu Button (Mobile) */}
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="lg:hidden fixed top-4 left-4 z-20 p-2 rounded-md bg-gray-800 text-white hover:bg-gray-700"
-                aria-label="Toggle menu"
-            >
-                <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                >
-                    {isOpen ? (
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M6 18L18 6M6 6l12 12"
-                        />
-                    ) : (
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M4 6h16M4 12h16M4 18h16"
-                        />
-                    )}
-                </svg>
-            </button>
-
-            {/* Overlay for mobile */}
-            {isOpen && (
-                <div
-                    className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-10"
-                    onClick={() => setIsOpen(false)}
-                />
-            )}
-
-            {/* Sidebar - reduced width from w-64 to w-48 */}
-            <div className={`
-                fixed lg:static inset-y-0 left-0 z-20
-                transform ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-                lg:translate-x-0 transition-transform duration-200 ease-in-out
-                w-48 bg-gray-800 text-white p-4 min-h-screen
-            `}>
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-lg font-bold">Admin</h2>
-                    <button
-                        onClick={() => setIsOpen(false)}
-                        className="lg:hidden p-2 rounded-md hover:bg-gray-700"
-                        aria-label="Close menu"
-                    >
-                        <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M6 18L18 6M6 6l12 12"
-                            />
-                        </svg>
-                    </button>
-                </div>
-                <nav>
-                    <ul className="space-y-1">
-                        <li>
-                            <Link
-                                href="/admin/home"
-                                className={`block py-2 px-3 rounded text-sm hover:bg-gray-700 transition-colors ${isActiveLink('/admin/home')}`}
-                                onClick={() => setIsOpen(false)}
-                            >
-                                Home
-                            </Link>
-                        </li>
-                        <li>
-                            <Link
-                                href="/admin/hours"
-                                className={`block py-2 px-3 rounded text-sm hover:bg-gray-700 transition-colors ${isActiveLink('/admin/hours')}`}
-                                onClick={() => setIsOpen(false)}
-                            >
-                                Business Hours
-                            </Link>
-                        </li>
-                        <li>
-                            <Link
-                                href="/admin/special-dates"
-                                className={`block py-2 px-3 rounded text-sm hover:bg-gray-700 transition-colors ${isActiveLink('/admin/special-dates')}`}
-                                onClick={() => setIsOpen(false)}
-                            >
-                                Holidays
-                            </Link>
-                        </li>
-                        <li>
-                            <Link
-                                href="/admin/reservation"
-                                className={`block py-2 px-3 rounded text-sm hover:bg-gray-700 transition-colors ${isActiveLink('/admin/reservation')}`}
-                                onClick={() => setIsOpen(false)}
-                            >
-                                Reservations
-                            </Link>
-                        </li>
-                        <li>
-                            <Link
-                                href="/admin/cater"
-                                className={`block py-2 px-3 rounded text-sm hover:bg-gray-700 transition-colors ${isActiveLink('/admin/reservation')}`}
-                                onClick={() => setIsOpen(false)}
-                            >
-                                Catering
-                            </Link>
-                        </li>
-                        <li>
-                            <Link
-                                href="/admin/menu"
-                                className={`block py-2 px-3 rounded text-sm hover:bg-gray-700 transition-colors ${isActiveLink('/admin/menu')}`}
-                                onClick={() => setIsOpen(false)}
-                            >
-                                Menu
-                            </Link>
-                        </li>
-                    </ul>
-                </nav>
+        <div className="w-64 bg-white border-r h-screen flex flex-col">
+            <div className="p-4">
+                <h1 className="text-xl font-bold text-gray-800">Admin Panel</h1>
             </div>
-        </>
+            <nav className="flex-1 p-4">
+                <ul className="space-y-2">
+                    {links.map(({ href, label, icon: Icon, badge }) => {
+                        const isActive = pathname === href;
+                        return (
+                            <li key={href}>
+                                <Link
+                                    href={href}
+                                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${isActive
+                                            ? 'bg-blue-500 text-white'
+                                            : 'text-gray-600 hover:bg-gray-100'
+                                        }`}
+                                >
+                                    <Icon className="w-5 h-5" />
+                                    <span>{label}</span>
+                                    {badge !== undefined && (
+                                        <span className={`ml-auto px-2 py-1 text-xs rounded-full ${isActive ? 'bg-white text-blue-500' : 'bg-red-500 text-white'
+                                            }`}>
+                                            {badge}
+                                        </span>
+                                    )}
+                                </Link>
+                            </li>
+                        );
+                    })}
+                </ul>
+            </nav>
+        </div>
     );
 }
