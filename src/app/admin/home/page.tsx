@@ -18,6 +18,8 @@ import {
 import { Line } from 'react-chartjs-2';
 import toast, { Toaster } from 'react-hot-toast';
 import { X } from 'lucide-react';
+import PageTransition from '@/components/PageTransition';
+import StaggeredList from '@/components/StaggeredList';
 
 // Register ChartJS components
 ChartJS.register(
@@ -409,279 +411,285 @@ export default function AdminHome() {
 
     return (
         <AdminLayout>
-            <Toaster
-                position="top-center"
-                toastOptions={{
-                    duration: 3000,
-                    style: {
-                        background: '#363636',
-                        color: '#fff',
-                        zIndex: 9999,
-                    },
-                    className: 'sm:max-w-[90vw] md:max-w-md',
-                }}
-                containerStyle={{
-                    top: 40,
-                    left: 20,
-                    right: 20,
-                }}
-            />
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold">Dashboard Overview</h1>
-                {/* <div className="flex space-x-2">
-                    <button
-                        onClick={() => setActiveTab('dashboard')}
-                        className={`px-4 py-2 rounded-lg ${activeTab === 'dashboard'
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                    >
-                        Dashboard
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('messages')}
-                        className={`px-4 py-2 rounded-lg flex items-center ${activeTab === 'messages'
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                    >
-                        Messages
-                        {messages.filter(m => m.status === 'unread').length > 0 && (
-                            <span className="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                                {messages.filter(m => m.status === 'unread').length}
-                            </span>
-                        )}
-                    </button>
-                </div> */}
-            </div>
+            <PageTransition>
+                <Toaster
+                    position="top-center"
+                    toastOptions={{
+                        duration: 3000,
+                        style: {
+                            background: '#363636',
+                            color: '#fff',
+                            zIndex: 9999,
+                        },
+                        className: 'sm:max-w-[90vw] md:max-w-md',
+                    }}
+                    containerStyle={{
+                        top: 40,
+                        left: 20,
+                        right: 20,
+                    }}
+                />
+                <div className="flex justify-between items-center mb-6">
+                    <h1 className="text-2xl font-bold">Dashboard Overview</h1>
+                    {/* <div className="flex space-x-2">
+                        <button
+                            onClick={() => setActiveTab('dashboard')}
+                            className={`px-4 py-2 rounded-lg ${activeTab === 'dashboard'
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                        >
+                            Dashboard
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('messages')}
+                            className={`px-4 py-2 rounded-lg flex items-center ${activeTab === 'messages'
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                        >
+                            Messages
+                            {messages.filter(m => m.status === 'unread').length > 0 && (
+                                <span className="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                                    {messages.filter(m => m.status === 'unread').length}
+                                </span>
+                            )}
+                        </button>
+                    </div> */}
+                </div>
 
-            {activeTab === 'dashboard' ? (
-                <>
-                    {/* Metrics Cards Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-                        {/* Total Page Views Card */}
-                        {/* <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">Total Page Views</p>
-                                    <p className="text-3xl font-bold text-gray-900">
-                                        {totalViews}
-                                    </p>
-                                </div>
-                                <div className="p-3 bg-blue-50 rounded-full">
-                                    <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </div> */}
-                        {/* Total Reservations Card */}
-                        <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">Total Reservations</p>
-                                    <p className="text-3xl font-bold text-gray-900">{metrics.totalReservations}</p>
-                                </div>
-                                <div className="p-3 bg-blue-50 rounded-full">
-                                    <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Unique Customers Card */}
-                        <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">Unique Customers</p>
-                                    <p className="text-3xl font-bold text-gray-900">{metrics.uniqueCustomers}</p>
-                                </div>
-                                <div className="p-3 bg-green-50 rounded-full">
-                                    <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Today's Reservations Card */}
-                        <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow relative group">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">Today's Reservations</p>
-                                    <p className="text-3xl font-bold text-gray-900">{metrics.todayReservations}</p>
-
-                                    {/* Tooltip */}
-                                    {todaysReservations.length > 0 && (
-                                        <div className="absolute left-0 top-full mt-2 w-64 bg-white shadow-lg rounded-lg p-4 hidden group-hover:block z-10">
-                                            <div className="max-h-48 overflow-y-auto">
-                                                {todaysReservations.map((res, index) => (
-                                                    <div key={index} className="mb-2 pb-2 border-b border-gray-100 last:border-0">
-                                                        <p className="font-medium">{res.name}</p>
-                                                        <p className="text-sm text-gray-600">
-                                                            {res.time} • {res.guests} guests
-                                                        </p>
-                                                    </div>
-                                                ))}
-                                            </div>
+                {activeTab === 'dashboard' ? (
+                    <>
+                        {/* Metrics Cards Grid */}
+                        <StaggeredList>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                                {/* Total Page Views Card */}
+                                {/* <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-600">Total Page Views</p>
+                                            <p className="text-3xl font-bold text-gray-900">
+                                                {totalViews}
+                                            </p>
                                         </div>
-                                    )}
+                                        <div className="p-3 bg-blue-50 rounded-full">
+                                            <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div> */}
+                                {/* Total Reservations Card */}
+                                <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-600">Total Reservations</p>
+                                            <p className="text-3xl font-bold text-gray-900">{metrics.totalReservations}</p>
+                                        </div>
+                                        <div className="p-3 bg-blue-50 rounded-full">
+                                            <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="p-3 bg-purple-50 rounded-full">
-                                    <svg className="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+                                {/* Unique Customers Card */}
+                                <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-600">Unique Customers</p>
+                                            <p className="text-3xl font-bold text-gray-900">{metrics.uniqueCustomers}</p>
+                                        </div>
+                                        <div className="p-3 bg-green-50 rounded-full">
+                                            <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Today's Reservations Card */}
+                                <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow relative group">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-600">Today's Reservations</p>
+                                            <p className="text-3xl font-bold text-gray-900">{metrics.todayReservations}</p>
+
+                                            {/* Tooltip */}
+                                            {todaysReservations.length > 0 && (
+                                                <div className="absolute left-0 top-full mt-2 w-64 bg-white shadow-lg rounded-lg p-4 hidden group-hover:block z-10">
+                                                    <div className="max-h-48 overflow-y-auto">
+                                                        {todaysReservations.map((res, index) => (
+                                                            <div key={index} className="mb-2 pb-2 border-b border-gray-100 last:border-0">
+                                                                <p className="font-medium">{res.name}</p>
+                                                                <p className="text-sm text-gray-600">
+                                                                    {res.time} • {res.guests} guests
+                                                                </p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="p-3 bg-purple-50 rounded-full">
+                                            <svg className="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Total Catering Deals Card */}
+                                <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-600">
+                                                New Catering Requests
+                                                <span className="text-xs text-gray-400 ml-2">
+                                                    (Total: {metrics.totalCatering})
+                                                </span>
+                                            </p>
+                                            <p className="text-3xl font-bold text-gray-900">
+                                                {markingAsRead ? (
+                                                    <span className="inline-block animate-spin">⌛</span>
+                                                ) : metrics.newCatering}
+                                            </p>
+                                            <button
+                                                onClick={markAllCateringRead}
+                                                className="mt-2 text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-2 py-1 rounded-md transition-colors"
+                                            >
+                                                Mark All Read
+                                            </button>
+                                        </div>
+                                        <div className="p-3 bg-yellow-50 rounded-full">
+                                            <svg className="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </StaggeredList>
+
+                        {/* Pending Reservations Card - Full Width */}
+                        <div id="pending-reservations" className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow mb-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600">Pending Reservations</p>
+                                    <p className="text-3xl font-bold text-gray-900">{pendingReservations.length}</p>
+                                </div>
+                                <div className="p-3 bg-yellow-50 rounded-full">
+                                    <svg className="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Total Catering Deals Card */}
-                        <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">
-                                        New Catering Requests
-                                        <span className="text-xs text-gray-400 ml-2">
-                                            (Total: {metrics.totalCatering})
-                                        </span>
-                                    </p>
-                                    <p className="text-3xl font-bold text-gray-900">
-                                        {markingAsRead ? (
-                                            <span className="inline-block animate-spin">⌛</span>
-                                        ) : metrics.newCatering}
-                                    </p>
-                                    <button
-                                        onClick={markAllCateringRead}
-                                        className="mt-2 text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-2 py-1 rounded-md transition-colors"
-                                    >
-                                        Mark All Read
-                                    </button>
-                                </div>
-                                <div className="p-3 bg-yellow-50 rounded-full">
-                                    <svg className="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Pending Reservations Card - Full Width */}
-                    <div id="pending-reservations" className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow mb-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600">Pending Reservations</p>
-                                <p className="text-3xl font-bold text-gray-900">{pendingReservations.length}</p>
-                            </div>
-                            <div className="p-3 bg-yellow-50 rounded-full">
-                                <svg className="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            </div>
-                        </div>
-
-                        <div className="space-y-4 max-h-96 overflow-y-auto">
-                            {pendingReservations.map((reservation) => (
-                                <div
-                                    key={reservation.id}
-                                    className="border-b pb-4 last:border-0 last:pb-0"
-                                >
-                                    <div className="flex justify-between items-start mb-2">
-                                        <div>
-                                            <p className="font-medium text-gray-900">{reservation.name}</p>
-                                            <p className="text-sm text-gray-600">
-                                                {reservation.date.toLocaleDateString()} at {reservation.time}
-                                            </p>
-                                            <p className="text-sm text-gray-600">
-                                                {reservation.guests} guests
-                                            </p>
-                                            <p className="text-sm text-gray-600">
-                                                {reservation.phone}
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={() => handleConfirmReservation(reservation.id)}
-                                            disabled={isConfirming === reservation.id}
-                                            className={`px-3 py-1 rounded-full text-sm font-medium 
-                                                ${isConfirming === reservation.id
-                                                    ? 'bg-gray-100 text-gray-400'
-                                                    : 'bg-green-50 text-green-600 hover:bg-green-100'}`}
+                            <StaggeredList>
+                                <div className="space-y-4 max-h-96 overflow-y-auto">
+                                    {pendingReservations.map((reservation) => (
+                                        <div
+                                            key={reservation.id}
+                                            className="border-b pb-4 last:border-0 last:pb-0"
                                         >
-                                            {isConfirming === reservation.id ? 'Confirming...' : 'Confirm'}
-                                        </button>
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div>
+                                                    <p className="font-medium text-gray-900">{reservation.name}</p>
+                                                    <p className="text-sm text-gray-600">
+                                                        {reservation.date.toLocaleDateString()} at {reservation.time}
+                                                    </p>
+                                                    <p className="text-sm text-gray-600">
+                                                        {reservation.guests} guests
+                                                    </p>
+                                                    <p className="text-sm text-gray-600">
+                                                        {reservation.phone}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleConfirmReservation(reservation.id)}
+                                                    disabled={isConfirming === reservation.id}
+                                                    className={`px-3 py-1 rounded-full text-sm font-medium 
+                                                        ${isConfirming === reservation.id
+                                                            ? 'bg-gray-100 text-gray-400'
+                                                            : 'bg-green-50 text-green-600 hover:bg-green-100'}`}
+                                                >
+                                                    {isConfirming === reservation.id ? 'Confirming...' : 'Confirm'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {pendingReservations.length === 0 && (
+                                        <p className="text-center text-gray-500 py-4">
+                                            No pending reservations
+                                        </p>
+                                    )}
+                                </div>
+                            </StaggeredList>
+                        </div>
+
+                        {/* Analytics Chart */}
+                        <div className="bg-white rounded-xl shadow-md p-6">
+                            <div className="h-[400px]">
+                                {loading ? (
+                                    <div className="flex justify-center items-center h-full">
+                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                                    </div>
+                                ) : (
+                                    <Line options={options} data={chartData} />
+                                )}
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    <div className="bg-white rounded-xl shadow-md p-6">
+                        <div className="space-y-4">
+                            {messages.map((message) => (
+                                <div
+                                    key={message.id}
+                                    className={`border-b pb-4 last:border-0 last:pb-0 ${message.status === 'unread' ? 'bg-blue-50 p-4 rounded-lg' : ''
+                                        }`}
+                                >
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="font-medium text-gray-900">{message.name}</p>
+                                            <p className="text-sm text-gray-600">{message.email}</p>
+                                            <p className="text-sm text-gray-500 mt-1">
+                                                {message.timestamp.toLocaleDateString()} at{' '}
+                                                {message.timestamp.toLocaleTimeString()}
+                                            </p>
+                                            <p className="mt-2 text-gray-700">{message.message}</p>
+                                        </div>
+                                        {message.status === 'unread' && (
+                                            <button
+                                                onClick={() => handleMarkAsRead(message.id)}
+                                                disabled={isMarkingRead === message.id}
+                                                className="px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-600 hover:bg-blue-100"
+                                            >
+                                                {isMarkingRead === message.id ? 'Marking...' : 'Mark as Read'}
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             ))}
 
-                            {pendingReservations.length === 0 && (
+                            {messages.length === 0 && (
                                 <p className="text-center text-gray-500 py-4">
-                                    No pending reservations
+                                    No messages yet
                                 </p>
                             )}
                         </div>
                     </div>
+                )}
 
-                    {/* Analytics Chart */}
-                    <div className="bg-white rounded-xl shadow-md p-6">
-                        <div className="h-[400px]">
-                            {loading ? (
-                                <div className="flex justify-center items-center h-full">
-                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-                                </div>
-                            ) : (
-                                <Line options={options} data={chartData} />
-                            )}
-                        </div>
-                    </div>
-                </>
-            ) : (
-                <div className="bg-white rounded-xl shadow-md p-6">
-                    <div className="space-y-4">
-                        {messages.map((message) => (
-                            <div
-                                key={message.id}
-                                className={`border-b pb-4 last:border-0 last:pb-0 ${message.status === 'unread' ? 'bg-blue-50 p-4 rounded-lg' : ''
-                                    }`}
-                            >
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="font-medium text-gray-900">{message.name}</p>
-                                        <p className="text-sm text-gray-600">{message.email}</p>
-                                        <p className="text-sm text-gray-500 mt-1">
-                                            {message.timestamp.toLocaleDateString()} at{' '}
-                                            {message.timestamp.toLocaleTimeString()}
-                                        </p>
-                                        <p className="mt-2 text-gray-700">{message.message}</p>
-                                    </div>
-                                    {message.status === 'unread' && (
-                                        <button
-                                            onClick={() => handleMarkAsRead(message.id)}
-                                            disabled={isMarkingRead === message.id}
-                                            className="px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-600 hover:bg-blue-100"
-                                        >
-                                            {isMarkingRead === message.id ? 'Marking...' : 'Mark as Read'}
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-
-                        {messages.length === 0 && (
-                            <p className="text-center text-gray-500 py-4">
-                                No messages yet
-                            </p>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* Add Mobile Notification */}
-            <MobileNotification
-                count={pendingReservations.length}
-                onClose={() => setShowMobileNotification(false)}
-            />
+                {/* Add Mobile Notification */}
+                <MobileNotification
+                    count={pendingReservations.length}
+                    onClose={() => setShowMobileNotification(false)}
+                />
+            </PageTransition>
         </AdminLayout>
     );
 }
