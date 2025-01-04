@@ -10,7 +10,8 @@ import {
     MessageCircle,
     Utensils,
     X,
-    Menu
+    Menu,
+    BookText
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -45,8 +46,9 @@ export default function AdminSidebar() {
         { href: '/admin/home', label: 'Dashboard', icon: Home },
         { href: '/admin/reservation', label: 'Reservations', icon: Calendar },
         { href: '/admin/hours', label: 'Hours', icon: Clock },
-        { href: '/admin/menu', label: 'Menu', icon: MenuIcon },
+        { href: '/admin/special-dates', label: 'Business Holidays', icon: Calendar },
         { href: '/admin/cater', label: 'Catering', icon: Utensils },
+        { href: '/admin/menu', label: 'Restaurant Menu', icon: BookText },
         {
             href: '/admin/messages',
             label: 'Messages',
@@ -65,8 +67,8 @@ export default function AdminSidebar() {
                             href={href}
                             onClick={() => setIsMobileMenuOpen(false)}
                             className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${isActive
-                                    ? 'bg-blue-500 text-white'
-                                    : 'text-gray-600 hover:bg-gray-100'
+                                ? 'bg-blue-500 text-white'
+                                : 'text-gray-600 hover:bg-gray-100'
                                 }`}
                         >
                             <Icon className="w-5 h-5" />
