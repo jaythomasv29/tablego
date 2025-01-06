@@ -30,13 +30,13 @@ export default function ReservationAdminPage() {
             try {
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-                ('Reference Today:', today);
+
 
                 const reservationsRef = collection(db, 'reservations');
                 const q = query(reservationsRef);
                 const querySnapshot = await getDocs(q);
 
-                ('Total reservations found:', querySnapshot.size);
+
 
                 const fetchedReservations = querySnapshot.docs.map(doc => {
                     const data = doc.data();
@@ -78,7 +78,7 @@ export default function ReservationAdminPage() {
                     return viewMode === 'past' ? dateB - dateA : dateA - dateB;
                 });
 
-                (`${viewMode} reservations found:`, filteredReservations.length);
+
                 setReservations(filteredReservations);
 
             } catch (error) {

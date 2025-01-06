@@ -143,7 +143,7 @@ export default function ReservationForm() {
         const hoursDoc = await getDoc(doc(db, 'settings', 'businessHours'));
         if (hoursDoc.exists()) {
           const hours = hoursDoc.data() as BusinessHours;
-          ('Fetched business hours:', hours);
+
           setBusinessHours(hours);
         }
       } catch (error) {
@@ -174,7 +174,7 @@ export default function ReservationForm() {
   // Update time slots when date or business hours change
   useEffect(() => {
     if (businessHours && selectedDate) {
-      ('Generating time slots for:', selectedDate);
+
       const newSlots = generateTimeSlots(selectedDate, businessHours);
       setAvailableTimeSlots(newSlots);
 
@@ -357,7 +357,7 @@ export default function ReservationForm() {
   };
 
   const handleDateChange = (date: Date) => {
-    ('Date changed to:', date);
+
 
     // Check if selected date is a holiday
     const holiday = specialDates.find(specialDate => {
@@ -379,9 +379,9 @@ export default function ReservationForm() {
 
     // Generate new time slots for the selected date if we have business hours
     if (businessHours) {
-      ('Generating slots for new date:', newDate);
+
       const newSlots = generateTimeSlots(newDate, businessHours);
-      ('Generated new slots:', newSlots);
+
 
       // Update available time slots
       setAvailableTimeSlots(newSlots);
