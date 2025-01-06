@@ -183,8 +183,17 @@ export default function AdminHome() {
     }, []);
 
     useEffect(() => {
+        let intervalId: NodeJS.Timeout;
+        const notificationInProgress = new Set<number>();
+
         const checkPendingReservations = async () => {
             try {
+                const currentTime = Date.now();
+                if (notificationInProgress.has(currentTime)) {
+                    return;
+                }
+                notificationInProgress.add(currentTime);
+
                 const q = query(
                     collection(db, 'reservations'),
                     where('status', '==', 'pending')
@@ -213,7 +222,6 @@ export default function AdminHome() {
 
                 setPendingReservations(pendingList);
 
-                // Only send notification if count has increased AND at least 5 minutes have passed
                 const now = Date.now();
                 const fiveMinutes = 5 * 60 * 1000;
                 const lastNotificationTime = localStorage.getItem('lastNotificationTime');
@@ -223,28 +231,38 @@ export default function AdminHome() {
                     pushEnabled &&
                     timeSinceLastNotification >= fiveMinutes) {
 
-                    const reservationDetails = pendingList.map(res =>
-                        `\n• ${res.name} - ${res.guests} guests at ${res.time}`
-                    ).join('');
-
                     await fetch('/api/push', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            message: `You have ${pendingList.length} pending reservation${pendingList.length > 1 ? 's' : ''} to review:${reservationDetails}`
+                            message: `You have ${pendingList.length} pending reservation${pendingList.length > 1 ? 's' : ''} to review`
                         }),
                     });
                     setLastNotifiedCount(pendingList.length);
                     localStorage.setItem('lastNotificationTime', now.toString());
                 }
+
+                notificationInProgress.delete(currentTime);
             } catch (error) {
+                const currentTime = Date.now();
                 console.error('Error checking reservations:', error);
+                notificationInProgress.delete(currentTime);
             }
         };
 
+        // Initial check
         checkPendingReservations();
-        const interval = setInterval(checkPendingReservations, 5 * 60 * 1000); // 5 minutes
-        return () => clearInterval(interval);
+
+        // Clear any existing intervals before setting a new one
+        intervalId = setInterval(checkPendingReservations, 5 * 60 * 1000);
+
+        // Cleanup function
+        return () => {
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+            notificationInProgress.clear();
+        };
     }, [pushEnabled, lastNotifiedCount]);
 
     const fetchMetrics = async () => {

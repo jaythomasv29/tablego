@@ -32,12 +32,12 @@ self.addEventListener('notificationclick', function (event) {
     }
 });
 
-// Add background sync registration
-self.addEventListener('sync', function (event) {
-    if (event.tag === 'checkReservations') {
-        event.waitUntil(checkReservationsInBackground());
-    }
-});
+// Comment out or remove the sync event listener for now
+// self.addEventListener('sync', function(event) {
+//     if (event.tag === 'checkReservations') {
+//         event.waitUntil(checkReservationsInBackground());
+//     }
+// });
 
 // Background check function
 async function checkReservationsInBackground() {
