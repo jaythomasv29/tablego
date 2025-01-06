@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-
 import { Analytics } from '@vercel/analytics/react';
 import FloatingContactButton from '@/components/FloatingContactButton';
+import ServiceWorkerProvider from '@/components/ServiceWorkerProvider';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -19,11 +19,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#3b82f6" />
+      </head>
       <body className={inter.className}>
-
-        {children}
-        <Analytics />
-        <FloatingContactButton />
+        <ServiceWorkerProvider>
+          {children}
+          <Analytics />
+          <FloatingContactButton />
+        </ServiceWorkerProvider>
       </body>
     </html>
   );

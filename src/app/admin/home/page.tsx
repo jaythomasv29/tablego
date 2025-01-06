@@ -20,6 +20,8 @@ import toast, { Toaster } from 'react-hot-toast';
 import { X } from 'lucide-react';
 import PageTransition from '@/components/PageTransition';
 import StaggeredList from '@/components/StaggeredList';
+import { subscribeToPushNotifications } from '@/utils/serviceWorker';
+import { Bell } from 'lucide-react';
 
 // Register ChartJS components
 ChartJS.register(
@@ -143,6 +145,7 @@ export default function AdminHome() {
     const [activeTab, setActiveTab] = useState<'dashboard' | 'messages'>('dashboard');
     const [messages, setMessages] = useState<Message[]>([]);
     const [isMarkingRead, setIsMarkingRead] = useState<string>('');
+    const [pushEnabled, setPushEnabled] = useState(false);
 
     useEffect(() => {
         async function fetchAnalytics() {
@@ -163,6 +166,72 @@ export default function AdminHome() {
         fetchAnalytics();
     }, []);
 
+    useEffect(() => {
+        const setupPushNotifications = async () => {
+            try {
+                const subscription = await subscribeToPushNotifications();
+                if (subscription) {
+                    setPushEnabled(true);
+                }
+            } catch (error) {
+                console.error('Failed to setup push notifications:', error);
+            }
+        };
+
+        setupPushNotifications();
+    }, []);
+
+    useEffect(() => {
+        const checkPendingReservations = async () => {
+            try {
+                const q = query(
+                    collection(db, 'reservations'),
+                    where('status', '==', 'pending'),
+                    orderBy('timestamp', 'desc')
+                );
+                const snapshot = await getDocs(q);
+                const pendingList = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                })) as PendingReservation[];
+
+                setPendingReservations(pendingList);
+
+                // Send push notification if there are pending reservations
+                if (pendingList.length > 0 && pushEnabled) {
+                    await fetch('/api/push', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            message: `You have ${pendingList.length} pending reservation${pendingList.length > 1 ? 's' : ''} that need${pendingList.length === 1 ? 's' : ''} confirmation`
+                        }),
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching pending reservations:', error);
+            }
+        };
+
+        checkPendingReservations();
+        // Check every 5 minutes
+        const interval = setInterval(checkPendingReservations, 5 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, [pushEnabled]);
+
+    const enableNotifications = async () => {
+        try {
+            const subscription = await subscribeToPushNotifications();
+            if (subscription) {
+                setPushEnabled(true);
+                toast.success('Push notifications enabled!');
+            }
+        } catch (error) {
+            console.error('Failed to enable notifications:', error);
+            toast.error('Failed to enable notifications');
+        }
+    };
 
     const fetchMetrics = async () => {
         try {
@@ -431,31 +500,15 @@ export default function AdminHome() {
                 />
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-bold">Dashboard Overview</h1>
-                    {/* <div className="flex space-x-2">
+                    {!pushEnabled && (
                         <button
-                            onClick={() => setActiveTab('dashboard')}
-                            className={`px-4 py-2 rounded-lg ${activeTab === 'dashboard'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
+                            onClick={enableNotifications}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
                         >
-                            Dashboard
+                            <Bell className="w-4 h-4" />
+                            Enable Notifications
                         </button>
-                        <button
-                            onClick={() => setActiveTab('messages')}
-                            className={`px-4 py-2 rounded-lg flex items-center ${activeTab === 'messages'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
-                        >
-                            Messages
-                            {messages.filter(m => m.status === 'unread').length > 0 && (
-                                <span className="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                                    {messages.filter(m => m.status === 'unread').length}
-                                </span>
-                            )}
-                        </button>
-                    </div> */}
+                    )}
                 </div>
 
                 {activeTab === 'dashboard' ? (
