@@ -457,12 +457,12 @@ export async function seedMenu() {
                     ...item,
                     price: item?.price || 0,
                 });
-                console.log(`Added ${item.name} to menu collection`);
+                (`Added ${item.name} to menu collection`);
             } else {
-                console.log(`Skipped ${item.name} - already exists`);
+                (`Skipped ${item.name} - already exists`);
             }
         }
-        console.log('Menu seeding completed!');
+        ('Menu seeding completed!');
     } catch (error) {
         console.error('Error seeding menu:', error);
     }

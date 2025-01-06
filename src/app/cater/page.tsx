@@ -59,7 +59,7 @@ const CateringPage = () => {
                     imageUrl: doc.data().imageUrl,
                     category: doc.data().category || ''
                 }));
-                console.log('Fetched menu items:', items);
+                ('Fetched menu items:', items);
                 setMenuItems(items);
             } catch (error) {
                 console.error('Error fetching menu items:', error);

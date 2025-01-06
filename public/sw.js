@@ -13,11 +13,13 @@ self.addEventListener('push', function (event) {
                 action: 'explore',
                 title: 'View Details',
             }
-        ]
+        ],
+        tag: 'reservation-notification',
+        renotify: true
     };
 
     event.waitUntil(
-        self.registration.showNotification('New Notification', options)
+        self.registration.showNotification('New Reservation', options)
     );
 });
 

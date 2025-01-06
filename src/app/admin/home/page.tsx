@@ -152,7 +152,7 @@ export default function AdminHome() {
             try {
                 const response = await fetch('/api/analytics');
                 const data = await response.json();
-                console.log('Vercel Analytics Data:', data);
+
 
                 setTotalViews(data.pageViews?.value || 0);
                 setDailyViews(data.dailyViews || []);
@@ -184,54 +184,61 @@ export default function AdminHome() {
     useEffect(() => {
         const checkPendingReservations = async () => {
             try {
+                // Create a query without orderBy to avoid timestamp issues
                 const q = query(
                     collection(db, 'reservations'),
-                    where('status', '==', 'pending'),
-                    orderBy('timestamp', 'desc')
+                    where('status', '==', 'pending')
                 );
-                const snapshot = await getDocs(q);
-                const pendingList = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                })) as PendingReservation[];
 
+                const snapshot = await getDocs(q);
+                const pendingList = snapshot.docs.map(doc => {
+                    const data = doc.data();
+                    // Ensure proper date conversion
+                    const date = data.date instanceof Date
+                        ? data.date
+                        : data.date?.toDate?.()
+                        || new Date(data.date);
+
+                    return {
+                        id: doc.id,
+                        ...data,
+                        date: date,
+                        // Ensure all required fields exist
+                        status: data.status || 'pending',
+                        time: data.time || '',
+                        name: data.name || '',
+                        guests: data.guests || 0,
+                        phone: data.phone || '',
+                        email: data.email || ''
+                    };
+                }).filter(res => res.status === 'pending'); // Double-check status
+
+                console.log('Pending reservations found:', pendingList.length);
                 setPendingReservations(pendingList);
 
-                // Send push notification if there are pending reservations
                 if (pendingList.length > 0 && pushEnabled) {
                     await fetch('/api/push', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            message: `You have ${pendingList.length} pending reservation${pendingList.length > 1 ? 's' : ''} that need${pendingList.length === 1 ? 's' : ''} confirmation`
+                            message: `You have ${pendingList.length} pending reservation${pendingList.length > 1 ? 's' : ''} to review`
                         }),
                     });
                 }
             } catch (error) {
-                console.error('Error fetching pending reservations:', error);
+                console.error('Error checking reservations:', error);
             }
         };
 
+        // Initial check
         checkPendingReservations();
-        // Check every 5 minutes
-        const interval = setInterval(checkPendingReservations, 5 * 60 * 1000);
+
+        // Set up interval for subsequent checks
+        const interval = setInterval(checkPendingReservations, 60000);
+
+        // Cleanup
         return () => clearInterval(interval);
     }, [pushEnabled]);
-
-    const enableNotifications = async () => {
-        try {
-            const subscription = await subscribeToPushNotifications();
-            if (subscription) {
-                setPushEnabled(true);
-                toast.success('Push notifications enabled!');
-            }
-        } catch (error) {
-            console.error('Failed to enable notifications:', error);
-            toast.error('Failed to enable notifications');
-        }
-    };
 
     const fetchMetrics = async () => {
         try {
@@ -371,7 +378,7 @@ export default function AdminHome() {
         fetchData();
     }, []);
 
-    console.log(totalViews)
+    // console.log(totalViews)
 
     // Add new state for loading
     const [markingAsRead, setMarkingAsRead] = useState(false);
@@ -502,7 +509,17 @@ export default function AdminHome() {
                     <h1 className="text-2xl font-bold">Dashboard Overview</h1>
                     {!pushEnabled && (
                         <button
-                            onClick={enableNotifications}
+                            onClick={async () => {
+                                try {
+                                    const subscription = await subscribeToPushNotifications();
+                                    if (subscription) {
+                                        setPushEnabled(true);
+                                        toast.success('Push notifications enabled!');
+                                    }
+                                } catch (error) {
+                                    toast.error('Failed to enable notifications');
+                                }
+                            }}
                             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
                         >
                             <Bell className="w-4 h-4" />

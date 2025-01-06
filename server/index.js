@@ -200,7 +200,7 @@ app.post('/api/send-confirmation', async (req, res) => {
     `;
 
     // First email - to customer
-    console.log('Sending email to customer:', formData.email);
+    ('Sending email to customer:', formData.email);
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: formData.email,
@@ -209,7 +209,7 @@ app.post('/api/send-confirmation', async (req, res) => {
     });
 
     // Second email - to restaurant (exact same content)
-    console.log('Sending copy to restaurant:', process.env.EMAIL_USER);
+    ('Sending copy to restaurant:', process.env.EMAIL_USER);
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: process.env.EMAIL_USER, // thaiphoonpaloalto@gmail.com
@@ -241,5 +241,5 @@ app.post('/api/send-confirmation', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  (`Server running on port ${PORT}`);
 });

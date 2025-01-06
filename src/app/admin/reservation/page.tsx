@@ -22,7 +22,7 @@ export default function ReservationAdminPage() {
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    console.log(reservations);
+    (reservations);
 
     useEffect(() => {
         const fetchReservations = async () => {
@@ -30,13 +30,13 @@ export default function ReservationAdminPage() {
             try {
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-                console.log('Reference Today:', today);
+                ('Reference Today:', today);
 
                 const reservationsRef = collection(db, 'reservations');
                 const q = query(reservationsRef);
                 const querySnapshot = await getDocs(q);
 
-                console.log('Total reservations found:', querySnapshot.size);
+                ('Total reservations found:', querySnapshot.size);
 
                 const fetchedReservations = querySnapshot.docs.map(doc => {
                     const data = doc.data();
@@ -78,7 +78,7 @@ export default function ReservationAdminPage() {
                     return viewMode === 'past' ? dateB - dateA : dateA - dateB;
                 });
 
-                console.log(`${viewMode} reservations found:`, filteredReservations.length);
+                (`${viewMode} reservations found:`, filteredReservations.length);
                 setReservations(filteredReservations);
 
             } catch (error) {

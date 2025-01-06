@@ -8,7 +8,7 @@ export function usePageTracking() {
     const pathname = usePathname();
 
     useEffect(() => {
-        console.log('usePageTracking: pathname changed to', pathname);
+        ('usePageTracking: pathname changed to', pathname);
         if (pathname) {
             trackPageView(pathname);
         }

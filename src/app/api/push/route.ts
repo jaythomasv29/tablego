@@ -29,8 +29,10 @@ export async function POST(req: Request) {
             return webpush.sendNotification(
                 subscription,
                 JSON.stringify({
-                    title: 'New Reservation',
-                    body: message
+                    notification: {
+                        title: 'New Reservation',
+                        body: message
+                    }
                 })
             ).catch(error => {
                 console.error('Error sending to subscription:', error);

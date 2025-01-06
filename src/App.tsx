@@ -64,7 +64,7 @@ function App() {
     setIsSubmitting(true);
     try {
       // In production, this would be a real API endpoint
-      console.log('Reservation submitted:', formData);
+      ('Reservation submitted:', formData);
       // Simulate success
       alert('Reservation confirmed! Check your email for details.');
     } catch (error) {

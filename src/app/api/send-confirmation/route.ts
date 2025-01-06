@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     const { formData } = await request.json();
 
     // Verify email configuration
-    console.log('Email Config:', {
+    ('Email Config:', {
       host: process.env.SMTP_HOST,
       port: process.env.SMTP_PORT,
       user: process.env.EMAIL_USER ? 'Set' : 'Not Set',
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     // Test transporter connection
     try {
       await transporter.verify();
-      console.log('SMTP connection verified');
+      ('SMTP connection verified');
     } catch (error) {
       console.error('SMTP verification failed:', error);
       throw new Error('Email service unavailable');
@@ -233,7 +233,7 @@ export async function POST(request: Request) {
         `,
       });
 
-      console.log('Emails sent successfully');
+      ('Emails sent successfully');
     } catch (error) {
       console.error('Failed to send email:', error);
       throw new Error('Failed to send confirmation email');
