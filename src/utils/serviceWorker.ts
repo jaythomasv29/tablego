@@ -14,6 +14,12 @@ export function registerServiceWorker() {
 
 export async function subscribeToPushNotifications() {
     try {
+        // First, request notification permission
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            throw new Error('Notification permission denied');
+        }
+
         const registration = await navigator.serviceWorker.ready;
 
         // Get the push subscription
