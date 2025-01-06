@@ -183,24 +183,26 @@ export default function AdminHome() {
     }, []);
 
     useEffect(() => {
-        let intervalId: NodeJS.Timeout;
+        // Use a ref to track if component is mounted
+        let isMounted = true;
+        const FIVE_MINUTES = 5 * 60 * 1000;
         const notificationInProgress = new Set<number>();
-        const FIVE_MINUTES = 5 * 60 * 1000; // 5 minutes in milliseconds
 
         const checkPendingReservations = async () => {
+            // Skip if component unmounted
+            if (!isMounted) return;
+
             try {
                 const now = Date.now();
                 const lastNotificationTime = localStorage.getItem('lastNotificationTime');
-                const timeSinceLastNotification = lastNotificationTime
-                    ? now - parseInt(lastNotificationTime)
-                    : FIVE_MINUTES;
 
-                // Skip if not enough time has passed
-                if (timeSinceLastNotification < FIVE_MINUTES) {
-                    console.log('Skipping notification check - too soon:',
-                        Math.floor((FIVE_MINUTES - timeSinceLastNotification) / 1000),
-                        'seconds remaining');
-                    return;
+                // Strict time check
+                if (lastNotificationTime) {
+                    const timeSinceLastNotification = now - parseInt(lastNotificationTime);
+                    if (timeSinceLastNotification < FIVE_MINUTES) {
+                        console.log(`Too soon for next check. Waiting ${Math.floor((FIVE_MINUTES - timeSinceLastNotification) / 1000)}s`);
+                        return;
+                    }
                 }
 
                 const currentTime = Date.now();
@@ -259,18 +261,29 @@ export default function AdminHome() {
             }
         };
 
-        // Initial check
-        checkPendingReservations();
+        // Initial check only if no recent notification
+        const lastCheck = localStorage.getItem('lastNotificationTime');
+        if (!lastCheck || (Date.now() - parseInt(lastCheck)) >= FIVE_MINUTES) {
+            checkPendingReservations();
+        }
 
-        // Set interval for exactly 5 minutes
-        intervalId = setInterval(checkPendingReservations, FIVE_MINUTES);
+        // Use RAF for more reliable timing
+        let timeoutId: number;
+        const scheduleNextCheck = () => {
+            timeoutId = window.setTimeout(() => {
+                checkPendingReservations();
+                if (isMounted) {
+                    scheduleNextCheck();
+                }
+            }, FIVE_MINUTES);
+        };
+
+        scheduleNextCheck();
 
         // Cleanup
         return () => {
-            if (intervalId) {
-                clearInterval(intervalId);
-            }
-            notificationInProgress.clear();
+            isMounted = false;
+            window.clearTimeout(timeoutId);
         };
     }, [pushEnabled, lastNotifiedCount]);
 
