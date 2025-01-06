@@ -1,6 +1,6 @@
 import webpush from 'web-push';
 import { NextResponse } from 'next/server';
-import { collection, getDocs, addDoc, query, where, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, addDoc, query, where, orderBy, limit, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { PushSubscription } from 'web-push';
 
@@ -27,12 +27,13 @@ export async function POST(req: Request) {
         );
         const lastNotificationSnapshot = await getDocs(lastNotificationQuery);
 
-        if (!lastNotificationSnapshot.empty) {
+        // Only check time if there was a previous notification
+        if (lastNotificationSnapshot.size > 0) {
             const lastNotification = lastNotificationSnapshot.docs[0].data();
             const timeSinceLastNotification = Date.now() - lastNotification.timestamp.toMillis();
 
-            // If less than 5 minutes have passed, don't send notification
             if (timeSinceLastNotification < 5 * 60 * 1000) {
+                console.log('Skipping notification - too soon:', Math.floor(timeSinceLastNotification / 1000), 'seconds since last');
                 return NextResponse.json({
                     success: false,
                     message: 'Too soon for another notification'
@@ -40,10 +41,10 @@ export async function POST(req: Request) {
             }
         }
 
-        // Record this notification
+        // Record this notification using serverTimestamp for consistency
         await addDoc(notificationsRef, {
             message,
-            timestamp: new Date()
+            timestamp: serverTimestamp()
         });
 
         // Get subscriptions and send notifications
