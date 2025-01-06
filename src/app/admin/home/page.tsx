@@ -146,6 +146,7 @@ export default function AdminHome() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [isMarkingRead, setIsMarkingRead] = useState<string>('');
     const [pushEnabled, setPushEnabled] = useState(false);
+    const [lastNotifiedCount, setLastNotifiedCount] = useState(0);
 
     useEffect(() => {
         async function fetchAnalytics() {
@@ -184,7 +185,6 @@ export default function AdminHome() {
     useEffect(() => {
         const checkPendingReservations = async () => {
             try {
-                // Create a query without orderBy to avoid timestamp issues
                 const q = query(
                     collection(db, 'reservations'),
                     where('status', '==', 'pending')
@@ -216,8 +216,8 @@ export default function AdminHome() {
                 console.log('Pending reservations found:', pendingList.length);
                 setPendingReservations(pendingList);
 
-                if (pendingList.length > 0 && pushEnabled) {
-                    // Format each reservation's details
+                // Only send notification if count has increased
+                if (pendingList.length > lastNotifiedCount && pushEnabled) {
                     const reservationDetails = pendingList.map(res =>
                         `\n• ${res.name} - ${res.guests} guests at ${res.time}`
                     ).join('');
@@ -229,21 +229,17 @@ export default function AdminHome() {
                             message: `You have ${pendingList.length} pending reservation${pendingList.length > 1 ? 's' : ''} to review:${reservationDetails}`
                         }),
                     });
+                    setLastNotifiedCount(pendingList.length);
                 }
             } catch (error) {
                 console.error('Error checking reservations:', error);
             }
         };
 
-        // Initial check
         checkPendingReservations();
-
-        // Set up interval for subsequent checks
-        const interval = setInterval(checkPendingReservations, 60000);
-
-        // Cleanup
+        const interval = setInterval(checkPendingReservations, 300000); // 5 minutes
         return () => clearInterval(interval);
-    }, [pushEnabled]);
+    }, [pushEnabled, lastNotifiedCount]);
 
     const fetchMetrics = async () => {
         try {
@@ -490,6 +486,38 @@ export default function AdminHome() {
         }
     };
 
+    useEffect(() => {
+        const registerBackgroundSync = async () => {
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                if ('sync' in registration) {
+                    // Register periodic sync if supported
+                    if ('periodicSync' in registration) {
+                        const periodicReg = registration as unknown as { periodicSync: { register: Function } };
+                        const status = await navigator.permissions.query({
+                            name: 'periodic-background-sync' as PermissionName
+                        });
+
+                        if (status.state === 'granted') {
+                            await periodicReg.periodicSync.register('checkReservations', {
+                                minInterval: 15 * 60 * 1000
+                            });
+                        }
+                    }
+                    // Add type assertion for sync
+                    const syncReg = registration as unknown as { sync: { register: Function } };
+                    await syncReg.sync.register('checkReservations');
+                }
+            } catch (error) {
+                console.error('Error registering background sync:', error);
+            }
+        };
+
+        if (pushEnabled) {
+            registerBackgroundSync();
+        }
+    }, [pushEnabled]);
+
     return (
         <AdminLayout>
             <PageTransition>
@@ -516,13 +544,24 @@ export default function AdminHome() {
                         <button
                             onClick={async () => {
                                 try {
+                                    // Check if notifications are blocked
+                                    if (Notification.permission === 'denied') {
+                                        toast.error(
+                                            'Notifications are blocked. Please enable them in your browser settings.',
+                                            { duration: 5000 }
+                                        );
+                                        return;
+                                    }
+
                                     const subscription = await subscribeToPushNotifications();
                                     if (subscription) {
                                         setPushEnabled(true);
                                         toast.success('Push notifications enabled!');
                                     }
-                                } catch (error) {
-                                    toast.error('Failed to enable notifications');
+                                } catch (error: any) {
+                                    if (error.message !== 'Notifications are blocked') {
+                                        toast.error('Failed to enable notifications');
+                                    }
                                 }
                             }}
                             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"

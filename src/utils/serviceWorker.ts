@@ -1,3 +1,5 @@
+import { toast } from "react-hot-toast";
+
 export function registerServiceWorker() {
     if ('serviceWorker' in navigator && 'PushManager' in window) {
         navigator.serviceWorker
@@ -14,22 +16,27 @@ export function registerServiceWorker() {
 
 export async function subscribeToPushNotifications() {
     try {
-        // First, request notification permission
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-            throw new Error('Notification permission denied');
+        // Check if notifications are already denied
+        if (Notification.permission === 'denied') {
+            toast.error('Please enable notifications in your browser settings');
+            throw new Error('Notifications are blocked');
+        }
+
+        // If permission is not determined, request it
+        if (Notification.permission !== 'granted') {
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                toast.error('Please allow notifications to receive updates');
+                throw new Error('Notification permission denied');
+            }
         }
 
         const registration = await navigator.serviceWorker.ready;
-
-        // Get the push subscription
         let subscription = await registration.pushManager.getSubscription();
 
-        // If no subscription, create one
         if (!subscription) {
             const response = await fetch('/api/vapidPublicKey');
             const vapidPublicKey = await response.text();
-
             const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
 
             subscription = await registration.pushManager.subscribe({
@@ -38,7 +45,6 @@ export async function subscribeToPushNotifications() {
             });
         }
 
-        // Send the subscription to your server
         await fetch('/api/subscribe', {
             method: 'POST',
             headers: {
@@ -48,9 +54,12 @@ export async function subscribeToPushNotifications() {
         });
 
         return subscription;
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error subscribing to push notifications:', error);
-        throw error;
+        // Don't throw error if notifications are blocked
+        if (error.message !== 'Notifications are blocked') {
+            throw error;
+        }
     }
 }
 
