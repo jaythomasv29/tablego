@@ -193,7 +193,6 @@ export default function AdminHome() {
                 const snapshot = await getDocs(q);
                 const pendingList = snapshot.docs.map(doc => {
                     const data = doc.data();
-                    // Ensure proper date conversion
                     const date = data.date instanceof Date
                         ? data.date
                         : data.date?.toDate?.()
@@ -203,7 +202,6 @@ export default function AdminHome() {
                         id: doc.id,
                         ...data,
                         date: date,
-                        // Ensure all required fields exist
                         status: data.status || 'pending',
                         time: data.time || '',
                         name: data.name || '',
@@ -211,13 +209,20 @@ export default function AdminHome() {
                         phone: data.phone || '',
                         email: data.email || ''
                     };
-                }).filter(res => res.status === 'pending'); // Double-check status
+                }).filter(res => res.status === 'pending');
 
-                console.log('Pending reservations found:', pendingList.length);
                 setPendingReservations(pendingList);
 
-                // Only send notification if count has increased
-                if (pendingList.length > lastNotifiedCount && pushEnabled) {
+                // Only send notification if count has increased AND at least 5 minutes have passed
+                const now = Date.now();
+                const fiveMinutes = 5 * 60 * 1000;
+                const lastNotificationTime = localStorage.getItem('lastNotificationTime');
+                const timeSinceLastNotification = lastNotificationTime ? now - parseInt(lastNotificationTime) : fiveMinutes;
+
+                if (pendingList.length > lastNotifiedCount &&
+                    pushEnabled &&
+                    timeSinceLastNotification >= fiveMinutes) {
+
                     const reservationDetails = pendingList.map(res =>
                         `\n• ${res.name} - ${res.guests} guests at ${res.time}`
                     ).join('');
@@ -230,6 +235,7 @@ export default function AdminHome() {
                         }),
                     });
                     setLastNotifiedCount(pendingList.length);
+                    localStorage.setItem('lastNotificationTime', now.toString());
                 }
             } catch (error) {
                 console.error('Error checking reservations:', error);
@@ -237,7 +243,7 @@ export default function AdminHome() {
         };
 
         checkPendingReservations();
-        const interval = setInterval(checkPendingReservations, 300000); // 5 minutes
+        const interval = setInterval(checkPendingReservations, 5 * 60 * 1000); // 5 minutes
         return () => clearInterval(interval);
     }, [pushEnabled, lastNotifiedCount]);
 
