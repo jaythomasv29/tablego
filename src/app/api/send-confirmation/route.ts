@@ -20,14 +20,6 @@ export async function POST(request: Request) {
   try {
     const { formData } = await request.json();
 
-    // Verify email configuration
-    ('Email Config:', {
-      host: process.env.SMTP_HOST,
-      port: process.env.SMTP_PORT,
-      user: process.env.EMAIL_USER ? 'Set' : 'Not Set',
-      pass: process.env.EMAIL_PASS ? 'Set' : 'Not Set'
-    });
-
     // Save to Firebase with pending status
     const reservationRef = await addDoc(collection(db, 'reservations'), {
       ...formData,
@@ -45,7 +37,7 @@ export async function POST(request: Request) {
     // Test transporter connection
     try {
       await transporter.verify();
-      ('SMTP connection verified');
+      console.log('SMTP connection verified');
     } catch (error) {
       console.error('SMTP verification failed:', error);
       throw new Error('Email service unavailable');
@@ -233,7 +225,7 @@ export async function POST(request: Request) {
         `,
       });
 
-      ('Emails sent successfully');
+      console.log('Emails sent successfully');
     } catch (error) {
       console.error('Failed to send email:', error);
       throw new Error('Failed to send confirmation email');
