@@ -185,9 +185,24 @@ export default function AdminHome() {
     useEffect(() => {
         let intervalId: NodeJS.Timeout;
         const notificationInProgress = new Set<number>();
+        const FIVE_MINUTES = 5 * 60 * 1000; // 5 minutes in milliseconds
 
         const checkPendingReservations = async () => {
             try {
+                const now = Date.now();
+                const lastNotificationTime = localStorage.getItem('lastNotificationTime');
+                const timeSinceLastNotification = lastNotificationTime
+                    ? now - parseInt(lastNotificationTime)
+                    : FIVE_MINUTES;
+
+                // Skip if not enough time has passed
+                if (timeSinceLastNotification < FIVE_MINUTES) {
+                    console.log('Skipping notification check - too soon:',
+                        Math.floor((FIVE_MINUTES - timeSinceLastNotification) / 1000),
+                        'seconds remaining');
+                    return;
+                }
+
                 const currentTime = Date.now();
                 if (notificationInProgress.has(currentTime)) {
                     return;
@@ -222,15 +237,9 @@ export default function AdminHome() {
 
                 setPendingReservations(pendingList);
 
-                const now = Date.now();
-                const fiveMinutes = 5 * 60 * 1000;
-                const lastNotificationTime = localStorage.getItem('lastNotificationTime');
-                const timeSinceLastNotification = lastNotificationTime ? now - parseInt(lastNotificationTime) : fiveMinutes;
-
-                if (pendingList.length > lastNotifiedCount &&
-                    pushEnabled &&
-                    timeSinceLastNotification >= fiveMinutes) {
-
+                // Only send if count has increased
+                if (pendingList.length > lastNotifiedCount && pushEnabled) {
+                    console.log('Sending notification for', pendingList.length, 'reservations');
                     await fetch('/api/push', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -253,10 +262,10 @@ export default function AdminHome() {
         // Initial check
         checkPendingReservations();
 
-        // Clear any existing intervals before setting a new one
-        intervalId = setInterval(checkPendingReservations, 5 * 60 * 1000);
+        // Set interval for exactly 5 minutes
+        intervalId = setInterval(checkPendingReservations, FIVE_MINUTES);
 
-        // Cleanup function
+        // Cleanup
         return () => {
             if (intervalId) {
                 clearInterval(intervalId);
