@@ -1,6 +1,8 @@
 self.addEventListener('push', function (event) {
+    const message = event.data.text();
+
     const options = {
-        body: event.data.text(),
+        body: message,
         icon: '/icons/icon-192x192.png',
         badge: '/icons/icon-192x192.png',
         vibrate: [100, 50, 100],

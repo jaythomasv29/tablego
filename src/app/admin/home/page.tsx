@@ -217,11 +217,16 @@ export default function AdminHome() {
                 setPendingReservations(pendingList);
 
                 if (pendingList.length > 0 && pushEnabled) {
+                    // Format each reservation's details
+                    const reservationDetails = pendingList.map(res =>
+                        `\n• ${res.name} - ${res.guests} guests at ${res.time}`
+                    ).join('');
+
                     await fetch('/api/push', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            message: `You have ${pendingList.length} pending reservation${pendingList.length > 1 ? 's' : ''} to review`
+                            message: `You have ${pendingList.length} pending reservation${pendingList.length > 1 ? 's' : ''} to review:${reservationDetails}`
                         }),
                     });
                 }

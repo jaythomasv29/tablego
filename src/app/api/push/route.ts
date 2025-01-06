@@ -18,30 +18,20 @@ webpush.setVapidDetails(
 export async function POST(req: Request) {
     try {
         const { message } = await req.json();
-
-        // Get all subscriptions from Firestore
         const subscriptionsRef = collection(db, 'pushSubscriptions');
         const snapshot = await getDocs(subscriptionsRef);
 
-        // Send notification to all subscribed devices
         const notifications = snapshot.docs.map(doc => {
             const subscription = doc.data() as PushSubscription;
             return webpush.sendNotification(
                 subscription,
-                JSON.stringify({
-                    notification: {
-                        title: 'New Reservation',
-                        body: message
-                    }
-                })
+                message
             ).catch(error => {
                 console.error('Error sending to subscription:', error);
-                // Could add cleanup of invalid subscriptions here
             });
         });
 
         await Promise.all(notifications);
-
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error sending push notifications:', error);
