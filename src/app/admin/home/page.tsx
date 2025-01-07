@@ -188,20 +188,11 @@ export default function AdminHome() {
         const notificationInProgress = new Set<number>();
 
         const checkPendingReservations = async () => {
+            // Skip if component unmounted
             if (!isMounted) return;
 
             try {
-                const now = Date.now();
-                const lastNotificationTime = localStorage.getItem('lastNotificationTime');
-
-                if (lastNotificationTime) {
-                    const timeSinceLastNotification = now - parseInt(lastNotificationTime);
-                    if (timeSinceLastNotification < FIFTEEN_MINUTES) {
-                        console.log(`Waiting ${Math.floor((FIFTEEN_MINUTES - timeSinceLastNotification) / 1000)}s`);
-                        return;
-                    }
-                }
-
+                // Add a guard to prevent duplicate checks
                 const currentTime = Date.now();
                 if (notificationInProgress.has(currentTime)) {
                     return;
@@ -236,34 +227,41 @@ export default function AdminHome() {
 
                 setPendingReservations(pendingList);
 
-                // Only send if count has increased
+                // Only send if count has increased AND enough time has passed
                 if (pendingList.length > lastNotifiedCount && pushEnabled) {
-                    console.log('Sending notification for', pendingList.length, 'reservations');
-                    await fetch('/api/push', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            message: `You have ${pendingList.length} pending reservation${pendingList.length > 1 ? 's' : ''} to review`
-                        }),
-                    });
-                    setLastNotifiedCount(pendingList.length);
-                    localStorage.setItem('lastNotificationTime', now.toString());
+                    const lastCheck = localStorage.getItem('lastNotificationTime');
+                    const now = Date.now();
+
+                    if (!lastCheck || (now - parseInt(lastCheck)) >= FIFTEEN_MINUTES) {
+                        console.log('Sending notification for', pendingList.length, 'reservations');
+                        await fetch('/api/push', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                message: `You have ${pendingList.length} pending reservation${pendingList.length > 1 ? 's' : ''} to review`
+                            }),
+                        });
+                        setLastNotifiedCount(pendingList.length);
+                        localStorage.setItem('lastNotificationTime', now.toString());
+                    }
                 }
 
                 notificationInProgress.delete(currentTime);
             } catch (error) {
-                const currentTime = Date.now();
                 console.error('Error checking reservations:', error);
-                notificationInProgress.delete(currentTime);
             }
         };
 
+        // Initial check
         checkPendingReservations();
+
+        // Use a longer interval and ensure cleanup
         const interval = setInterval(checkPendingReservations, FIFTEEN_MINUTES);
 
         return () => {
             isMounted = false;
             clearInterval(interval);
+            notificationInProgress.clear();
         };
     }, [pushEnabled, lastNotifiedCount]);
 
