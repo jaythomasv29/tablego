@@ -16,15 +16,16 @@ export function registerServiceWorker() {
 
 export async function subscribeToPushNotifications() {
     try {
-        // Check if notifications are already denied
+        console.log('Requesting notification permission');
         if (Notification.permission === 'denied') {
+            console.log('Notifications are blocked');
             toast.error('Please enable notifications in your browser settings');
             throw new Error('Notifications are blocked');
         }
 
-        // If permission is not determined, request it
         if (Notification.permission !== 'granted') {
             const permission = await Notification.requestPermission();
+            console.log('Permission result:', permission);
             if (permission !== 'granted') {
                 toast.error('Please allow notifications to receive updates');
                 throw new Error('Notification permission denied');
@@ -32,19 +33,25 @@ export async function subscribeToPushNotifications() {
         }
 
         const registration = await navigator.serviceWorker.ready;
+        console.log('Service Worker ready');
+
         let subscription = await registration.pushManager.getSubscription();
+        console.log('Existing subscription:', subscription);
 
         if (!subscription) {
             const response = await fetch('/api/vapidPublicKey');
             const vapidPublicKey = await response.text();
-            const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+            console.log('VAPID key received');
 
+            const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
             subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: convertedVapidKey
             });
+            console.log('New subscription created');
         }
 
+        console.log('Saving subscription to server');
         await fetch('/api/subscribe', {
             method: 'POST',
             headers: {
@@ -52,14 +59,12 @@ export async function subscribeToPushNotifications() {
             },
             body: JSON.stringify(subscription)
         });
+        console.log('Subscription saved successfully');
 
         return subscription;
-    } catch (error: any) {
-        console.error('Error subscribing to push notifications:', error);
-        // Don't throw error if notifications are blocked
-        if (error.message !== 'Notifications are blocked') {
-            throw error;
-        }
+    } catch (error) {
+        console.error('Push notification setup error:', error);
+        throw error;
     }
 }
 

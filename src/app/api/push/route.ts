@@ -1,6 +1,6 @@
 import webpush from 'web-push';
 import { NextResponse } from 'next/server';
-import { collection, getDocs, addDoc, query, where, orderBy, limit, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, query, orderBy, limit, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { PushSubscription } from 'web-push';
 
@@ -16,43 +16,26 @@ webpush.setVapidDetails(
 
 export async function POST(req: Request) {
     try {
+        console.log('Push notification endpoint hit');
         const { message } = await req.json();
-
-        // Check last notification time
-        const notificationsRef = collection(db, 'notifications');
-        const lastNotificationQuery = query(
-            notificationsRef,
-            orderBy('timestamp', 'desc'),
-            limit(1)
-        );
-        const lastNotificationSnapshot = await getDocs(lastNotificationQuery);
-
-        // Only check time if there was a previous notification
-        if (lastNotificationSnapshot.size > 0) {
-            const lastNotification = lastNotificationSnapshot.docs[0].data();
-            const timeSinceLastNotification = Date.now() - lastNotification.timestamp.toMillis();
-
-            if (timeSinceLastNotification < 5 * 60 * 1000) {
-                console.log('Skipping notification - too soon:', Math.floor(timeSinceLastNotification / 1000), 'seconds since last');
-                return NextResponse.json({
-                    success: false,
-                    message: 'Too soon for another notification'
-                });
-            }
-        }
-
-        // Record this notification using serverTimestamp for consistency
-        await addDoc(notificationsRef, {
-            message,
-            timestamp: serverTimestamp()
-        });
+        console.log('Message received:', message);
 
         // Get subscriptions and send notifications
         const subscriptionsRef = collection(db, 'pushSubscriptions');
         const snapshot = await getDocs(subscriptionsRef);
+        console.log('Found subscriptions:', snapshot.size);
+
+        if (snapshot.size === 0) {
+            console.log('No subscriptions found');
+            return NextResponse.json({
+                success: false,
+                message: 'No subscriptions found'
+            });
+        }
 
         const notifications = snapshot.docs.map(doc => {
             const subscription = doc.data() as PushSubscription;
+            console.log('Sending to subscription:', subscription.endpoint);
             return webpush.sendNotification(
                 subscription,
                 message
@@ -62,6 +45,14 @@ export async function POST(req: Request) {
         });
 
         await Promise.all(notifications);
+        console.log('Notifications sent successfully');
+
+        // Record this notification
+        await addDoc(collection(db, 'notifications'), {
+            message,
+            timestamp: serverTimestamp()
+        });
+
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error sending push notifications:', error);
