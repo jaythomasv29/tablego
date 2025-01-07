@@ -20,6 +20,31 @@ export async function POST(req: Request) {
         const { message } = await req.json();
         console.log('Message received:', message);
 
+        // Check last notification time
+        const notificationsRef = collection(db, 'notifications');
+        const lastNotificationQuery = query(
+            notificationsRef,
+            orderBy('timestamp', 'desc'),
+            limit(1)
+        );
+        const lastNotificationSnapshot = await getDocs(lastNotificationQuery);
+
+        if (!lastNotificationSnapshot.empty) {
+            const lastNotification = lastNotificationSnapshot.docs[0].data();
+            if (lastNotification.timestamp) {
+                const timeSinceLastNotification = Date.now() - lastNotification.timestamp.toDate().getTime();
+                console.log('Time since last notification (seconds):', Math.floor(timeSinceLastNotification / 1000));
+
+                if (timeSinceLastNotification < 5 * 60 * 1000) {
+                    console.log('Skipping - too soon since last notification');
+                    return NextResponse.json({
+                        success: false,
+                        message: 'Too soon for another notification'
+                    });
+                }
+            }
+        }
+
         // Get subscriptions and send notifications
         const subscriptionsRef = collection(db, 'pushSubscriptions');
         const snapshot = await getDocs(subscriptionsRef);
@@ -48,7 +73,7 @@ export async function POST(req: Request) {
         console.log('Notifications sent successfully');
 
         // Record this notification
-        await addDoc(collection(db, 'notifications'), {
+        await addDoc(notificationsRef, {
             message,
             timestamp: serverTimestamp()
         });
