@@ -35,7 +35,7 @@ export async function POST(req: Request) {
                 const timeSinceLastNotification = Date.now() - lastNotification.timestamp.toDate().getTime();
                 console.log('Time since last notification (seconds):', Math.floor(timeSinceLastNotification / 1000));
 
-                if (timeSinceLastNotification < 5 * 60 * 1000) {
+                if (timeSinceLastNotification < 15 * 60 * 1000) {
                     console.log('Skipping - too soon since last notification');
                     return NextResponse.json({
                         success: false,
