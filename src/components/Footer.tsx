@@ -27,7 +27,7 @@ export default function Footer() {
                         </p>
                         <p>
                             <a
-                                href="tel:+16503223700"
+                                href="tel:+16503237700"
                                 className="hover:text-indigo-600 transition-colors"
                             >
                                 (650) 322-3700

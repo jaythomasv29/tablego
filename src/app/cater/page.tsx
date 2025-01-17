@@ -210,7 +210,7 @@ const CateringPage = () => {
                                 <div className="space-y-4">
                                     <div className="mb-8 text-gray-600 border-b pb-6">
                                         <p className="text-base leading-relaxed">
-                                            We appreciate your interest in our catering services and are happy to fire up our woks for you! (For immediate inquiries, please call us at 650-222-2222 or email us at thaiphoonpaloalto@gmail.com)
+                                            We appreciate your interest in our catering services and are happy to fire up our woks for you! (For immediate inquiries, please call us at 650-323-7700 or email us at thaiphoonpaloalto@gmail.com)
                                         </p>
                                         <p className="text-base leading-relaxed mt-4">
                                             Let's get started by entering some customer details:
