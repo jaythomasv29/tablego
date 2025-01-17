@@ -30,7 +30,7 @@ export default function Footer() {
                                 href="tel:+16503237700"
                                 className="hover:text-indigo-600 transition-colors"
                             >
-                                (650) 322-3700
+                                (650) 323-7700
                             </a>
                         </p>
 
