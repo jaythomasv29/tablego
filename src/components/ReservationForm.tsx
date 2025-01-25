@@ -559,16 +559,16 @@ export default function ReservationForm() {
                         />
                       </div>
 
-                      {/* Content - Adjusted padding */}
-                      <div className="relative z-20 h-full flex flex-col items-center" style={{ paddingTop: '10vh' }}>
-                        <h3 className="text-3xl font-semibold text-white mb-8">
+                      {/* Content - Made more mobile friendly */}
+                      <div className="relative z-20 h-full flex flex-col items-center px-4 sm:px-6" style={{ paddingTop: '8vh' }}>
+                        <h3 className="text-2xl md:text-3xl font-semibold text-white mb-6 md:mb-8 text-center px-2">
                           Welcome to Thaiphoon, Let's get you a table!
                         </h3>
-                        <div className="flex items-center space-x-4">
+                        <div className="flex flex-col md:flex-row items-stretch space-y-3 md:space-y-0 md:space-x-4 w-full max-w-3xl">
                           {/* Fields Container */}
-                          <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white/95">
+                          <div className="flex flex-col md:flex-row items-stretch border border-gray-200 rounded-lg overflow-hidden bg-white/95 w-full">
                             {/* Date Input */}
-                            <div className="w-[180px]">
+                            <div className="w-full md:w-[180px] min-h-[44px]">
                               <ThemeProvider theme={theme}>
                                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                                   <MuiDatePicker
@@ -582,9 +582,9 @@ export default function ReservationForm() {
                                     sx={{
                                       width: '100%',
                                       '& .MuiOutlinedInput-root': {
-                                        height: '44px',
+                                        height: { xs: '48px', md: '44px' },
                                         '& .MuiOutlinedInput-input': {
-                                          padding: '0 12px',
+                                          padding: { xs: '14px 12px', md: '0 12px' },
                                         },
                                         '& fieldset': {
                                           border: 'none',
@@ -611,14 +611,14 @@ export default function ReservationForm() {
                             </div>
 
                             {/* Time Dropdown */}
-                            <div className="w-[140px] border-l border-gray-200 relative">
+                            <div className="w-full md:w-[140px] border-t md:border-t-0 md:border-l border-gray-200 relative min-h-[48px] md:min-h-[44px]">
                               <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                                 <Clock className="w-4 h-4" />
                               </div>
                               <select
                                 value={formData.time}
                                 onChange={(e) => updateFormData({ time: e.target.value })}
-                                className="w-full h-[44px] pl-9 pr-3 appearance-none bg-white focus:outline-none"
+                                className="w-full h-full pl-9 pr-3 appearance-none bg-white focus:outline-none text-base"
                               >
                                 <option value="">Select time</option>
                                 {availableTimeSlots.map((slot) => (
@@ -630,14 +630,14 @@ export default function ReservationForm() {
                             </div>
 
                             {/* Party Size Dropdown */}
-                            <div className="w-[120px] border-l border-gray-200 relative">
+                            <div className="w-full md:w-[120px] border-t md:border-t-0 md:border-l border-gray-200 relative min-h-[48px] md:min-h-[44px]">
                               <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                                 <Users className="w-4 h-4" />
                               </div>
                               <select
                                 value={formData.guests || ""}
                                 onChange={(e) => updateFormData({ guests: Number(e.target.value) })}
-                                className="w-full h-[44px] pl-9 pr-3 appearance-none bg-white focus:outline-none"
+                                className="w-full h-full pl-9 pr-3 appearance-none bg-white focus:outline-none text-base"
                               >
                                 <option value="">Guests</option>
                                 {[...Array(20)].map((_, i) => (
@@ -659,16 +659,20 @@ export default function ReservationForm() {
                               }
                             }}
                             disabled={!formData.date || !formData.time || !formData.guests}
-                            className={`h-[44px] px-6 text-white rounded-lg flex items-center whitespace-nowrap transition-colors ${formData.date && formData.time && formData.guests
-                              ? 'bg-indigo-600 hover:bg-indigo-500'
-                              : 'bg-gray-400 cursor-not-allowed'
+                            className={`w-full md:w-auto h-[48px] md:h-[44px] px-6 text-white rounded-lg flex items-center justify-center whitespace-nowrap transition-colors ${formData.date && formData.time && formData.guests
+                                ? 'bg-indigo-600 hover:bg-indigo-500'
+                                : 'bg-gray-400 cursor-not-allowed'
                               }`}
                           >
                             Continue
                             <ChevronRight className="w-4 h-4 ml-1" />
                           </button>
                         </div>
-                        <Link href="/menu"><h3 className="text-white hover:text-gray-200 my-3 no-underline transition-colors text-sm">Browse Full Menu</h3></Link>
+                        <Link href="/menu">
+                          <h3 className="text-white hover:text-gray-200 mt-6 no-underline transition-colors text-sm">
+                            Browse Full Menu
+                          </h3>
+                        </Link>
                       </div>
                     </div>
 
