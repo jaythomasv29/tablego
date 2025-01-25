@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Users, Mail, MessageSquare } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Users, Mail, MessageSquare, Clock } from 'lucide-react';
 import DatePicker from './DatePicker';
 import GuestInfo from './GuestInfo';
 // import AdditionalInfo from './AdditionalInfo';
@@ -15,6 +15,14 @@ import Navbar from './Navbar';
 import { TimeSlot } from '@/types/TimeSlot';
 // import { usePageTracking } from './usePageTracking';
 import dynamic from 'next/dynamic';
+import { toast } from 'react-hot-toast';
+import MenuCarousel from './MenuCarousel';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { DatePicker as MuiDatePicker } from '@mui/x-date-pickers/DatePicker';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
 
 // Lazy load components that aren't needed immediately
 const AdditionalInfo = dynamic(() => import('./AdditionalInfo'));
@@ -78,6 +86,24 @@ const isSameMonthAndDay = (date1: Date, date2: Date): boolean => {
     date1.getDate() === date2.getDate();
 };
 
+// Add theme for MUI components
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#4F46E5', // Indigo-600 to match your theme
+    },
+  },
+});
+
+interface MenuItem {
+  id: string;
+  name: string;
+  price?: number;
+  description: string;
+  category: string;
+  imageUrl: string;
+}
+
 export default function ReservationForm() {
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<ReservationData>(initialData);
@@ -94,11 +120,12 @@ export default function ReservationForm() {
   // usePageTracking();
   const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlot[]>([]);
   const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   //  (businessHours)
   //  ('Generating time slots for:', selectedDate);
   // etc...
   const steps = [
-    { title: 'Date & Time', icon: Calendar },
+    { title: 'Reservation Details', icon: Calendar },
     { title: 'Guest Information', icon: Users },
     { title: 'Additional Details', icon: MessageSquare },
     { title: 'Confirmation', icon: Mail },
@@ -174,15 +201,12 @@ export default function ReservationForm() {
   // Update time slots when date or business hours change
   useEffect(() => {
     if (businessHours && selectedDate) {
+      const slots = generateTimeSlots(selectedDate, businessHours);
+      setAvailableTimeSlots(slots);
 
-      const newSlots = generateTimeSlots(selectedDate, businessHours);
-      setAvailableTimeSlots(newSlots);
-
-      // If we have slots and no time is selected, select the first available slot
-      if (newSlots.length > 0 && !formData.time) {
-        updateFormData({
-          time: newSlots[0].time
-        });
+      // If current time is not available, clear it
+      if (formData.time && !slots.find(slot => slot.time === formData.time)) {
+        updateFormData({ time: '' });
       }
     }
   }, [selectedDate, businessHours]);
@@ -224,12 +248,7 @@ export default function ReservationForm() {
     return isDinnerClosed && isLunchClosed;
   };
 
-  // 2. Update the initial date state
-  // const [selectedDate, setSelectedDate] = useState<Date>(() => {
-  //   const today = new Date();
-  //   today.setHours(0, 0, 0, 0);
-  //   return today;
-  // });
+
 
   // 3. Add useEffect to handle initial date setting
   useEffect(() => {
@@ -244,116 +263,71 @@ export default function ReservationForm() {
     }
   }, [businessHours]); // Only run when business hours are loaded
 
-  // 4. Update the generateTimeSlots function to handle next day logic
+  // 4. Update the generateTimeSlots function
   const generateTimeSlots = (date: Date, hours: BusinessHours): TimeSlot[] => {
-    // First check if the date is a holiday
-    const isHoliday = specialDates.some(specialDate => {
-      const holidayDate = new Date(specialDate.date);
-      return isSameMonthAndDay(date, holidayDate);
-    });
-
-    // If it's a holiday, return empty array (no time slots available)
-    if (isHoliday) {
-      return [];
-    }
-
-    const pstNow = getPSTDate();
-    const isToday = date.toDateString() === pstNow.toDateString();
-    const currentMinutes = isToday ? pstNow.getHours() * 60 + pstNow.getMinutes() : 0;
-
-    const dayOfWeek = date.toLocaleDateString('en-US', {
-      weekday: 'long'
-    }).toLowerCase();
-
+    const slots: TimeSlot[] = [];
+    const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
     const dayHours = hours[dayOfWeek];
-    const lunchSlots: TimeSlot[] = [];
-    const dinnerSlots: TimeSlot[] = [];
 
-    if (!dayHours) return [];
+    if (!dayHours) return slots;
 
-    // Helper to convert "HH:mm" to minutes since midnight
+    // Helper function to convert time string to minutes
     const timeToMinutes = (timeStr: string): number => {
-      const [hours, minutes] = timeStr.split(':').map(Number);
+      const [time, period] = timeStr.split(' ');
+      let [hours, minutes] = time.split(':').map(Number);
+      if (period === 'PM' && hours !== 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
       return hours * 60 + minutes;
     };
 
-    // Helper to convert minutes to "HH:mm AM/PM" format
+    // Helper function to format minutes back to time string
     const minutesToTime = (minutes: number): string => {
       const hours = Math.floor(minutes / 60);
       const mins = minutes % 60;
       const period = hours >= 12 ? 'PM' : 'AM';
-      const displayHours = hours % 12 || 12;
+      const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
       return `${displayHours}:${mins.toString().padStart(2, '0')} ${period}`;
     };
 
-    // Helper to convert "H:mm AM/PM" to minutes for sorting
-    const timeStringToMinutes = (timeStr: string): number => {
-      // Split into time and period (e.g., "1:00" and "PM")
-      const [timeComponent, period] = timeStr.trim().split(' ');
-
-      // Split hours and minutes
-      const [hoursStr, minutesStr] = timeComponent.split(':');
-      let hours = parseInt(hoursStr, 10);
-      const minutes = parseInt(minutesStr, 10);
-
-      // Convert to 24-hour format
-      if (period === 'PM' && hours !== 12) {
-        hours += 12;
-      } else if (period === 'AM' && hours === 12) {
-        hours = 0;
-      }
-
-      return (hours * 60) + minutes;
-    };
-
-    // Generate lunch slots
+    // Add lunch slots
     if (dayHours.lunch.isOpen) {
       let startMinutes = timeToMinutes(dayHours.lunch.open);
-      const endMinutes = timeToMinutes(dayHours.lunch.close) - 30;
+      const endMinutes = timeToMinutes(dayHours.lunch.close);
 
-      while (startMinutes <= endMinutes) {
-        if (!isToday || startMinutes > currentMinutes + 30) {
-          lunchSlots.push({
-            period: 'lunch',
-            time: minutesToTime(startMinutes),
-            startTime: minutesToTime(startMinutes),
-            endTime: minutesToTime(startMinutes + slotDuration)
-          });
-        }
+      while (startMinutes < endMinutes - 30) { // Leave 30 min before closing
+        slots.push({
+          time: minutesToTime(startMinutes),
+          period: 'lunch'
+        });
         startMinutes += slotDuration;
       }
     }
 
-    // Generate dinner slots
+    // Add dinner slots
     if (dayHours.dinner.isOpen) {
       let startMinutes = timeToMinutes(dayHours.dinner.open);
-      const endMinutes = timeToMinutes(dayHours.dinner.close) - 30;
+      const endMinutes = timeToMinutes(dayHours.dinner.close);
 
-      while (startMinutes <= endMinutes) {
-        if (!isToday || startMinutes > currentMinutes + 30) {
-          dinnerSlots.push({
-            period: 'dinner',
-            time: minutesToTime(startMinutes),
-            startTime: minutesToTime(startMinutes),
-            endTime: minutesToTime(startMinutes + slotDuration)
-          });
-        }
+      while (startMinutes < endMinutes - 30) { // Leave 30 min before closing
+        slots.push({
+          time: minutesToTime(startMinutes),
+          period: 'dinner'
+        });
         startMinutes += slotDuration;
       }
     }
 
-    // Sort lunch and dinner slots by time
-    const sortByTime = (a: TimeSlot, b: TimeSlot) => {
-      const minutesA = timeStringToMinutes(a.time);
-      const minutesB = timeStringToMinutes(b.time);
-      return minutesA - minutesB;
-    };
+    // Filter out past times if it's today
+    const now = new Date();
+    if (date.toDateString() === now.toDateString()) {
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      return slots.filter(slot => {
+        const slotMinutes = timeToMinutes(slot.time);
+        return slotMinutes > currentMinutes + 30; // Add 30 min buffer
+      });
+    }
 
-    // Sort lunch slots separately
-    const sortedLunchSlots = [...lunchSlots].sort(sortByTime);
-    const sortedDinnerSlots = [...dinnerSlots].sort(sortByTime);
-
-    return [...sortedLunchSlots, ...sortedDinnerSlots];
+    return slots;
   };
 
   const handleDateChange = (date: Date) => {
@@ -502,6 +476,24 @@ export default function ReservationForm() {
     </div>
   );
 
+  // Add useEffect to fetch menu items
+  useEffect(() => {
+    const fetchMenuItems = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'menu'));
+        const items = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as MenuItem[];
+        setMenuItems(items);
+      } catch (error) {
+        console.error('Error fetching menu:', error);
+      }
+    };
+
+    fetchMenuItems();
+  }, []);
+
   if (isLoading) return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
       <div className="bg-white rounded-lg shadow-xl p-8 flex flex-col items-center space-y-4">
@@ -515,46 +507,206 @@ export default function ReservationForm() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6 }}
+      className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100"
+    >
       <Navbar />
 
-      <main className="max-w-3xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+      <main className={step === 0 ? "w-full" : "max-w-3xl mx-auto px-4 py-8"}>
+        <div className={step === 0 ? "" : "bg-white rounded-2xl shadow-xl p-6 md:p-8"}>
           {isSuccess ? (
             <SuccessScreen />
           ) : (
             <>
-              {step > 0 && (
-                <button
-                  onClick={prevStep}
-                  className="mb-6 flex items-center text-gray-600 hover:text-gray-900 transition-colors"
-                >
-                  <ChevronLeft className="w-5 h-5 mr-1" />
-                  <span className="text-sm font-medium">Back to {steps[step - 1].title}</span>
-                </button>
+              {/* Only show progress bar and back button for steps >= 1 */}
+              {step >= 1 && (
+                <>
+                  <button
+                    onClick={prevStep}
+                    className="mb-6 flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+                  >
+                    <ChevronLeft className="w-5 h-5 mr-1" />
+                    <span className="text-sm font-medium">Back to {steps[step - 1].title}</span>
+                  </button>
+
+                  <ProgressBar
+                    currentStep={step}
+                    steps={steps}
+                    onStepClick={handleStepClick}
+                  />
+                </>
               )}
 
-              <ProgressBar
-                currentStep={step}
-                steps={steps}
-                onStepClick={handleStepClick}
-              />
-
-              <div className="mt-8">
+              <div className={step >= 1 ? "mt-8" : ""}>
                 {step === 0 && (
-                  <>
-                    <DatePicker
-                      date={selectedDate}
-                      time={formData.time}
-                      onUpdate={(date: Date, time: string) => {
-                        updateFormData({ date, time });
-                        setSelectedDate(date);
-                      }}
-                      onDateChange={handleDateChange}
-                      availableTimeSlots={availableTimeSlots}
-                      specialDates={specialDates}
-                    />
-                  </>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.6 }}
+                    className="relative"
+                  >
+                    {/* Hero Section - Changed to 40vh */}
+                    <div className="relative h-[45vh] w-full">
+                      <div className="absolute inset-0">
+                        <div className="absolute inset-0 bg-black/50 z-10"></div>
+                        <img
+                          src="/images/thai_food_hero.jpeg"
+                          alt="Thai Food"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+
+                      {/* Content - Adjusted padding */}
+                      <div className="relative z-20 h-full flex flex-col items-center" style={{ paddingTop: '10vh' }}>
+                        <h3 className="text-3xl font-semibold text-white mb-8">
+                          Welcome to Thaiphoon, Let's get you a table!
+                        </h3>
+                        <div className="flex items-center space-x-4">
+                          {/* Fields Container */}
+                          <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white/95">
+                            {/* Date Input */}
+                            <div className="w-[180px]">
+                              <ThemeProvider theme={theme}>
+                                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                                  <MuiDatePicker
+                                    value={selectedDate}
+                                    onChange={(newDate) => {
+                                      if (newDate) {
+                                        newDate.setHours(12, 0, 0, 0);
+                                        handleDateChange(newDate);
+                                      }
+                                    }}
+                                    sx={{
+                                      width: '100%',
+                                      '& .MuiOutlinedInput-root': {
+                                        height: '44px',
+                                        '& .MuiOutlinedInput-input': {
+                                          padding: '0 12px',
+                                        },
+                                        '& fieldset': {
+                                          border: 'none',
+                                        },
+                                        '&:hover fieldset': {
+                                          border: 'none',
+                                        },
+                                        '&.Mui-focused fieldset': {
+                                          border: 'none',
+                                        }
+                                      },
+                                    }}
+                                    disablePast
+                                    shouldDisableDate={(date) => {
+                                      // Check if date is a holiday
+                                      return specialDates.some(specialDate => {
+                                        const holidayDate = new Date(specialDate.date);
+                                        return isSameMonthAndDay(date, holidayDate);
+                                      });
+                                    }}
+                                  />
+                                </LocalizationProvider>
+                              </ThemeProvider>
+                            </div>
+
+                            {/* Time Dropdown */}
+                            <div className="w-[140px] border-l border-gray-200 relative">
+                              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                <Clock className="w-4 h-4" />
+                              </div>
+                              <select
+                                value={formData.time}
+                                onChange={(e) => updateFormData({ time: e.target.value })}
+                                className="w-full h-[44px] pl-9 pr-3 appearance-none bg-white focus:outline-none"
+                              >
+                                <option value="">Select time</option>
+                                {availableTimeSlots.map((slot) => (
+                                  <option key={slot.time} value={slot.time}>
+                                    {slot.time}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Party Size Dropdown */}
+                            <div className="w-[120px] border-l border-gray-200 relative">
+                              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                <Users className="w-4 h-4" />
+                              </div>
+                              <select
+                                value={formData.guests || ""}
+                                onChange={(e) => updateFormData({ guests: Number(e.target.value) })}
+                                className="w-full h-[44px] pl-9 pr-3 appearance-none bg-white focus:outline-none"
+                              >
+                                <option value="">Guests</option>
+                                {[...Array(20)].map((_, i) => (
+                                  <option key={i + 1} value={i + 1}>
+                                    {i + 1} people
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Continue Button */}
+                          <button
+                            onClick={() => {
+                              if (formData.date && formData.time && formData.guests) {
+                                setStep(1);
+                              } else {
+                                toast.error('Please fill in all fields');
+                              }
+                            }}
+                            disabled={!formData.date || !formData.time || !formData.guests}
+                            className={`h-[44px] px-6 text-white rounded-lg flex items-center whitespace-nowrap transition-colors ${formData.date && formData.time && formData.guests
+                              ? 'bg-indigo-600 hover:bg-indigo-500'
+                              : 'bg-gray-400 cursor-not-allowed'
+                              }`}
+                          >
+                            Continue
+                            <ChevronRight className="w-4 h-4 ml-1" />
+                          </button>
+                        </div>
+                        <Link href="/menu"><h3 className="text-white hover:text-gray-200 my-3 no-underline transition-colors text-sm">Browse Full Menu</h3></Link>
+                      </div>
+                    </div>
+
+                    {/* Signature Dishes Section */}
+                    <div className="bg-white py-12">
+                      <div className="max-w-7xl mx-auto px-4">
+                        <h2 className="text-2xl font-bold text-gray-800 mb-8 text-center">
+                          Our Signature Dishes
+                        </h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {menuItems
+                            .filter(item => item.category === 'Signature Dishes')
+                            .map((item) => (
+                              <div
+                                key={item.id}
+                                className="border rounded-lg hover:shadow-md transition-shadow bg-white overflow-hidden"
+                              >
+                                <div className="h-48 w-full">
+                                  <img
+                                    src={item.imageUrl || "https://placehold.co/400x300/e2e8f0/666666?text=Plate+of+Food"}
+                                    alt={item.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                                <div className="p-4">
+                                  <h3 className="text-lg font-semibold mb-2">
+                                    {item.name}
+                                  </h3>
+                                  <p className="text-gray-600 text-sm line-clamp-2">
+                                    {item.description}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
                 )}
                 {step === 1 && (
                   <GuestInfo
@@ -578,8 +730,9 @@ export default function ReservationForm() {
                 )}
               </div>
 
-              <div className="mt-8 flex justify-between">
-                {step > 0 && (
+              {/* Only show bottom navigation for steps > 0 */}
+              {step > 0 && step < steps.length - 1 && (
+                <div className="mt-8 flex justify-between">
                   <button
                     onClick={prevStep}
                     disabled={isSubmitting}
@@ -588,8 +741,6 @@ export default function ReservationForm() {
                     <ChevronLeft className="w-4 h-4 mr-1" />
                     Back
                   </button>
-                )}
-                {step < steps.length - 1 && (
                   <button
                     onClick={nextStep}
                     disabled={isSubmitting}
@@ -598,13 +749,14 @@ export default function ReservationForm() {
                     Continue
                     <ChevronRight className="w-4 h-4 ml-1" />
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </>
           )}
         </div>
+
       </main>
-    </div>
+    </motion.div>
   );
 }
 
