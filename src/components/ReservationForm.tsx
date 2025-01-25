@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, Users, Mail, MessageSquare, Clock } from 'lucide-react';
-import DatePicker from './DatePicker';
+// import DatePicker from './DatePicker';
 import GuestInfo from './GuestInfo';
 // import AdditionalInfo from './AdditionalInfo';
 // import Confirmation from './Confirmation';
@@ -10,7 +10,7 @@ import ProgressBar from './ProgressBar';
 import Cookies from 'js-cookie';
 import { db } from '../firebase';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
-import { CancelButton } from './CancelButton';
+// import { CancelButton } from './CancelButton';
 import Navbar from './Navbar';
 import { TimeSlot } from '@/types/TimeSlot';
 // import { usePageTracking } from './usePageTracking';
@@ -559,114 +559,113 @@ export default function ReservationForm() {
                         />
                       </div>
 
-                      {/* Content - Made more mobile friendly */}
+                      {/* Content - Made more mobile friendly and centered */}
                       <div className="relative z-20 h-full flex flex-col items-center px-4 sm:px-6" style={{ paddingTop: '8vh' }}>
                         <h3 className="text-2xl md:text-3xl font-semibold text-white mb-6 md:mb-8 text-center px-2">
                           Welcome to Thaiphoon, Let's get you a table!
                         </h3>
-                        <div className="flex flex-col md:flex-row items-stretch space-y-3 md:space-y-0 md:space-x-4 w-full max-w-3xl">
-                          {/* Fields Container */}
-                          <div className="flex flex-col md:flex-row items-stretch border border-gray-200 rounded-lg overflow-hidden bg-white/95 w-full">
-                            {/* Date Input */}
-                            <div className="w-full md:w-[180px] min-h-[44px]">
-                              <ThemeProvider theme={theme}>
-                                <LocalizationProvider dateAdapter={AdapterDateFns}>
-                                  <MuiDatePicker
-                                    value={selectedDate}
-                                    onChange={(newDate) => {
-                                      if (newDate) {
-                                        newDate.setHours(12, 0, 0, 0);
-                                        handleDateChange(newDate);
-                                      }
-                                    }}
-                                    sx={{
-                                      width: '100%',
-                                      '& .MuiOutlinedInput-root': {
-                                        height: { xs: '48px', md: '44px' },
-                                        '& .MuiOutlinedInput-input': {
-                                          padding: { xs: '14px 12px', md: '0 12px' },
-                                        },
-                                        '& fieldset': {
-                                          border: 'none',
-                                        },
-                                        '&:hover fieldset': {
-                                          border: 'none',
-                                        },
-                                        '&.Mui-focused fieldset': {
-                                          border: 'none',
+                        <div className="flex flex-col items-center space-y-3 w-full">
+                          <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 w-full justify-center">
+                            {/* Fields Container */}
+                            <div className="flex items-stretch border border-gray-200 rounded-lg overflow-hidden bg-white/95 w-full sm:w-auto">
+                              {/* Date Input */}
+                              <div className="w-[170px] min-h-[48px] relative">
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10">
+                                  <Calendar className="w-4 h-4" />
+                                </div>
+                                <ThemeProvider theme={theme}>
+                                  <LocalizationProvider dateAdapter={AdapterDateFns}>
+                                    <MuiDatePicker
+                                      value={selectedDate}
+                                      onChange={(newDate) => {
+                                        if (newDate) {
+                                          newDate.setHours(12, 0, 0, 0);
+                                          handleDateChange(newDate);
                                         }
-                                      },
-                                    }}
-                                    disablePast
-                                    shouldDisableDate={(date) => {
-                                      // Check if date is a holiday
-                                      return specialDates.some(specialDate => {
-                                        const holidayDate = new Date(specialDate.date);
-                                        return isSameMonthAndDay(date, holidayDate);
-                                      });
-                                    }}
-                                  />
-                                </LocalizationProvider>
-                              </ThemeProvider>
-                            </div>
-
-                            {/* Time Dropdown */}
-                            <div className="w-full md:w-[140px] border-t md:border-t-0 md:border-l border-gray-200 relative min-h-[48px] md:min-h-[44px]">
-                              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                                <Clock className="w-4 h-4" />
+                                      }}
+                                      sx={{
+                                        width: '100%',
+                                        '& .MuiOutlinedInput-root': {
+                                          height: '48px',
+                                          '& .MuiOutlinedInput-input': {
+                                            padding: '14px 12px 14px 32px',
+                                            fontSize: '0.875rem',
+                                          },
+                                          '& fieldset': { border: 'none' },
+                                          '&:hover fieldset': { border: 'none' },
+                                          '&.Mui-focused fieldset': { border: 'none' }
+                                        },
+                                      }}
+                                      disablePast
+                                      shouldDisableDate={(date) => {
+                                        return specialDates.some(specialDate => {
+                                          const holidayDate = new Date(specialDate.date);
+                                          return isSameMonthAndDay(date, holidayDate);
+                                        });
+                                      }}
+                                    />
+                                  </LocalizationProvider>
+                                </ThemeProvider>
                               </div>
-                              <select
-                                value={formData.time}
-                                onChange={(e) => updateFormData({ time: e.target.value })}
-                                className="w-full h-full pl-9 pr-3 appearance-none bg-white focus:outline-none text-base"
-                              >
-                                <option value="">Select time</option>
-                                {availableTimeSlots.map((slot) => (
-                                  <option key={slot.time} value={slot.time}>
-                                    {slot.time}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
 
-                            {/* Party Size Dropdown */}
-                            <div className="w-full md:w-[120px] border-t md:border-t-0 md:border-l border-gray-200 relative min-h-[48px] md:min-h-[44px]">
-                              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                                <Users className="w-4 h-4" />
+                              {/* Time Dropdown */}
+                              <div className="w-[100px] border-l border-gray-200 relative min-h-[48px]">
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                  <Clock className="w-4 h-4" />
+                                </div>
+                                <select
+                                  value={formData.time}
+                                  onChange={(e) => updateFormData({ time: e.target.value })}
+                                  className="w-full h-full pl-9 pr-2 appearance-none bg-white focus:outline-none text-sm"
+                                >
+                                  <option value="">Time</option>
+                                  {availableTimeSlots.map((slot) => (
+                                    <option key={slot.time} value={slot.time}>
+                                      {slot.time}
+                                    </option>
+                                  ))}
+                                </select>
                               </div>
-                              <select
-                                value={formData.guests || ""}
-                                onChange={(e) => updateFormData({ guests: Number(e.target.value) })}
-                                className="w-full h-full pl-9 pr-3 appearance-none bg-white focus:outline-none text-base"
-                              >
-                                <option value="">Guests</option>
-                                {[...Array(20)].map((_, i) => (
-                                  <option key={i + 1} value={i + 1}>
-                                    {i + 1} people
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
 
-                          {/* Continue Button */}
-                          <button
-                            onClick={() => {
-                              if (formData.date && formData.time && formData.guests) {
-                                setStep(1);
-                              } else {
-                                toast.error('Please fill in all fields');
-                              }
-                            }}
-                            disabled={!formData.date || !formData.time || !formData.guests}
-                            className={`w-full md:w-auto h-[48px] md:h-[44px] px-6 text-white rounded-lg flex items-center justify-center whitespace-nowrap transition-colors ${formData.date && formData.time && formData.guests
+                              {/* Party Size Dropdown */}
+                              <div className="w-[120px] border-l border-gray-200 relative min-h-[48px]">
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                  <Users className="w-4 h-4" />
+                                </div>
+                                <select
+                                  value={formData.guests || ""}
+                                  onChange={(e) => updateFormData({ guests: Number(e.target.value) })}
+                                  className="w-full h-full pl-9 pr-2 appearance-none bg-white focus:outline-none text-sm"
+                                >
+                                  <option value="">Guests</option>
+                                  {[...Array(20)].map((_, i) => (
+                                    <option key={i + 1} value={i + 1}>
+                                      {i + 1} people
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* Continue Button */}
+                            <button
+                              onClick={() => {
+                                if (formData.date && formData.time && formData.guests) {
+                                  setStep(1);
+                                } else {
+                                  toast.error('Please fill in all fields');
+                                }
+                              }}
+                              disabled={!formData.date || !formData.time || !formData.guests}
+                              className={`h-[48px] w-full sm:w-auto sm:mx-3 px-4 text-white rounded-lg flex items-center justify-center whitespace-nowrap transition-colors ${formData.date && formData.time && formData.guests
                                 ? 'bg-indigo-600 hover:bg-indigo-500'
                                 : 'bg-gray-400 cursor-not-allowed'
-                              }`}
-                          >
-                            Continue
-                            <ChevronRight className="w-4 h-4 ml-1" />
-                          </button>
+                                }`}
+                            >
+                              Continue
+                              <ChevronRight className="w-4 h-4 ml-1" />
+                            </button>
+                          </div>
                         </div>
                         <Link href="/menu">
                           <h3 className="text-white hover:text-gray-200 mt-6 no-underline transition-colors text-sm">
