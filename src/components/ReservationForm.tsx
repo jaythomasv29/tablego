@@ -24,6 +24,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import Banner from './Banner';
+import { TypeAnimation } from 'react-type-animation';
 
 // Lazy load components that aren't needed immediately
 const AdditionalInfo = dynamic(() => import('./AdditionalInfo'));
@@ -562,9 +563,15 @@ export default function ReservationForm() {
 
                       {/* Content - Made more mobile friendly and centered */}
                       <div className="relative z-20 h-full flex flex-col items-center px-4 sm:px-6" style={{ paddingTop: '8vh' }}>
-                        <h3 className="text-2xl md:text-3xl font-semibold text-white mb-6 md:mb-8 text-center px-2">
-                          Welcome to Thaiphoon, Let's get you a table!
-                        </h3>
+                        <TypeAnimation
+                          sequence={[
+                            'Welcome to Thaiphoon, Let\'s get you a table!'
+                          ]}
+                          wrapper="h3"
+                          speed={50}
+                          className="text-2xl md:text-3xl font-semibold text-white mb-6 md:mb-8 text-center px-2"
+                          cursor={false}
+                        />
                         <div className="flex flex-col items-center space-y-3 w-full">
                           <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 w-full justify-center">
                             {/* Fields Container */}
