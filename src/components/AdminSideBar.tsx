@@ -11,7 +11,10 @@ import {
     Utensils,
     X,
     Menu,
-    BookText
+    BookText,
+    CalendarDays,
+    MessageSquare,
+    Flag
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -55,6 +58,7 @@ export default function AdminSidebar() {
             icon: MessageCircle,
             badge: unreadCount > 0 ? unreadCount : undefined
         },
+        { href: '/admin/banner', label: 'Banner', icon: Flag },
     ];
 
     const NavLinks = () => (

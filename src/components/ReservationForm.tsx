@@ -23,6 +23,7 @@ import { DatePicker as MuiDatePicker } from '@mui/x-date-pickers/DatePicker';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import Banner from './Banner';
 
 // Lazy load components that aren't needed immediately
 const AdditionalInfo = dynamic(() => import('./AdditionalInfo'));
@@ -514,7 +515,7 @@ export default function ReservationForm() {
       className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100"
     >
       <Navbar />
-
+      <Banner />
       <main className={step === 0 ? "w-full" : "max-w-3xl mx-auto px-4 py-8"}>
         <div className={step === 0 ? "" : "bg-white rounded-2xl shadow-xl p-6 md:p-8"}>
           {isSuccess ? (
