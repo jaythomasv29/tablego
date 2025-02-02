@@ -7,25 +7,35 @@ import { toast } from 'react-hot-toast';
 import AdminLayout from '@/components/AdminLayout';
 import PageTransition from '@/components/PageTransition';
 
+interface BannerData {
+    text: string;
+    link?: string;
+    linkText?: string;
+}
+
 export default function BannerManagement() {
-    const [bannerText, setBannerText] = useState('');
+    const [bannerData, setBannerData] = useState<BannerData>({
+        text: '',
+        link: '',
+        linkText: ''
+    });
     const [isLoading, setIsLoading] = useState(false);
     const [preview, setPreview] = useState(false);
 
     useEffect(() => {
-        const fetchBannerText = async () => {
+        const fetchBannerData = async () => {
             try {
                 const bannerDoc = await getDoc(doc(db, 'settings', 'banner'));
                 if (bannerDoc.exists()) {
-                    setBannerText(bannerDoc.data().text || '');
+                    setBannerData(bannerDoc.data() as BannerData);
                 }
             } catch (error) {
-                console.error('Error fetching banner text:', error);
-                toast.error('Failed to load banner text');
+                console.error('Error fetching banner data:', error);
+                toast.error('Failed to load banner data');
             }
         };
 
-        fetchBannerText();
+        fetchBannerData();
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -33,10 +43,14 @@ export default function BannerManagement() {
         setIsLoading(true);
 
         try {
-            await setDoc(doc(db, 'settings', 'banner'), {
-                text: bannerText,
+            const dataToSave = {
+                text: bannerData.text,
+                ...(bannerData.link && { link: bannerData.link }),
+                ...(bannerData.linkText && { linkText: bannerData.linkText }),
                 updatedAt: new Date().toISOString()
-            });
+            };
+
+            await setDoc(doc(db, 'settings', 'banner'), dataToSave);
             toast.success('Banner updated successfully');
         } catch (error) {
             console.error('Error updating banner:', error);
@@ -56,31 +70,61 @@ export default function BannerManagement() {
 
                     <div className="bg-white rounded-lg shadow-md p-6">
                         <form onSubmit={handleSubmit} className="space-y-6">
+                            {/* Banner Text */}
                             <div>
-                                <label
-                                    htmlFor="bannerText"
-                                    className="block text-sm font-medium text-gray-700 mb-2"
-                                >
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Banner Text
                                 </label>
                                 <input
                                     type="text"
-                                    id="bannerText"
-                                    value={bannerText}
-                                    onChange={(e) => setBannerText(e.target.value)}
+                                    value={bannerData.text}
+                                    onChange={(e) => setBannerData(prev => ({ ...prev, text: e.target.value }))}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                     placeholder="Enter banner text..."
                                 />
+                            </div>
+
+                            {/* Link URL */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Link URL (Optional)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={bannerData.link || ''}
+                                    onChange={(e) => setBannerData(prev => ({ ...prev, link: e.target.value }))}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                    placeholder="https://example.com/menu.pdf"
+                                />
+                            </div>
+
+                            {/* Link Text */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Link Text (Optional)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={bannerData.linkText || ''}
+                                    onChange={(e) => setBannerData(prev => ({ ...prev, linkText: e.target.value }))}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                    placeholder="View Menu"
+                                />
                                 <p className="mt-2 text-sm text-gray-500">
-                                    Leave empty to hide the banner
+                                    If not provided, "Learn More" will be used
                                 </p>
                             </div>
 
                             {/* Preview Section */}
-                            {bannerText && preview && (
-                                <div className="bg-indigo-600 h-[60px] w-full flex items-center justify-center px-4 rounded-md">
+                            {bannerData.text && preview && (
+                                <div className="bg-indigo-600 h-[50px] w-full flex items-center justify-center px-4 rounded-md">
                                     <p className="text-white text-center text-sm md:text-base font-medium">
-                                        {bannerText}
+                                        {bannerData.text}
+                                        {bannerData.link && (
+                                            <span className="underline ml-2">
+                                                {bannerData.linkText || 'Learn More'}
+                                            </span>
+                                        )}
                                     </p>
                                 </div>
                             )}
@@ -90,8 +134,8 @@ export default function BannerManagement() {
                                     type="submit"
                                     disabled={isLoading}
                                     className={`px-4 py-2 rounded-md text-white font-medium ${isLoading
-                                            ? 'bg-gray-400 cursor-not-allowed'
-                                            : 'bg-indigo-600 hover:bg-indigo-700'
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-indigo-600 hover:bg-indigo-700'
                                         }`}
                                 >
                                     {isLoading ? 'Updating...' : 'Update Banner'}
