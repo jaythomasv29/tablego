@@ -5,55 +5,55 @@ import nodemailer from 'nodemailer';
 
 // Add these interfaces
 interface Dish {
-    id: string;
-    name: string;
-    description: string;
-    imageUrl?: string;
-    category: string;
+  id: string;
+  name: string;
+  description: string;
+  imageUrl?: string;
+  category: string;
 }
 
 interface CateringFormData {
-    name: string;
-    email: string;
-    phone: string;
-    address: string;
-    budget: string;
-    date: string;
-    time: string;
-    partySize: string;
-    specialRequests?: string;
-    selectedDishes: Dish[];
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  budget: string;
+  date: string;
+  time: string;
+  partySize: string;
+  specialRequests?: string;
+  selectedDishes: Dish[];
 }
 
 const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: false,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.SMTP_PORT || '587'),
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
 });
 
 export async function POST(request: Request) {
-    try {
-        const { formData } = await request.json() as { formData: CateringFormData };
+  try {
+    const { formData } = await request.json() as { formData: CateringFormData };
 
-        // Save to Firebase
-        const cateringRef = await addDoc(collection(db, 'catering'), {
-            ...formData,
-            createdAt: new Date(),
-            status: 'pending'
-        });
+    // Save to Firebase
+    const cateringRef = await addDoc(collection(db, 'catering'), {
+      ...formData,
+      createdAt: new Date(),
+      status: 'pending'
+    });
 
-        const readableDate = new Date(formData.date).toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
+    const readableDate = new Date(formData.date).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
 
-        const selectedDishesHTML = formData.selectedDishes.map((dish: Dish) => `
+    const selectedDishesHTML = formData.selectedDishes.map((dish: Dish) => `
           <div style="display: inline-block; margin: 10px; text-align: center; width: 200px;">
             <img 
               src="${dish.imageUrl}" 
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
           </div>
         `).join('');
 
-        const emailContent = `
+    const emailContent = `
       <!DOCTYPE html>
       <html>
         <head>
@@ -96,6 +96,12 @@ export async function POST(request: Request) {
                       <span style="color: #374151;">${readableDate}</span>
                     </td>
                   </tr>
+                   <tr>
+      <td style="padding: 12px 0;">
+        <strong style="color: #4f46e5; display: inline-block; width: 140px;">Email:</strong>
+        <span style="color: #374151;">${formData.email}</span>
+      </td>
+    </tr>
                   <tr>
                     <td style="padding: 12px 0;">
                       <strong style="color: #4f46e5; display: inline-block; width: 140px;">Time:</strong>
@@ -151,38 +157,38 @@ export async function POST(request: Request) {
       </html>
     `;
 
-        // Send to customer
-        await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: formData.email,
-            subject: 'Thaiphoon Catering Inquiry Received',
-            html: emailContent,
-        });
+    // Send to customer
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: formData.email,
+      subject: 'Thaiphoon Catering Inquiry Received',
+      html: emailContent,
+    });
 
-        // Send to business
-        await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: process.env.EMAIL_USER,
-            subject: 'Action Required: New Catering Inquiry',
-            html: emailContent,
-        });
+    // Send to business
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: process.env.EMAIL_USER,
+      subject: 'Action Required: New Catering Inquiry',
+      html: emailContent,
+    });
 
-        return NextResponse.json({
-            success: true,
-            cateringId: cateringRef.id,
-            details: {
-                name: formData.name,
-                date: readableDate,
-                time: formData.time,
-                partySize: formData.partySize,
-                email: formData.email
-            }
-        });
-    } catch (error) {
-        console.error('Operation failed:', error);
-        return NextResponse.json(
-            { success: false, error: 'Failed to process catering inquiry' },
-            { status: 500 }
-        );
-    }
+    return NextResponse.json({
+      success: true,
+      cateringId: cateringRef.id,
+      details: {
+        name: formData.name,
+        date: readableDate,
+        time: formData.time,
+        partySize: formData.partySize,
+        email: formData.email
+      }
+    });
+  } catch (error) {
+    console.error('Operation failed:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to process catering inquiry' },
+      { status: 500 }
+    );
+  }
 }

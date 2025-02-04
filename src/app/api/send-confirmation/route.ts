@@ -81,6 +81,18 @@ export async function POST(request: Request) {
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 30px 0; background: #f8fafc; border-radius: 8px; padding: 24px;">
                       <tr>
                         <td style="padding: 12px 0;">
+                          <strong style="color: #4f46e5; display: inline-block; width: 140px;">Name:</strong>
+                          <span style="color: #374151;">${formData.name}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px 0;">
+                          <strong style="color: #4f46e5; display: inline-block; width: 140px;">Email:</strong>
+                          <span style="color: #374151;">${formData.email}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px 0;">
                           <strong style="color: #4f46e5; display: inline-block; width: 140px;">Date:</strong>
                           <span style="color: #374151;">${readableDate}</span>
                         </td>
@@ -168,6 +180,12 @@ export async function POST(request: Request) {
                       </tr>
                       <tr>
                         <td style="padding: 12px 0;">
+                          <strong style="color: #4f46e5; display: inline-block; width: 140px;">Email:</strong>
+                          <span style="color: #374151;">${formData.email}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px 0;">
                           <strong style="color: #4f46e5; display: inline-block; width: 140px;">Date:</strong>
                           <span style="color: #374151;">${readableDate}</span>
                         </td>
@@ -190,20 +208,6 @@ export async function POST(request: Request) {
                           <span style="color: #374151;">${formData.phone}</span>
                         </td>
                       </tr>
-                      <tr>
-                        <td style="padding: 12px 0;">
-                          <strong style="color: #4f46e5; display: inline-block; width: 140px;">Email:</strong>
-                          <span style="color: #374151;">${formData.email}</span>
-                        </td>
-                      </tr>
-                      ${formData.comments ? `
-                        <tr>
-                          <td style="padding: 12px 0;">
-                            <strong style="color: #4f46e5; display: inline-block; width: 140px;">Special Requests:</strong>
-                            <span style="color: #374151;">${formData.comments}</span>
-                          </td>
-                        </tr>
-                      ` : ''}
                       <tr>
                         <td style="padding: 12px 0;">
                           <strong style="color: #4f46e5; display: inline-block; width: 140px;">Status:</strong>
