@@ -151,18 +151,18 @@ export default function ReservationForm() {
   };
 
   // Check for existing reservation cookie on mount
-  useEffect(() => {
-    const savedReservation = Cookies.get('lastReservation');
-    if (savedReservation) {
-      try {
-        const details = JSON.parse(savedReservation);
-        setReservationDetails(details);
-        setIsSuccess(true);
-      } catch (e) {
-        console.error('Failed to parse reservation cookie:', e);
-      }
-    }
-  }, []);
+  // useEffect(() => {
+  //   const savedReservation = Cookies.get('lastReservation');
+  //   if (savedReservation) {
+  //     try {
+  //       const details = JSON.parse(savedReservation);
+  //       // setReservationDetails(details);
+  //       setIsSuccess(true);
+  //     } catch (e) {
+  //       console.error('Failed to parse reservation cookie:', e);
+  //     }
+  //   }
+  // }, []);
 
   // Fetch fresh business hours on component mount
   useEffect(() => {
