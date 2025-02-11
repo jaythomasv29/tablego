@@ -38,14 +38,7 @@ export default function Footer() {
 
                     {/* Management Links */}
                     <div className="text-xs text-gray-500 text-center space-y-1">
-                        <p>
-                            <a
-                                href="/admin/home"
-                                className="hover:text-indigo-600 transition-colors"
-                            >
-                                Admin portal
-                            </a>
-                        </p>
+
                         <p>
                             <a
                                 href="mailto:thaiphoonpaloalto@gmail.com"
