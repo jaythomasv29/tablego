@@ -7,17 +7,31 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AdminLayout from '@/components/AdminLayout';
 
+interface TimeRange {
+    start: string;
+    end: string;
+}
+
+interface CustomTimeSlots {
+    [key: string]: { // day of week
+        lunch?: TimeRange[];
+        dinner?: TimeRange[];
+    };
+}
+
 interface BusinessHours {
     [key: string]: {
         lunch: {
             open: string;
             close: string;
             isOpen: boolean;
+            customRanges?: TimeRange[];
         };
         dinner: {
             open: string;
             close: string;
             isOpen: boolean;
+            customRanges?: TimeRange[];
         };
     };
 }
@@ -65,6 +79,10 @@ export default function BusinessHoursAdmin() {
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
+    const [showCustomRanges, setShowCustomRanges] = useState<{
+        day: string;
+        mealType: 'lunch' | 'dinner';
+    } | null>(null);
 
     useEffect(() => {
         Promise.all([
@@ -136,6 +154,60 @@ export default function BusinessHoursAdmin() {
                     [field]: value,
                 },
             },
+        }));
+    };
+
+    const handleAddCustomRange = (day: string, mealType: 'lunch' | 'dinner') => {
+        setHours(prev => ({
+            ...prev,
+            [day]: {
+                ...prev[day],
+                [mealType]: {
+                    ...prev[day][mealType],
+                    customRanges: [
+                        ...(prev[day][mealType].customRanges || []),
+                        { start: '', end: '' }
+                    ]
+                }
+            }
+        }));
+    };
+
+    const handleUpdateCustomRange = (
+        day: string,
+        mealType: 'lunch' | 'dinner',
+        index: number,
+        field: 'start' | 'end',
+        value: string
+    ) => {
+        setHours(prev => ({
+            ...prev,
+            [day]: {
+                ...prev[day],
+                [mealType]: {
+                    ...prev[day][mealType],
+                    customRanges: prev[day][mealType].customRanges?.map((range, i) =>
+                        i === index ? { ...range, [field]: value } : range
+                    )
+                }
+            }
+        }));
+    };
+
+    const handleRemoveCustomRange = (
+        day: string,
+        mealType: 'lunch' | 'dinner',
+        index: number
+    ) => {
+        setHours(prev => ({
+            ...prev,
+            [day]: {
+                ...prev[day],
+                [mealType]: {
+                    ...prev[day][mealType],
+                    customRanges: prev[day][mealType].customRanges?.filter((_, i) => i !== index)
+                }
+            }
         }));
     };
 
@@ -246,6 +318,54 @@ export default function BusinessHoursAdmin() {
                                         </div>
                                     </div>
                                 )}
+
+                                {/* Custom Ranges Section */}
+                                <div className="mt-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowCustomRanges({ day, mealType: 'lunch' })}
+                                        className="text-sm text-indigo-600 hover:text-indigo-800"
+                                    >
+                                        Manage Custom Time Ranges
+                                    </button>
+
+                                    {showCustomRanges?.day === day && showCustomRanges?.mealType === 'lunch' && (
+                                        <div className="mt-2 p-4 bg-gray-50 rounded-lg">
+                                            <h4 className="text-sm font-medium mb-2">Custom Time Ranges</h4>
+                                            {hours[day].lunch.customRanges?.map((range, index) => (
+                                                <div key={index} className="flex items-center gap-2 mb-2">
+                                                    <input
+                                                        type="time"
+                                                        value={range.start}
+                                                        onChange={(e) => handleUpdateCustomRange(day, 'lunch', index, 'start', e.target.value)}
+                                                        className="w-32 px-2 py-1 border rounded"
+                                                    />
+                                                    <span>to</span>
+                                                    <input
+                                                        type="time"
+                                                        value={range.end}
+                                                        onChange={(e) => handleUpdateCustomRange(day, 'lunch', index, 'end', e.target.value)}
+                                                        className="w-32 px-2 py-1 border rounded"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveCustomRange(day, 'lunch', index)}
+                                                        className="text-red-600 hover:text-red-800"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            <button
+                                                type="button"
+                                                onClick={() => handleAddCustomRange(day, 'lunch')}
+                                                className="mt-2 text-sm bg-white px-3 py-1 border rounded hover:bg-gray-50"
+                                            >
+                                                Add Range
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Dinner Hours */}
@@ -285,6 +405,54 @@ export default function BusinessHoursAdmin() {
                                         </div>
                                     </div>
                                 )}
+
+                                {/* Custom Ranges Section */}
+                                <div className="mt-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowCustomRanges({ day, mealType: 'dinner' })}
+                                        className="text-sm text-indigo-600 hover:text-indigo-800"
+                                    >
+                                        Manage Custom Time Ranges
+                                    </button>
+
+                                    {showCustomRanges?.day === day && showCustomRanges?.mealType === 'dinner' && (
+                                        <div className="mt-2 p-4 bg-gray-50 rounded-lg">
+                                            <h4 className="text-sm font-medium mb-2">Custom Time Ranges</h4>
+                                            {hours[day].dinner.customRanges?.map((range, index) => (
+                                                <div key={index} className="flex items-center gap-2 mb-2">
+                                                    <input
+                                                        type="time"
+                                                        value={range.start}
+                                                        onChange={(e) => handleUpdateCustomRange(day, 'dinner', index, 'start', e.target.value)}
+                                                        className="w-32 px-2 py-1 border rounded"
+                                                    />
+                                                    <span>to</span>
+                                                    <input
+                                                        type="time"
+                                                        value={range.end}
+                                                        onChange={(e) => handleUpdateCustomRange(day, 'dinner', index, 'end', e.target.value)}
+                                                        className="w-32 px-2 py-1 border rounded"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveCustomRange(day, 'dinner', index)}
+                                                        className="text-red-600 hover:text-red-800"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            <button
+                                                type="button"
+                                                onClick={() => handleAddCustomRange(day, 'dinner')}
+                                                className="mt-2 text-sm bg-white px-3 py-1 border rounded hover:bg-gray-50"
+                                            >
+                                                Add Range
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     ))}

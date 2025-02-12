@@ -67,11 +67,13 @@ interface BusinessHours {
       open: string;
       close: string;
       isOpen: boolean;
+      customRanges?: { start: string; end: string }[];
     };
     dinner: {
       open: string;
       close: string;
       isOpen: boolean;
+      customRanges?: { start: string; end: string }[];
     };
   };
 }
@@ -267,22 +269,26 @@ export default function ReservationForm() {
 
   // 4. Update the generateTimeSlots function
   const generateTimeSlots = (date: Date, hours: BusinessHours): TimeSlot[] => {
-    const slots: TimeSlot[] = [];
-    const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const dayOfWeek = date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      timeZone: "America/Los_Angeles"
+    }).toLowerCase();
+
     const dayHours = hours[dayOfWeek];
+    if (!dayHours) return [];
 
-    if (!dayHours) return slots;
+    const slots: TimeSlot[] = [];
+    const pstNow = getPSTDate();
+    const isToday = date.toDateString() === pstNow.toDateString();
+    const currentMinutes = isToday ? pstNow.getHours() * 60 + pstNow.getMinutes() : 0;
 
-    // Helper function to convert time string to minutes
+    // Helper function to convert time string to minutes (24-hour format)
     const timeToMinutes = (timeStr: string): number => {
-      const [time, period] = timeStr.split(' ');
-      let [hours, minutes] = time.split(':').map(Number);
-      if (period === 'PM' && hours !== 12) hours += 12;
-      if (period === 'AM' && hours === 12) hours = 0;
+      const [hours, minutes] = timeStr.split(':').map(Number);
       return hours * 60 + minutes;
     };
 
-    // Helper function to format minutes back to time string
+    // Helper function to format minutes to time string (12-hour format)
     const minutesToTime = (minutes: number): string => {
       const hours = Math.floor(minutes / 60);
       const mins = minutes % 60;
@@ -291,45 +297,117 @@ export default function ReservationForm() {
       return `${displayHours}:${mins.toString().padStart(2, '0')} ${period}`;
     };
 
-    // Add lunch slots
+    // Process lunch hours
     if (dayHours.lunch.isOpen) {
-      let startMinutes = timeToMinutes(dayHours.lunch.open);
-      const endMinutes = timeToMinutes(dayHours.lunch.close);
+      if (dayHours.lunch.customRanges && dayHours.lunch.customRanges.length > 0) {
+        // Use custom ranges for lunch
+        dayHours.lunch.customRanges.forEach(range => {
+          let start = timeToMinutes(range.start);
+          const end = timeToMinutes(range.end);
 
-      while (startMinutes < endMinutes - 30) { // Leave 30 min before closing
-        slots.push({
-          time: minutesToTime(startMinutes),
-          period: 'lunch'
+          // Skip if the entire range is in the past
+          if (isToday && end <= currentMinutes + 30) return;
+
+          // Adjust start time if it's today and in the past
+          if (isToday && start < currentMinutes) {
+            start = Math.ceil((currentMinutes + 30) / slotDuration) * slotDuration;
+          }
+
+          for (let time = start; time <= end - slotDuration; time += slotDuration) {
+            if (!isToday || time >= currentMinutes + 30) {
+              slots.push({
+                time: minutesToTime(time),
+                period: 'lunch'
+              });
+            }
+          }
         });
-        startMinutes += slotDuration;
+      } else {
+        // Use regular lunch hours
+        let start = timeToMinutes(dayHours.lunch.open);
+        const end = timeToMinutes(dayHours.lunch.close);
+
+        if (isToday && start < currentMinutes) {
+          start = Math.ceil((currentMinutes + 30) / slotDuration) * slotDuration;
+        }
+
+        for (let time = start; time <= end - slotDuration; time += slotDuration) {
+          if (!isToday || time >= currentMinutes + 30) {
+            slots.push({
+              time: minutesToTime(time),
+              period: 'lunch'
+            });
+          }
+        }
       }
     }
 
-    // Add dinner slots
+    // Process dinner hours
     if (dayHours.dinner.isOpen) {
-      let startMinutes = timeToMinutes(dayHours.dinner.open);
-      const endMinutes = timeToMinutes(dayHours.dinner.close);
+      if (dayHours.dinner.customRanges && dayHours.dinner.customRanges.length > 0) {
+        // Use custom ranges for dinner
+        dayHours.dinner.customRanges.forEach(range => {
+          let start = timeToMinutes(range.start);
+          const end = timeToMinutes(range.end);
 
-      while (startMinutes < endMinutes - 30) { // Leave 30 min before closing
-        slots.push({
-          time: minutesToTime(startMinutes),
-          period: 'dinner'
+          // Skip if the entire range is in the past
+          if (isToday && end <= currentMinutes + 30) return;
+
+          // Adjust start time if it's today and in the past
+          if (isToday && start < currentMinutes) {
+            start = Math.ceil((currentMinutes + 30) / slotDuration) * slotDuration;
+          }
+
+          for (let time = start; time <= end - slotDuration; time += slotDuration) {
+            if (!isToday || time >= currentMinutes + 30) {
+              slots.push({
+                time: minutesToTime(time),
+                period: 'dinner'
+              });
+            }
+          }
         });
-        startMinutes += slotDuration;
+      } else {
+        // Use regular dinner hours
+        let start = timeToMinutes(dayHours.dinner.open);
+        const end = timeToMinutes(dayHours.dinner.close);
+
+        if (isToday && start < currentMinutes) {
+          start = Math.ceil((currentMinutes + 30) / slotDuration) * slotDuration;
+        }
+
+        for (let time = start; time <= end - slotDuration; time += slotDuration) {
+          if (!isToday || time >= currentMinutes + 30) {
+            slots.push({
+              time: minutesToTime(time),
+              period: 'dinner'
+            });
+          }
+        }
       }
     }
 
-    // Filter out past times if it's today
-    const now = new Date();
-    if (date.toDateString() === now.toDateString()) {
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      return slots.filter(slot => {
-        const slotMinutes = timeToMinutes(slot.time);
-        return slotMinutes > currentMinutes + 30; // Add 30 min buffer
-      });
-    }
+    // Helper function to convert 12-hour time string to minutes for sorting
+    const timeStringToMinutes = (timeStr: string): number => {
+      const [time, period] = timeStr.split(' ');
+      let [hours, minutes] = time.split(':').map(Number);
 
-    return slots;
+      // Convert to 24-hour format for proper sorting
+      if (period === 'PM' && hours !== 12) {
+        hours += 12;
+      } else if (period === 'AM' && hours === 12) {
+        hours = 0;
+      }
+
+      return hours * 60 + minutes;
+    };
+
+    // Update the sort at the end of generateTimeSlots function
+    return slots.sort((a, b) => {
+      const timeA = timeStringToMinutes(a.time);
+      const timeB = timeStringToMinutes(b.time);
+      return timeA - timeB;
+    });
   };
 
   const handleDateChange = (date: Date) => {
@@ -617,7 +695,7 @@ export default function ReservationForm() {
                               </div>
 
                               {/* Time Dropdown */}
-                              <div className="w-[100px] border-l border-gray-200 relative min-h-[48px]">
+                              <div className="w-[110px] border-l border-gray-200 relative min-h-[48px]">
                                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                                   <Clock className="w-4 h-4" />
                                 </div>
