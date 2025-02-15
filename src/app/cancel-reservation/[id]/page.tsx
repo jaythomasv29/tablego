@@ -13,10 +13,10 @@ interface PageProps {
     params: {
         id: string;
     };
-    searchParams: { [key: string]: string | string[] | undefined };
+    searchParams: Record<string, string | string[] | undefined>;
 }
 
-export default function CancelReservationPage({ params }: PageProps) {
+export default async function CancelReservationPage({ params }: PageProps) {
     const [reservation, setReservation] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
