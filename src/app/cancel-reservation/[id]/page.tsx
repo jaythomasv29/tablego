@@ -16,7 +16,7 @@ interface PageProps {
     searchParams: Record<string, string | string[] | undefined>;
 }
 
-export default async function CancelReservationPage({ params }: PageProps) {
+export default function CancelReservationPage({ params }: PageProps) {
     const [reservation, setReservation] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
