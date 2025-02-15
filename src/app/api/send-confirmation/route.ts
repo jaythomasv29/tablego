@@ -46,6 +46,8 @@ export async function POST(request: Request) {
     // Send email with better error handling
     try {
       // Send to customer
+      const cancelUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/cancel-reservation/${reservationRef.id}`;
+
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: formData.email,
@@ -125,21 +127,31 @@ export async function POST(request: Request) {
                       ` : ''}
                     </table>
 
-                    <!-- Important Notice -->
+                    <!-- Important Information -->
                     <div style="margin: 30px 0; padding: 20px; border-left: 4px solid #4f46e5; background: #eef2ff;">
-                      <p style="margin: 0; color: #374151; font-size: 14px;">
-                        Need to modify or cancel your reservation? Please call us at (650) 323-7700
-                      </p>
+                        <p style="margin: 0 0 12px 0; color: #374151; font-size: 14px;">
+                            For assistance or modifications, please call us at (650) 323-7700
+                        </p>
+                        <p style="margin: 0; color: #374151; font-size: 14px;">
+                            Need to cancel? 
+                            <a 
+                                href="${cancelUrl}" 
+                                style="color: #4F46E5; text-decoration: underline; margin-left: 5px;"
+                                target="_blank"
+                            >
+                                Click here to cancel your reservation
+                            </a>
+                        </p>
                     </div>
 
                     <!-- Restaurant Info -->
                     <div style="margin-top: 40px; text-align: center; color: #6b7280; font-size: 14px; line-height: 20px;">
-                      <p style="margin: 0;">
-                        Thaiphoon Restaurant<br>
-                        543 Emerson Street<br>
-                        Palo Alto, CA 94301<br>
-                        (650) 323-7700
-                      </p>
+                        <p style="margin: 0;">
+                            Thaiphoon Restaurant<br>
+                            543 Emerson Street<br>
+                            Palo Alto, CA 94301<br>
+                            (650) 323-7700
+                        </p>
                     </div>
                   </td>
                 </tr>

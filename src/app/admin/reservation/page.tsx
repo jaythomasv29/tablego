@@ -15,14 +15,35 @@ interface Reservation {
     phone: string;
     email: string;
     comments: string;
+    status: string;
+    cancelledAt?: Timestamp;
 }
 
+// Add new helper functions
+const generateTimeSlots = () => {
+    const slots = [];
+    // Generate slots from 11 AM to 10 PM in 30-minute intervals
+    for (let hour = 11; hour <= 22; hour++) {
+        for (let minute = 0; minute < 60; minute += 30) {
+            const time = new Date();
+            time.setHours(hour, minute, 0);
+            slots.push(time.toLocaleTimeString([], {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            }));
+        }
+    }
+    return slots;
+};
+
 export default function ReservationAdminPage() {
-    const [viewMode, setViewMode] = useState<'past' | 'today' | 'future'>('today');
+    const [viewMode, setViewMode] = useState<'past' | 'today' | 'future' | 'chart'>('today');
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentTime, setCurrentTime] = useState(new Date());
+    const timeSlots = generateTimeSlots();
 
     useEffect(() => {
         const fetchReservations = async () => {
@@ -133,6 +154,13 @@ export default function ReservationAdminPage() {
         )
         : reservations;
 
+    // Modify the getStatusBadge function
+    const getStatusBadge = (status: string, isPassed: boolean) => {
+        if (isPassed) return 'bg-gray-100 text-gray-600';
+        if (status === 'cancelled') return 'bg-red-100 text-red-800';
+        return ''; // Return empty string for other statuses
+    };
+
     return (
         <AdminLayout>
             <div className="p-4 sm:p-6 bg-gray-100 min-h-screen">
@@ -236,107 +264,166 @@ export default function ReservationAdminPage() {
                     </div>
                 )}
 
-                {/* Reservations Grid */}
-                <div className="w-full">
-                    {loading ? (
-                        <div className="flex justify-center items-center h-64">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {filteredReservations.map((reservation) => {
-                                const isPassed = viewMode === 'today' && isReservationPassed(reservation.time);
+                {viewMode === 'today' ? (
+                    // Compact Card View for Today's Reservations
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {timeSlots.map((timeSlot) => {
+                            const slotReservations = filteredReservations.filter(
+                                res => res.time === timeSlot
+                            );
+
+                            if (slotReservations.length === 0) return null;
+
+                            return slotReservations.map((reservation) => {
+                                const isCancelled = reservation.status === 'cancelled';
+                                const isPassed = isReservationPassed(reservation.time);
 
                                 return (
                                     <div
                                         key={reservation.id}
-                                        className={`bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-all duration-200 ${isPassed ? 'opacity-50' : ''
-                                            }`}
+                                        className={`bg-white rounded-lg shadow-md overflow-hidden transition-all
+                                            ${isPassed ? 'opacity-60' : ''}
+                                            ${isCancelled ? 'border border-red-200' : ''}
+                                        `}
                                     >
-                                        {/* Add passed indicator for today's reservations */}
-                                        {viewMode === 'today' && (
-                                            <div className={`mb-2 text-sm font-medium ${isPassed ? 'text-red-500' : 'text-green-500'
-                                                }`}>
-                                                {isPassed ? 'Passed' : 'Upcoming'}
-                                            </div>
-                                        )}
-
-                                        <div className="space-y-3">
-                                            {/* Header with Name and Guest Count */}
-                                            <div className="flex justify-between items-center border-b pb-2">
-                                                <div className="font-semibold text-lg text-gray-800">
-                                                    {reservation.name}
-                                                </div>
-                                                <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
-                                                    {reservation.guests} {reservation.guests === 1 ? 'guest' : 'guests'}
-                                                </div>
-                                            </div>
-
-                                            {/* Date and Time */}
-                                            <div className="flex items-center text-gray-600">
-                                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                                    />
-                                                </svg>
-                                                <span>
-                                                    {reservation.date?.toDate?.() ?
-                                                        `${reservation.date.toDate().toLocaleDateString()} at ${reservation.time}`
-                                                        : 'Invalid Date'
-                                                    }
+                                        <div className="p-4">
+                                            {/* Time Badge */}
+                                            <div className="flex justify-between items-start mb-2">
+                                                <span className={`px-2 py-1 rounded-full text-xs font-medium
+                                                    ${isPassed ? 'bg-gray-100 text-gray-600' : 'bg-blue-100 text-blue-800'}
+                                                `}>
+                                                    {reservation.time}
                                                 </span>
-                                            </div>
-
-                                            {/* Contact Information */}
-                                            <div className="space-y-1">
-                                                <div className="flex items-center text-gray-600">
-                                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                            d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                                                        />
-                                                    </svg>
-                                                    <span>{reservation.phone}</span>
-                                                </div>
-                                                <div className="flex items-center text-gray-600">
-                                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                                                        />
-                                                    </svg>
-                                                    <span className="text-blue-600 hover:text-blue-800">
-                                                        {reservation.email}
+                                                {(isPassed || isCancelled) && (
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium
+                                                        ${isPassed ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-800'}
+                                                    `}>
+                                                        {isPassed ? 'Prior' : 'Cancelled'}
                                                     </span>
-                                                </div>
+                                                )}
                                             </div>
 
-                                            {/* Special Requests */}
+                                            {/* Guest Info */}
+                                            <div className={`${isCancelled ? 'line-through' : ''}`}>
+                                                <h3 className="text-base font-semibold text-gray-900">
+                                                    {reservation.name}
+                                                </h3>
+
+                                                {/* Guest Count */}
+                                                <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
+                                                    <span className="font-medium">{reservation.guests} guests</span>
+                                                </div>
+
+                                                {/* Contact Info */}
+                                                <div className="mt-2 space-y-1 text-sm text-gray-600">
+                                                    <p className="truncate">{reservation.phone}</p>
+                                                    <p className="truncate">{reservation.email}</p>
+                                                </div>
+
+                                                {/* Notes (if any) */}
+                                                {reservation.comments && (
+                                                    <div className="mt-2 pt-2 border-t border-gray-100">
+                                                        <p className="text-sm text-gray-600 line-clamp-2">
+                                                            <span className="font-medium">Notes:</span>{' '}
+                                                            {reservation.comments}
+                                                        </p>
+                                                    </div>
+                                                )}
+
+                                                {/* Cancellation Timestamp */}
+                                                {isCancelled && reservation.cancelledAt && (
+                                                    <div className="mt-2 pt-2 border-t border-gray-100">
+                                                        <p className="text-xs text-gray-500">
+                                                            Cancelled: {new Date(reservation.cancelledAt).toLocaleString()}
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            });
+                        }).filter(Boolean)}
+                    </div>
+                ) : (
+                    // Card View for Past and Future
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filteredReservations.map((reservation) => {
+                            const isCancelled = reservation.status === 'cancelled';
+                            const isPassed = viewMode === 'past';
+
+                            return (
+                                <div
+                                    key={reservation.id}
+                                    className={`bg-white rounded-lg shadow-md overflow-hidden transition-all ${isPassed ? 'opacity-60' : ''
+                                        }`}
+                                >
+                                    <div className="p-4">
+                                        <div className={`${isCancelled ? 'line-through' : ''}`}>
+                                            <div className="flex items-center gap-2 flex-wrap mb-2">
+                                                <h3 className="text-base font-semibold text-gray-900">
+                                                    {reservation.name}
+                                                </h3>
+                                                {(isPassed || reservation.status === 'cancelled') && (
+                                                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusBadge(reservation.status, isPassed)
+                                                        }`}>
+                                                        {isPassed ? 'Prior' : reservation.status === 'cancelled' ? 'Cancelled' : ''}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Compact info row */}
+                                            <div className="flex items-center gap-3 text-sm text-gray-600 mb-2">
+                                                <span>{reservation.date.toDate().toLocaleDateString()}</span>
+                                                <span>•</span>
+                                                <span>{reservation.time}</span>
+                                                <span>•</span>
+                                                <span>{reservation.guests} guests</span>
+                                            </div>
+
+                                            {/* Contact info */}
+                                            <div className="text-sm text-gray-600">
+                                                <p>{reservation.phone}</p>
+                                                <p className="truncate">{reservation.email}</p>
+                                            </div>
+
+                                            {/* Notes (if any) */}
                                             {reservation.comments && (
-                                                <div className="border-t pt-2">
-                                                    <p className="text-gray-600">
+                                                <div className="mt-2 pt-2 border-t border-gray-100">
+                                                    <p className="text-sm text-gray-600 line-clamp-2">
                                                         <span className="font-medium">Notes:</span>{' '}
                                                         {reservation.comments}
                                                     </p>
                                                 </div>
                                             )}
+
+                                            {/* Cancellation info */}
+                                            {isCancelled && reservation.cancelledAt && (
+                                                <div className="mt-2 pt-2 border-t border-gray-100">
+                                                    <p className="text-xs text-gray-500">
+                                                        Cancelled: {new Date(reservation.cancelledAt).toLocaleString()}
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                );
-                            })}
-                        </div>
-                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
 
-                    {/* No Results Message */}
-                    {!loading && filteredReservations.length === 0 && (
-                        <div className="text-center py-12 bg-white rounded-lg shadow-md">
-                            <p className="text-gray-600 text-lg">
-                                {searchTerm
-                                    ? `No reservations found for "${searchTerm}"`
-                                    : 'No reservations found for this period.'
-                                }
-                            </p>
-                        </div>
-                    )}
-                </div>
+                {/* No Results Message */}
+                {!loading && filteredReservations.length === 0 && (
+                    <div className="text-center py-8 bg-white rounded-lg shadow-md">
+                        <p className="text-gray-600 text-base">
+                            {searchTerm
+                                ? `No reservations found for "${searchTerm}"`
+                                : 'No reservations found for this period.'
+                            }
+                        </p>
+                    </div>
+                )}
             </div>
         </AdminLayout>
     );
