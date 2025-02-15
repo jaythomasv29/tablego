@@ -9,7 +9,14 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Banner from '@/components/Banner';
 
-export default function CancelReservationPage({ params }: { params: { id: string } }) {
+interface PageProps {
+    params: {
+        id: string;
+    };
+    searchParams: { [key: string]: string | string[] | undefined };
+}
+
+export default function CancelReservationPage({ params }: PageProps) {
     const [reservation, setReservation] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
