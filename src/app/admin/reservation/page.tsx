@@ -68,7 +68,7 @@ export default function ReservationAdminPage() {
                     } as Reservation;
                 });
 
-                let filteredReservations = [];
+                let filteredReservations: Reservation[] = [];
 
                 switch (viewMode) {
                     case 'past':
@@ -91,10 +91,9 @@ export default function ReservationAdminPage() {
                         break;
 
                     case 'future':
-                        filteredReservations = fetchedReservations.filter(res => {
-                            const resDate = res.date.toDate();
-                            return resDate >= tomorrow;
-                        }).sort((a, b) => a.date.toDate().getTime() - b.date.toDate().getTime());
+                        filteredReservations = fetchedReservations.filter(res =>
+                            res.date.toDate() >= tomorrow
+                        ).sort((a, b) => a.date.toDate().getTime() - b.date.toDate().getTime());
                         break;
                 }
 
@@ -334,7 +333,7 @@ export default function ReservationAdminPage() {
                                                 {isCancelled && reservation.cancelledAt && (
                                                     <div className="mt-2 pt-2 border-t border-gray-100">
                                                         <p className="text-xs text-gray-500">
-                                                            Cancelled: {new Date(reservation.cancelledAt).toLocaleString()}
+                                                            Cancelled: {reservation.cancelledAt.toDate().toLocaleString()}
                                                         </p>
                                                     </div>
                                                 )}
@@ -401,7 +400,7 @@ export default function ReservationAdminPage() {
                                             {isCancelled && reservation.cancelledAt && (
                                                 <div className="mt-2 pt-2 border-t border-gray-100">
                                                     <p className="text-xs text-gray-500">
-                                                        Cancelled: {new Date(reservation.cancelledAt).toLocaleString()}
+                                                        Cancelled: {reservation.cancelledAt.toDate().toLocaleString()}
                                                     </p>
                                                 </div>
                                             )}
