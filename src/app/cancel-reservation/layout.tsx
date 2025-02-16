@@ -3,5 +3,5 @@ export default function CancelReservationLayout({
 }: {
     children: React.ReactNode;
 }) {
-    return <>{children}</>;
+    return <div suppressHydrationWarning>{children}</div>;
 } 
