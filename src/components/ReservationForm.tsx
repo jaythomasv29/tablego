@@ -61,7 +61,7 @@ type ReservationDetails = {
 };
 
 
-interface BusinessHours {
+export interface BusinessHours {
   [key: string]: {
     lunch: {
       open: string;

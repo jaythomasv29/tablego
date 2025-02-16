@@ -16,7 +16,9 @@ const transporter = nodemailer.createTransport({
 export async function POST(request: Request) {
     try {
         const { email, name, date, time, guests, reservationId } = await request.json();
-        const cancelUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/cancel-reservation/${reservationId}`;
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+        const reservationUrl = `${baseUrl}/reservation/${reservationId}`;
+
         const readableDate = new Date(date).toLocaleDateString('en-US', {
             weekday: 'long',
             year: 'numeric',
@@ -27,18 +29,18 @@ export async function POST(request: Request) {
         await transporter.sendMail({
             from: process.env.EMAIL_USER,
             to: email,
-            subject: 'Upcoming Reservation Confirmation - Thaiphoon Restaurant',
+            subject: 'Please Confirm Your Upcoming Reservation - Thaiphoon Restaurant',
             html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <h2 style="color: #4F46E5; margin-bottom: 20px;">Upcoming Reservation Confirmation</h2>
+                    <h2 style="color: #4F46E5; margin-bottom: 20px;">Upcoming Reservation Reminder</h2>
                     
                     <p style="color: #374151; font-size: 16px; margin-bottom: 20px;">
                         Hi ${name},
                     </p>
                     
                     <p style="color: #374151; font-size: 16px; margin-bottom: 20px;">
-                        We're excited to welcome you to Thaiphoon Restaurant for your upcoming reservation! 
-                        Your booking is confirmed, and we're looking forward to serving you.
+                        This is a friendly reminder about your upcoming reservation at Thaiphoon Restaurant. 
+                        Please confirm if you'll be joining us.
                     </p>
                     
                     <div style="background-color: #F3F4F6; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -48,43 +50,36 @@ export async function POST(request: Request) {
                     </div>
                     
                     <p style="color: #374151; font-size: 16px; margin-bottom: 20px;">
-                        We understand that plans can change. If you need to cancel your reservation, 
-                        simply click the button below:
+                        Please let us know if your plans have changed:
                     </p>
                     
-                    <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin: 30px auto;">
+                    <!-- Action Buttons -->
+                    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin: 30px 0;">
                         <tr>
-                            <td align="center" bgcolor="#4F46E5" style="border-radius: 6px;">
-                                <!--[if mso]>
-                                <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${cancelUrl}" style="height:50px;v-text-anchor:middle;width:200px;" arcsize="10%" stroke="f" fillcolor="#4F46E5">
-                                <w:anchorlock/>
-                                <center>
-                                <![endif]-->
-                                <a href="${cancelUrl}"
-                                   style="background-color: #4F46E5;
+                            <!-- All buttons now point to the same URL -->
+                            <td align="center" style="padding: 0 10px;">
+                                <a href="${reservationUrl}"
+                                   style="background-color: #22C55E;
                                           border-radius: 6px;
                                           color: #ffffff;
                                           display: inline-block;
                                           font-family: Arial, sans-serif;
-                                          font-size: 16px;
+                                          font-size: 14px;
                                           font-weight: bold;
                                           line-height: 50px;
                                           text-align: center;
                                           text-decoration: none;
-                                          width: 200px;
+                                          width: 160px;
                                           -webkit-text-size-adjust: none;">
-                                    Cancel Reservation
+                                    Manage Reservation
                                 </a>
-                                <!--[if mso]>
-                                </center>
-                                </v:roundrect>
-                                <![endif]-->
                             </td>
                         </tr>
                     </table>
                     
-                    <p style="color: #374151; font-size: 16px; margin-bottom: 20px;">
-                        Otherwise, no further action is needed – we'll see you soon!
+                    <p style="color: #374151; font-size: 16px; margin: 30px 0;">
+                        If you're planning to join us as scheduled, please click the "Manage Reservation" button above. 
+                        If you need to make changes, you can manage your reservation.
                     </p>
                     
                     <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #E5E7EB; 

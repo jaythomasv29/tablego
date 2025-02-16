@@ -100,6 +100,79 @@ const formatTimeAgo = (date: Date) => {
     return `${days} day${days !== 1 ? 's' : ''} ago`;
 };
 
+// Add this helper function at the top
+const isSameLocalDate = (date1: Timestamp | string, date2: Date) => {
+    // Convert Timestamp or string to Date object
+    const d1 = typeof date1 === 'string' ? new Date(date1) : date1.toDate();
+
+    // Compare only the date parts in local timezone
+    return d1.getFullYear() === date2.getFullYear() &&
+        d1.getMonth() === date2.getMonth() &&
+        d1.getDate() === date2.getDate();
+};
+
+// Add this helper function to compare dates in UTC
+const isSameDayUTC = (date1: Timestamp | string, date2: Date) => {
+    // Convert first date to UTC Date object
+    const d1 = typeof date1 === 'string'
+        ? new Date(date1)
+        : date1.toDate();
+
+    // Compare only the date parts in UTC
+    return d1.getUTCFullYear() === date2.getUTCFullYear() &&
+        d1.getUTCMonth() === date2.getUTCMonth() &&
+        d1.getUTCDate() === date2.getUTCDate();
+};
+
+// Add this helper function to check if a date is in the future (UTC)
+const isDateInFutureUTC = (date: Timestamp | string) => {
+    const today = new Date();
+    const todayUTC = Date.UTC(
+        today.getUTCFullYear(),
+        today.getUTCMonth(),
+        today.getUTCDate()
+    );
+
+    const compareDate = typeof date === 'string' ? new Date(date) : date.toDate();
+    const compareDateUTC = Date.UTC(
+        compareDate.getUTCFullYear(),
+        compareDate.getUTCMonth(),
+        compareDate.getUTCDate()
+    );
+
+    return compareDateUTC > todayUTC;
+};
+
+// First, add or update the getStatusBadge function
+const getStatusBadge = (status: string, isPassed: boolean) => {
+    if (isPassed) return 'bg-gray-100 text-gray-600';
+    switch (status?.toLowerCase()) {
+        case 'confirmed':
+            return 'bg-green-100 text-green-800';
+        case 'cancelled':
+            return 'bg-red-100 text-red-800';
+        case 'pending':
+            return 'bg-yellow-100 text-yellow-800';
+        default:
+            return 'bg-gray-100 text-gray-800';
+    }
+};
+
+// Add this helper function to get status text
+const getStatusText = (status: string, isPassed: boolean) => {
+    if (isPassed) return 'Prior';
+    switch (status?.toLowerCase()) {
+        case 'confirmed':
+            return 'Confirmed';
+        case 'cancelled':
+            return 'Cancelled';
+        case 'pending':
+            return 'Pending';
+        default:
+            return 'Pending';
+    }
+};
+
 export default function ReservationAdminPage() {
     const [viewMode, setViewMode] = useState<'past' | 'today' | 'future' | 'chart'>('today');
     const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -143,17 +216,29 @@ export default function ReservationAdminPage() {
 
                 switch (viewMode) {
                     case 'past':
-                        filteredReservations = fetchedReservations.filter(res =>
-                            res.date.toDate() < today
-                        ).sort((a, b) => b.date.toDate().getTime() - a.date.toDate().getTime());
+                        filteredReservations = fetchedReservations.filter(res => {
+                            const today = new Date();
+                            const todayUTC = Date.UTC(
+                                today.getUTCFullYear(),
+                                today.getUTCMonth(),
+                                today.getUTCDate()
+                            );
+
+                            const resDate = typeof res.date === 'string' ? new Date(res.date) : res.date.toDate();
+                            const resDateUTC = Date.UTC(
+                                resDate.getUTCFullYear(),
+                                resDate.getUTCMonth(),
+                                resDate.getUTCDate()
+                            );
+
+                            return resDateUTC < todayUTC;
+                        }).sort((a, b) => b.date.toDate().getTime() - a.date.toDate().getTime());
                         break;
 
                     case 'today':
                         filteredReservations = fetchedReservations.filter(res => {
-                            const resDate = res.date.toDate();
-                            return resDate.getDate() === today.getDate() &&
-                                resDate.getMonth() === today.getMonth() &&
-                                resDate.getFullYear() === today.getFullYear();
+                            const today = new Date();
+                            return isSameDayUTC(res.date, today);
                         }).sort((a, b) => {
                             const timeA = convertTimeToMinutes(a.time);
                             const timeB = convertTimeToMinutes(b.time);
@@ -163,7 +248,7 @@ export default function ReservationAdminPage() {
 
                     case 'future':
                         filteredReservations = fetchedReservations.filter(res =>
-                            res.date.toDate() >= tomorrow
+                            isDateInFutureUTC(res.date)
                         ).sort((a, b) => a.date.toDate().getTime() - b.date.toDate().getTime());
                         break;
                 }
@@ -529,24 +614,21 @@ export default function ReservationAdminPage() {
                                             </div>
                                         )}
                                         <div className="p-4">
-                                            {/* Time Badge */}
+                                            {/* Status and Time Header */}
                                             <div className="flex justify-between items-start mb-2">
                                                 <span className={`px-2 py-1 rounded-full text-xs font-medium
-                                                    ${isPassed ? 'bg-gray-100 text-gray-600' : 'bg-blue-100 text-blue-800'}
-                                                `}>
+                                                    ${isPassed ? 'bg-gray-100 text-gray-600' : 'bg-blue-100 text-blue-800'}`}>
                                                     {reservation.time}
                                                 </span>
                                                 <div className="flex gap-1">
-                                                    {/* Add reminder status badge */}
+                                                    {/* Status Badge - Always show */}
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(reservation.status, isPassed)}`}>
+                                                        {getStatusText(reservation.status, isPassed)}
+                                                    </span>
+                                                    {/* Reminder Badge - Show if sent */}
                                                     {reservation.reminderSent && (
                                                         <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                                             Reminder Sent
-                                                        </span>
-                                                    )}
-                                                    {(isPassed || isCancelled) && (
-                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium
-                                                            ${isPassed ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-800'}`}>
-                                                            {isPassed ? 'Prior' : 'Cancelled'}
                                                         </span>
                                                     )}
                                                 </div>
@@ -655,85 +737,78 @@ export default function ReservationAdminPage() {
                                         </div>
                                     )}
                                     <div className="p-4">
-                                        <div className={`${isCancelled ? 'line-through' : ''}`}>
-                                            <div className="flex items-center gap-2 flex-wrap mb-2">
-                                                <h3 className="text-base font-semibold text-gray-900">
-                                                    {reservation.name}
-                                                </h3>
-                                                <div className="flex gap-1 flex-wrap">
-                                                    {/* Add reminder status badge */}
-                                                    {reservation.reminderSent && (
-                                                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                                                            Reminder Sent
-                                                            {reservation.reminderSentAt && (
-                                                                <span className="ml-1 text-green-600">
-                                                                    {formatTimeAgo(reservation.reminderSentAt.toDate())}
-                                                                </span>
-                                                            )}
-                                                        </span>
-                                                    )}
-                                                    {(isPassed || reservation.status === 'cancelled') && (
-                                                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full 
-                                                            ${getStatusBadge(reservation.status, isPassed)}`}>
-                                                            {isPassed ? 'Prior' : reservation.status === 'cancelled' ? 'Cancelled' : ''}
-                                                        </span>
-                                                    )}
-                                                </div>
+                                        {/* Status and Date Header */}
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-medium text-gray-900">
+                                                    {formatDate(reservation.date.toDate())}
+                                                </span>
+                                                <span className="text-sm text-gray-600">{reservation.time}</span>
                                             </div>
-
-                                            {/* Compact info row */}
-                                            <div className="flex items-center gap-3 text-sm text-gray-600 mb-2">
-                                                <span>{formatDate(reservation.date.toDate())}</span>
-                                                <span>•</span>
-                                                <span>{reservation.time}</span>
-                                                <span>•</span>
-                                                <span>{reservation.guests} guests</span>
+                                            <div className="flex gap-1">
+                                                {/* Status Badge - Always show */}
+                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(reservation.status, isPassed)}`}>
+                                                    {getStatusText(reservation.status, isPassed)}
+                                                </span>
+                                                {/* Reminder Badge - Show if sent */}
+                                                {reservation.reminderSent && (
+                                                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                        Reminder Sent
+                                                    </span>
+                                                )}
                                             </div>
-
-                                            {/* Contact info */}
-                                            <div className="text-sm text-gray-600">
-                                                <p>{reservation.phone}</p>
-                                                <p className="truncate">{reservation.email}</p>
-                                            </div>
-
-                                            {/* Notes (if any) */}
-                                            {reservation.comments && (
-                                                <div className="mt-2 pt-2 border-t border-gray-100">
-                                                    <p className="text-sm text-gray-600 line-clamp-2">
-                                                        <span className="font-medium">Notes:</span>{' '}
-                                                        {reservation.comments}
-                                                    </p>
-                                                </div>
-                                            )}
-
-                                            {/* Cancellation info */}
-                                            {isCancelled && reservation.cancelledAt && (
-                                                <div className="mt-2 pt-2 border-t border-gray-100">
-                                                    <p className="text-xs text-gray-500" suppressHydrationWarning>
-                                                        Cancelled: {formatDateTime(reservation.cancelledAt)}
-                                                    </p>
-                                                </div>
-                                            )}
-
-                                            {/* Add reminder button for future reservations */}
-                                            {viewMode === 'future' && !isCancelled && (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleSendReminder(reservation);
-                                                    }}
-                                                    className="mt-2 w-full px-3 py-1 text-sm text-blue-600 hover:text-blue-800 
-                                                               border border-blue-600 hover:border-blue-800 rounded-lg 
-                                                               transition-colors flex items-center justify-center gap-2"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                                    </svg>
-                                                    Send Reminder
-                                                </button>
-                                            )}
                                         </div>
+
+                                        {/* Compact info row */}
+                                        <div className="flex items-center gap-3 text-sm text-gray-600 mb-2">
+                                            <span>{reservation.name}</span>
+                                            <span>•</span>
+                                            <span>{reservation.guests} guests</span>
+                                        </div>
+
+                                        {/* Contact info */}
+                                        <div className="text-sm text-gray-600">
+                                            <p>{reservation.phone}</p>
+                                            <p className="truncate">{reservation.email}</p>
+                                        </div>
+
+                                        {/* Notes (if any) */}
+                                        {reservation.comments && (
+                                            <div className="mt-2 pt-2 border-t border-gray-100">
+                                                <p className="text-sm text-gray-600 line-clamp-2">
+                                                    <span className="font-medium">Notes:</span>{' '}
+                                                    {reservation.comments}
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {/* Cancellation info */}
+                                        {isCancelled && reservation.cancelledAt && (
+                                            <div className="mt-2 pt-2 border-t border-gray-100">
+                                                <p className="text-xs text-gray-500" suppressHydrationWarning>
+                                                    Cancelled: {formatDateTime(reservation.cancelledAt)}
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {/* Add reminder button for future reservations */}
+                                        {viewMode === 'future' && !isCancelled && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleSendReminder(reservation);
+                                                }}
+                                                className="mt-2 w-full px-3 py-1 text-sm text-blue-600 hover:text-blue-800 
+                                                           border border-blue-600 hover:border-blue-800 rounded-lg 
+                                                           transition-colors flex items-center justify-center gap-2"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                </svg>
+                                                Send Reminder
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             );

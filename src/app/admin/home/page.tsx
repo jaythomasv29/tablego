@@ -22,6 +22,7 @@ import PageTransition from '@/components/PageTransition';
 import StaggeredList from '@/components/StaggeredList';
 import { subscribeToPushNotifications } from '@/utils/serviceWorker';
 import { Bell } from 'lucide-react';
+import { Timestamp } from 'firebase/firestore';
 
 // Register ChartJS components
 ChartJS.register(
@@ -43,10 +44,17 @@ interface DashboardMetrics {
 }
 
 interface Reservation {
-    name: string;
+    id: string;
+    date: Timestamp;
     time: string;
+    name: string;
     guests: number;
-    date: string;
+    phone: string;
+    email: string;
+    status: string;
+    comments?: string;
+    reminderSent?: boolean;
+    reminderSentAt?: Timestamp;
 }
 
 interface PendingReservation {
@@ -147,6 +155,7 @@ export default function AdminHome() {
     const [isMarkingRead, setIsMarkingRead] = useState<string>('');
     const [pushEnabled, setPushEnabled] = useState(false);
     const [lastNotifiedCount, setLastNotifiedCount] = useState(0);
+    const [todayReservations, setTodayReservations] = useState<Reservation[]>([]);
 
     useEffect(() => {
         async function fetchAnalytics() {
@@ -267,10 +276,17 @@ export default function AdminHome() {
                 const data = doc.data();
                 if (new Date(data.date).toDateString() === today) {
                     todaysList.push({
-                        name: data.name,
+                        id: doc.id,
+                        date: data.date,
                         time: data.time,
+                        name: data.name,
                         guests: data.guests,
-                        date: data.date
+                        status: data.status || 'pending',
+                        phone: data.phone || '',
+                        email: data.email || '',
+                        comments: data.comments,
+                        reminderSent: data.reminderSent,
+                        reminderSentAt: data.reminderSentAt
                     });
                 }
                 // Get unique customers by email and phone
@@ -528,6 +544,88 @@ export default function AdminHome() {
             registerBackgroundSync();
         }
     }, [pushEnabled]);
+
+    useEffect(() => {
+        const fetchTodayReservations = async () => {
+            try {
+                // Get today's date range in local timezone
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+
+                // Convert to UTC for Firestore query
+                const todayUTC = new Date(today.toUTCString());
+                const tomorrowUTC = new Date(tomorrow.toUTCString());
+
+                const reservationsRef = collection(db, 'reservations');
+                const q = query(
+                    reservationsRef,
+                    where('date', '>=', Timestamp.fromDate(todayUTC)),
+                    where('date', '<', Timestamp.fromDate(tomorrowUTC))
+                );
+
+                const querySnapshot = await getDocs(q);
+                const reservations = querySnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                })) as Reservation[];
+
+                // Sort by time
+                reservations.sort((a, b) => {
+                    const timeA = convertTo24Hour(a.time);
+                    const timeB = convertTo24Hour(b.time);
+                    return timeA.localeCompare(timeB);
+                });
+
+                setTodayReservations(reservations);
+            } catch (error) {
+                console.error('Error fetching today reservations:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchTodayReservations();
+    }, []);
+
+    // Helper function to convert time to 24-hour format for sorting
+    const convertTo24Hour = (time12h: string) => {
+        const [time, modifier] = time12h.split(' ');
+        let [hours, minutes] = time.split(':');
+
+        if (hours === '12') {
+            hours = '00';
+        }
+
+        if (modifier === 'PM') {
+            hours = String(parseInt(hours, 10) + 12);
+        }
+
+        return `${hours}:${minutes}`;
+    };
+
+    // Helper function to get status badge styles
+    const getStatusBadge = (status: string) => {
+        switch (status?.toLowerCase()) {
+            case 'confirmed':
+                return 'bg-green-100 text-green-800';
+            case 'cancelled':
+                return 'bg-red-100 text-red-800';
+            case 'pending':
+                return 'bg-yellow-100 text-yellow-800';
+            default:
+                return 'bg-gray-100 text-gray-800';
+        }
+    };
+
+    // Function to check if a reservation is for today (in local time)
+    const isToday = (date: Date) => {
+        const today = new Date();
+        return date.getDate() === today.getDate() &&
+            date.getMonth() === today.getMonth() &&
+            date.getFullYear() === today.getFullYear();
+    };
 
     return (
         <AdminLayout>

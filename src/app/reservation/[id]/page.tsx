@@ -28,7 +28,7 @@ interface PageProps {
     params: Promise<{ id: string }>;
 }
 
-const formatDate = (date: Reservation['date']) => {
+const formatReservationDate = (date: Reservation['date']) => {
     if (typeof date === 'string') {
         return new Date(date).toLocaleDateString('en-US', {
             weekday: 'long',
@@ -37,7 +37,6 @@ const formatDate = (date: Reservation['date']) => {
             day: 'numeric'
         });
     }
-
     return date.toDate().toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
@@ -46,35 +45,14 @@ const formatDate = (date: Reservation['date']) => {
     });
 };
 
-// Add this helper function to get status badge styles
-const getStatusBadge = (status: string) => {
-    switch (status) {
-        case 'confirmed':
-            return 'bg-green-100 text-green-800';
-        case 'cancelled':
-            return 'bg-red-100 text-red-800';
-        case 'pending':
-            return 'bg-yellow-100 text-yellow-800';
-        default:
-            return 'bg-gray-100 text-gray-800';
+const getDateISOString = (date: Reservation['date']) => {
+    if (typeof date === 'string') {
+        return new Date(date).toISOString();
     }
+    return date.toDate().toISOString();
 };
 
-// Add this helper function to get formatted status text
-const getStatusText = (status: string) => {
-    switch (status) {
-        case 'confirmed':
-            return 'Confirmed';
-        case 'cancelled':
-            return 'Cancelled';
-        case 'pending':
-            return 'Pending';
-        default:
-            return 'Unknown';
-    }
-};
-
-export default function ReservationManagementPage({ params }: PageProps) {
+export default function ReservationPage({ params }: PageProps) {
     const { id } = use(params);
     const [reservation, setReservation] = useState<Reservation | null>(null);
     const [loading, setLoading] = useState(true);
@@ -94,6 +72,12 @@ export default function ReservationManagementPage({ params }: PageProps) {
                         id: reservationDoc.id,
                         ...data
                     } as Reservation);
+
+                    if (data.status === 'confirmed') {
+                        setActionCompleted('confirmed');
+                    } else if (data.status === 'cancelled') {
+                        setActionCompleted('cancelled');
+                    }
                 }
             } catch (err) {
                 setError('Failed to load reservation');
@@ -138,9 +122,7 @@ export default function ReservationManagementPage({ params }: PageProps) {
                     reservationId: reservation?.id,
                     email: reservation?.email,
                     name: reservation?.name,
-                    date: typeof reservation?.date === 'string'
-                        ? reservation.date
-                        : reservation?.date.toDate().toISOString(),
+                    date: reservation?.date ? getDateISOString(reservation.date) : '',
                     time: reservation?.time,
                     guests: reservation?.guests
                 }),
@@ -256,73 +238,38 @@ export default function ReservationManagementPage({ params }: PageProps) {
                     {reservation && (
                         <div className="space-y-4 mb-6">
                             <div className="bg-gray-50 p-4 rounded-lg">
-                                <div className="flex items-center justify-between mb-2">
-                                    <p className="font-medium text-gray-900">{reservation.name}</p>
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(reservation.status)}`}>
-                                        {getStatusText(reservation.status)}
-                                    </span>
-                                </div>
+                                <p className="font-medium text-gray-900">{reservation.name}</p>
                                 <p className="text-gray-600">
-                                    {formatDate(reservation.date)}
+                                    {formatReservationDate(reservation.date)}
                                 </p>
                                 <p className="text-gray-600">{reservation.time}</p>
                                 <p className="text-gray-600">{reservation.guests} guests</p>
-
-                                {/* Show confirmation/cancellation time if available */}
-                                {reservation.confirmedAt && (
-                                    <p className="text-xs text-green-600 mt-2">
-                                        Confirmed at: {new Date(reservation.confirmedAt).toLocaleString()}
-                                    </p>
-                                )}
-                                {reservation.cancelledAt && (
-                                    <p className="text-xs text-red-600 mt-2">
-                                        Cancelled at: {new Date(reservation.cancelledAt).toLocaleString()}
-                                    </p>
-                                )}
                             </div>
                         </div>
                     )}
-
-                    {/* Only show action buttons if not cancelled */}
-                    {reservation && reservation.status !== 'cancelled' && (
-                        <div className="space-y-3">
-                            {reservation.status !== 'confirmed' && (
-                                <button
-                                    onClick={handleConfirmation}
-                                    className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                                >
-                                    Confirm Reservation
-                                </button>
-                            )}
-                            <button
-                                onClick={handleReschedule}
-                                className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                            >
-                                Reschedule
-                            </button>
-                            {reservation.status !== 'cancelled' && (
-                                <button
-                                    onClick={handleCancellation}
-                                    className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                                >
-                                    Cancel Reservation
-                                </button>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Show message if reservation is cancelled */}
-                    {reservation && reservation.status === 'cancelled' && (
-                        <div className="text-center text-gray-600">
-                            <p>This reservation has been cancelled.</p>
-                            <Link
-                                href="/"
-                                className="inline-block mt-4 text-indigo-600 hover:text-indigo-800"
-                            >
-                                Make a New Reservation
-                            </Link>
-                        </div>
-                    )}
+                    <div className="space-y-3">
+                        <button
+                            onClick={handleConfirmation}
+                            className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                        >
+                            Confirm Reservation
+                        </button>
+                        <button
+                            onClick={handleReschedule}
+                            disabled={!reservation}
+                            className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg 
+                                       hover:bg-indigo-700 transition-colors 
+                                       disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        >
+                            Reschedule
+                        </button>
+                        <button
+                            onClick={handleCancellation}
+                            className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                        >
+                            Cancel Reservation
+                        </button>
+                    </div>
                 </div>
             </motion.div>
             <Footer />
