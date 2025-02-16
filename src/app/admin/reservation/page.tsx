@@ -16,7 +16,7 @@ interface Reservation {
     email: string;
     comments: string;
     status: string;
-    cancelledAt?: Timestamp;
+    cancelledAt?: Timestamp | string;
 }
 
 // Add new helper functions
@@ -35,6 +35,26 @@ const generateTimeSlots = () => {
         }
     }
     return slots;
+};
+
+// Add this helper function at the top of the file
+const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+};
+
+// Add this helper function at the top of the file
+const formatDateTime = (timestamp: Timestamp | string | undefined) => {
+    if (!timestamp) return '';
+
+    if (typeof timestamp === 'string') {
+        return new Date(timestamp).toLocaleString('en-US');
+    }
+
+    return timestamp.toDate().toLocaleString('en-US');
 };
 
 export default function ReservationAdminPage() {
@@ -160,6 +180,32 @@ export default function ReservationAdminPage() {
         return ''; // Return empty string for other statuses
     };
 
+    // Update the handleSendReminder function
+    const handleSendReminder = async (reservation: Reservation) => {
+        try {
+            const response = await fetch('/api/send-reminder', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    reservationId: reservation.id,
+                    email: reservation.email,
+                    name: reservation.name,
+                    date: reservation.date.toDate().toISOString(), // Convert Timestamp to ISO string
+                    time: reservation.time,
+                    guests: reservation.guests
+                }),
+            });
+
+            if (!response.ok) throw new Error('Failed to send reminder');
+            alert('Reminder sent successfully!');
+        } catch (error) {
+            console.error('Error sending reminder:', error);
+            alert('Failed to send reminder');
+        }
+    };
+
     return (
         <AdminLayout>
             <div className="p-4 sm:p-6 bg-gray-100 min-h-screen">
@@ -252,8 +298,8 @@ export default function ReservationAdminPage() {
                             <svg className="w-5 h-5 text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            <span className="text-lg font-semibold text-gray-700">
-                                {currentTime.toLocaleTimeString([], {
+                            <span className="text-lg font-semibold text-gray-700" suppressHydrationWarning>
+                                {currentTime.toLocaleTimeString('en-US', {
                                     hour: '2-digit',
                                     minute: '2-digit',
                                     hour12: true
@@ -332,12 +378,26 @@ export default function ReservationAdminPage() {
                                                 {/* Cancellation Timestamp */}
                                                 {isCancelled && reservation.cancelledAt && (
                                                     <div className="mt-2 pt-2 border-t border-gray-100">
-                                                        <p className="text-xs text-gray-500">
-                                                            Cancelled: {reservation.cancelledAt.toDate().toLocaleString()}
+                                                        <p className="text-xs text-gray-500" suppressHydrationWarning>
+                                                            Cancelled: {formatDateTime(reservation.cancelledAt)}
                                                         </p>
                                                     </div>
                                                 )}
                                             </div>
+
+                                            {/* Add this button to your reservation card */}
+                                            <button
+                                                onClick={() => handleSendReminder(reservation)}
+                                                className="mt-2 w-full px-3 py-1 text-sm text-blue-600 hover:text-blue-800 
+                                                           border border-blue-600 hover:border-blue-800 rounded-lg 
+                                                           transition-colors flex items-center justify-center gap-2"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                </svg>
+                                                Send Reminder
+                                            </button>
                                         </div>
                                     </div>
                                 );
@@ -373,7 +433,7 @@ export default function ReservationAdminPage() {
 
                                             {/* Compact info row */}
                                             <div className="flex items-center gap-3 text-sm text-gray-600 mb-2">
-                                                <span>{reservation.date.toDate().toLocaleDateString()}</span>
+                                                <span>{formatDate(reservation.date.toDate())}</span>
                                                 <span>•</span>
                                                 <span>{reservation.time}</span>
                                                 <span>•</span>
@@ -399,8 +459,8 @@ export default function ReservationAdminPage() {
                                             {/* Cancellation info */}
                                             {isCancelled && reservation.cancelledAt && (
                                                 <div className="mt-2 pt-2 border-t border-gray-100">
-                                                    <p className="text-xs text-gray-500">
-                                                        Cancelled: {reservation.cancelledAt.toDate().toLocaleString()}
+                                                    <p className="text-xs text-gray-500" suppressHydrationWarning>
+                                                        Cancelled: {formatDateTime(reservation.cancelledAt)}
                                                     </p>
                                                 </div>
                                             )}
