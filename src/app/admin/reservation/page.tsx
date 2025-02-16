@@ -19,6 +19,8 @@ interface Reservation {
     status: string;
     cancelledAt?: Timestamp | string;
     selected?: boolean;
+    reminderSent?: boolean;
+    reminderSentAt?: Timestamp;
 }
 
 // Add new helper functions
@@ -57,6 +59,45 @@ const formatDateTime = (timestamp: Timestamp | string | undefined) => {
     }
 
     return timestamp.toDate().toLocaleString('en-US');
+};
+
+// Add this helper function
+const getReminderStatus = (reservation: Reservation) => {
+    if (reservation.reminderSent) {
+        return {
+            text: 'Reminder Sent',
+            className: 'bg-green-100 text-green-800'
+        };
+    }
+    return null;
+};
+
+// Add this helper function
+const canSendReminder = (reservation: Reservation) => {
+    if (!reservation.reminderSent) return true;
+    if (!reservation.reminderSentAt) return true;
+
+    const lastSent = reservation.reminderSentAt.toDate();
+    const hoursSinceLastReminder = (Date.now() - lastSent.getTime()) / (1000 * 60 * 60);
+
+    // Prevent sending another reminder within 24 hours
+    return hoursSinceLastReminder >= 24;
+};
+
+const formatTimeAgo = (date: Date) => {
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+
+    if (diffInHours < 1) {
+        const minutes = Math.floor(diffInHours * 60);
+        return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+    }
+    if (diffInHours < 24) {
+        const hours = Math.floor(diffInHours);
+        return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+    }
+    const days = Math.floor(diffInHours / 24);
+    return `${days} day${days !== 1 ? 's' : ''} ago`;
 };
 
 export default function ReservationAdminPage() {
@@ -190,7 +231,23 @@ export default function ReservationAdminPage() {
         return ''; // Return empty string for other statuses
     };
 
-    // Update the handleSendReminder function
+    // Add this function to update a single reservation
+    const updateReservationReminderStatus = (reservationId: string) => {
+        setReservations(prevReservations =>
+            prevReservations.map(res => {
+                if (res.id === reservationId) {
+                    return {
+                        ...res,
+                        reminderSent: true,
+                        reminderSentAt: Timestamp.now()
+                    };
+                }
+                return res;
+            })
+        );
+    };
+
+    // Update handleSendReminder
     const handleSendReminder = async (reservation: Reservation) => {
         setModalOpen(true);
         setModalLoading(true);
@@ -216,6 +273,10 @@ export default function ReservationAdminPage() {
             });
 
             if (!response.ok) throw new Error('Failed to send reminder');
+
+            // Update the UI immediately
+            updateReservationReminderStatus(reservation.id);
+
             setSentEmailCount(1);
             setModalSuccess(true);
         } catch (error) {
@@ -241,10 +302,17 @@ export default function ReservationAdminPage() {
         setSelectedReservations(newSelection);
     };
 
+    // Update handleBatchReminder
     const handleBatchReminder = async () => {
         const selectedReservationsList = filteredReservations.filter(res =>
-            selectedReservations.has(res.id)
+            selectedReservations.has(res.id) && canSendReminder(res)
         );
+
+        if (selectedReservationsList.length === 0) {
+            setModalError('No eligible reservations to send reminders to');
+            setModalOpen(true);
+            return;
+        }
 
         setModalOpen(true);
         setModalLoading(true);
@@ -254,8 +322,9 @@ export default function ReservationAdminPage() {
         setSentEmailCount(0);
 
         try {
-            for (const [index, reservation] of selectedReservationsList.entries()) {
-                await fetch('/api/send-reminder', {
+            for (let i = 0; i < selectedReservationsList.length; i++) {
+                const reservation = selectedReservationsList[i];
+                const response = await fetch('/api/send-reminder', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -269,7 +338,12 @@ export default function ReservationAdminPage() {
                         guests: reservation.guests
                     }),
                 });
-                setSentEmailCount(index + 1);
+
+                if (response.ok) {
+                    // Update UI for each successful reminder
+                    updateReservationReminderStatus(reservation.id);
+                    setSentEmailCount(i + 1);
+                }
             }
 
             setModalSuccess(true);
@@ -462,13 +536,20 @@ export default function ReservationAdminPage() {
                                                 `}>
                                                     {reservation.time}
                                                 </span>
-                                                {(isPassed || isCancelled) && (
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium
-                                                        ${isPassed ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-800'}
-                                                    `}>
-                                                        {isPassed ? 'Prior' : 'Cancelled'}
-                                                    </span>
-                                                )}
+                                                <div className="flex gap-1">
+                                                    {/* Add reminder status badge */}
+                                                    {reservation.reminderSent && (
+                                                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                            Reminder Sent
+                                                        </span>
+                                                    )}
+                                                    {(isPassed || isCancelled) && (
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium
+                                                            ${isPassed ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-800'}`}>
+                                                            {isPassed ? 'Prior' : 'Cancelled'}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             {/* Guest Info */}
@@ -508,21 +589,32 @@ export default function ReservationAdminPage() {
                                                 )}
                                             </div>
 
-                                            {/* Add this button to your reservation card */}
+                                            {/* Update the reminder button to show sent status */}
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     handleSendReminder(reservation);
                                                 }}
-                                                className="mt-2 w-full px-3 py-1 text-sm text-blue-600 hover:text-blue-800 
-                                                           border border-blue-600 hover:border-blue-800 rounded-lg 
-                                                           transition-colors flex items-center justify-center gap-2"
+                                                disabled={!canSendReminder(reservation)}
+                                                className={`mt-2 w-full px-3 py-1 text-sm rounded-lg transition-colors 
+                                                            flex flex-col items-center justify-center gap-1
+                                                            ${!canSendReminder(reservation)
+                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                        : 'text-blue-600 hover:text-blue-800 border border-blue-600 hover:border-blue-800'
+                                                    }`}
                                             >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                                </svg>
-                                                Send Reminder
+                                                <div className="flex items-center gap-2">
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                    </svg>
+                                                    {reservation.reminderSent ? 'Reminder Sent' : 'Send Reminder'}
+                                                </div>
+                                                {reservation.reminderSent && reservation.reminderSentAt && (
+                                                    <span className="text-xs text-gray-500">
+                                                        Sent {formatTimeAgo(reservation.reminderSentAt.toDate())}
+                                                    </span>
+                                                )}
                                             </button>
                                         </div>
                                     </div>
@@ -568,12 +660,25 @@ export default function ReservationAdminPage() {
                                                 <h3 className="text-base font-semibold text-gray-900">
                                                     {reservation.name}
                                                 </h3>
-                                                {(isPassed || reservation.status === 'cancelled') && (
-                                                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusBadge(reservation.status, isPassed)
-                                                        }`}>
-                                                        {isPassed ? 'Prior' : reservation.status === 'cancelled' ? 'Cancelled' : ''}
-                                                    </span>
-                                                )}
+                                                <div className="flex gap-1 flex-wrap">
+                                                    {/* Add reminder status badge */}
+                                                    {reservation.reminderSent && (
+                                                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                                                            Reminder Sent
+                                                            {reservation.reminderSentAt && (
+                                                                <span className="ml-1 text-green-600">
+                                                                    {formatTimeAgo(reservation.reminderSentAt.toDate())}
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                    )}
+                                                    {(isPassed || reservation.status === 'cancelled') && (
+                                                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full 
+                                                            ${getStatusBadge(reservation.status, isPassed)}`}>
+                                                            {isPassed ? 'Prior' : reservation.status === 'cancelled' ? 'Cancelled' : ''}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             {/* Compact info row */}

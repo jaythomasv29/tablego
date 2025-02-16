@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
+import { db } from "@/firebase";
+import { doc, updateDoc, Timestamp } from 'firebase/firestore';
 
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -93,6 +95,12 @@ export async function POST(request: Request) {
                     </div>
                 </div>
             `,
+        });
+
+        // Update the reservation document to mark reminder as sent
+        await updateDoc(doc(db, 'reservations', reservationId), {
+            reminderSent: true,
+            reminderSentAt: Timestamp.now()
         });
 
         return NextResponse.json({ success: true });
