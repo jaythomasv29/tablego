@@ -9,13 +9,15 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Banner from '@/components/Banner';
 
-type Props = {
-    params: {
-        id: string;
-    }
+type PageParams = {
+    id: string;
 }
 
-export default function CancelReservationPage({ params }: Props) {
+export default function CancelReservationPage({
+    params,
+}: {
+    params: PageParams;
+}) {
     const [reservation, setReservation] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
