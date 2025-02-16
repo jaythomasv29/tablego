@@ -9,15 +9,16 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Banner from '@/components/Banner';
 
-type PageParams = {
-    id: string;
+interface ReservationPageProps {
+    params: {
+        id: string;
+    };
+    searchParams: { [key: string]: string | string[] | undefined };
 }
 
 export default function CancelReservationPage({
     params,
-}: {
-    params: PageParams;
-}) {
+}: ReservationPageProps) {
     const [reservation, setReservation] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
