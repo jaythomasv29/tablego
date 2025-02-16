@@ -1,11 +1,12 @@
 import CancelReservationClient from '@/components/CancelReservationClient';
 
-interface PageProps {
-    params: {
-        id: string;
-    };
+type Props = {
+    params: { id: string }
 }
 
-export default async function CancelReservationPage({ params }: PageProps) {
-    return <CancelReservationClient id={params.id} />;
+// Remove async since we're not doing any server-side data fetching
+export default function CancelReservationPage({ params }: Props) {
+    return (
+        <CancelReservationClient id={params.id} />
+    );
 } 
