@@ -9,12 +9,10 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Banner from '@/components/Banner';
 
-type Params = { id: string };
-
 export default function CancelReservationPage({
     params
 }: {
-    params: Params
+    params: { id: string } & { [key: string]: string | string[] }
 }) {
     const [reservation, setReservation] = useState<any>(null);
     const [loading, setLoading] = useState(true);
