@@ -167,20 +167,7 @@ export default function AdminHome() {
         fetchAnalytics();
     }, []);
 
-    useEffect(() => {
-        const setupPushNotifications = async () => {
-            try {
-                const subscription = await subscribeToPushNotifications();
-                if (subscription) {
-                    setPushEnabled(true);
-                }
-            } catch (error) {
-                console.error('Failed to setup push notifications:', error);
-            }
-        };
 
-        setupPushNotifications();
-    }, []);
 
     useEffect(() => {
         let isMounted = true;
@@ -564,36 +551,8 @@ export default function AdminHome() {
                 />
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-bold">Dashboard Overview</h1>
-                    {!pushEnabled && (
-                        <button
-                            onClick={async () => {
-                                try {
-                                    // Check if notifications are blocked
-                                    if (Notification.permission === 'denied') {
-                                        toast.error(
-                                            'Notifications are blocked. Please enable them in your browser settings.',
-                                            { duration: 5000 }
-                                        );
-                                        return;
-                                    }
 
-                                    const subscription = await subscribeToPushNotifications();
-                                    if (subscription) {
-                                        setPushEnabled(true);
-                                        toast.success('Push notifications enabled!');
-                                    }
-                                } catch (error: any) {
-                                    if (error.message !== 'Notifications are blocked') {
-                                        toast.error('Failed to enable notifications');
-                                    }
-                                }
-                            }}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                        >
-                            <Bell className="w-4 h-4" />
-                            Enable Notifications
-                        </button>
-                    )}
+
                 </div>
 
                 {activeTab === 'dashboard' ? (
