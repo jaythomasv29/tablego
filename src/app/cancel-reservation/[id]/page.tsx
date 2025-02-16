@@ -1,12 +1,18 @@
+import { Suspense } from 'react';
 import CancelReservationClient from '@/components/CancelReservationClient';
+import Loading from '@/components/Loading';
 
-type Props = {
-    params: { id: string }
+interface PageProps {
+    params: {
+        id: string;
+    };
+    searchParams: { [key: string]: string | string[] | undefined };
 }
 
-// Remove async since we're not doing any server-side data fetching
-export default function CancelReservationPage({ params }: Props) {
+export default function CancelReservationPage({ params }: PageProps) {
     return (
-        <CancelReservationClient id={params.id} />
+        <Suspense fallback={<Loading />}>
+            <CancelReservationClient id={params.id} />
+        </Suspense>
     );
 } 
