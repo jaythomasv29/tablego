@@ -5,6 +5,7 @@ import { db } from "@/firebase"
 import { collection, query, where, getDocs, Timestamp, orderBy } from 'firebase/firestore';
 import Link from 'next/link';
 import AdminLayout from '@/components/AdminLayout';
+import ReminderModal from '@/components/ReminderModal';
 
 interface Reservation {
     id: string;
@@ -17,6 +18,7 @@ interface Reservation {
     comments: string;
     status: string;
     cancelledAt?: Timestamp | string;
+    selected?: boolean;
 }
 
 // Add new helper functions
@@ -64,6 +66,14 @@ export default function ReservationAdminPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentTime, setCurrentTime] = useState(new Date());
     const timeSlots = generateTimeSlots();
+    const [selectedReservations, setSelectedReservations] = useState<Set<string>>(new Set());
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [modalOpen, setModalOpen] = useState(false);
+    const [modalLoading, setModalLoading] = useState(false);
+    const [modalSuccess, setModalSuccess] = useState(false);
+    const [modalError, setModalError] = useState<string | null>(null);
+    const [sentEmailCount, setSentEmailCount] = useState(0);
+    const [totalEmailCount, setTotalEmailCount] = useState(0);
 
     useEffect(() => {
         const fetchReservations = async () => {
@@ -182,6 +192,13 @@ export default function ReservationAdminPage() {
 
     // Update the handleSendReminder function
     const handleSendReminder = async (reservation: Reservation) => {
+        setModalOpen(true);
+        setModalLoading(true);
+        setModalSuccess(false);
+        setModalError(null);
+        setTotalEmailCount(1);
+        setSentEmailCount(0);
+
         try {
             const response = await fetch('/api/send-reminder', {
                 method: 'POST',
@@ -192,17 +209,77 @@ export default function ReservationAdminPage() {
                     reservationId: reservation.id,
                     email: reservation.email,
                     name: reservation.name,
-                    date: reservation.date.toDate().toISOString(), // Convert Timestamp to ISO string
+                    date: reservation.date.toDate().toISOString(),
                     time: reservation.time,
                     guests: reservation.guests
                 }),
             });
 
             if (!response.ok) throw new Error('Failed to send reminder');
-            alert('Reminder sent successfully!');
+            setSentEmailCount(1);
+            setModalSuccess(true);
         } catch (error) {
+            setModalError('Failed to send reminder');
             console.error('Error sending reminder:', error);
-            alert('Failed to send reminder');
+        } finally {
+            setModalLoading(false);
+        }
+    };
+
+    const toggleSelectionMode = () => {
+        setIsSelectionMode(!isSelectionMode);
+        setSelectedReservations(new Set());
+    };
+
+    const toggleReservationSelection = (reservationId: string) => {
+        const newSelection = new Set(selectedReservations);
+        if (newSelection.has(reservationId)) {
+            newSelection.delete(reservationId);
+        } else {
+            newSelection.add(reservationId);
+        }
+        setSelectedReservations(newSelection);
+    };
+
+    const handleBatchReminder = async () => {
+        const selectedReservationsList = filteredReservations.filter(res =>
+            selectedReservations.has(res.id)
+        );
+
+        setModalOpen(true);
+        setModalLoading(true);
+        setModalSuccess(false);
+        setModalError(null);
+        setTotalEmailCount(selectedReservationsList.length);
+        setSentEmailCount(0);
+
+        try {
+            for (const [index, reservation] of selectedReservationsList.entries()) {
+                await fetch('/api/send-reminder', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        reservationId: reservation.id,
+                        email: reservation.email,
+                        name: reservation.name,
+                        date: reservation.date.toDate().toISOString(),
+                        time: reservation.time,
+                        guests: reservation.guests
+                    }),
+                });
+                setSentEmailCount(index + 1);
+            }
+
+            setModalSuccess(true);
+            setIsSelectionMode(false);
+            setSelectedReservations(new Set());
+        } catch (error) {
+            setModalError('Failed to send some reminders');
+            console.error('Error sending batch reminders:', error);
+        } finally {
+            setModalLoading(false);
         }
     };
 
@@ -309,6 +386,35 @@ export default function ReservationAdminPage() {
                     </div>
                 )}
 
+                {/* Add these buttons after the view mode selector */}
+                <div className="flex justify-between items-center mb-4">
+                    <div className="flex gap-2">
+                        <button
+                            onClick={toggleSelectionMode}
+                            className={`px-4 py-2 rounded-lg transition-colors ${isSelectionMode
+                                ? 'bg-gray-600 text-white'
+                                : 'bg-white text-gray-600 border border-gray-300'
+                                }`}
+                        >
+                            {isSelectionMode ? 'Cancel Selection' : 'Select Multiple'}
+                        </button>
+
+                        {isSelectionMode && selectedReservations.size > 0 && (
+                            <button
+                                onClick={handleBatchReminder}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
+                                         transition-colors flex items-center gap-2"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
+                                Send Reminders ({selectedReservations.size})
+                            </button>
+                        )}
+                    </div>
+                </div>
+
                 {viewMode === 'today' ? (
                     // Compact Card View for Today's Reservations
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -326,11 +432,28 @@ export default function ReservationAdminPage() {
                                 return (
                                     <div
                                         key={reservation.id}
-                                        className={`bg-white rounded-lg shadow-md overflow-hidden transition-all
-                                            ${isPassed ? 'opacity-60' : ''}
-                                            ${isCancelled ? 'border border-red-200' : ''}
-                                        `}
+                                        className={`relative bg-white rounded-lg shadow-md overflow-hidden 
+                                                  ${isSelectionMode ? 'cursor-pointer' : ''}`}
+                                        onClick={() => isSelectionMode && toggleReservationSelection(reservation.id)}
                                     >
+                                        {isSelectionMode && (
+                                            <div className="absolute top-2 right-2 z-10">
+                                                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center
+                                                       ${selectedReservations.has(reservation.id)
+                                                        ? 'bg-blue-600 border-blue-600'
+                                                        : 'border-gray-300'
+                                                    }`}
+                                                >
+                                                    {selectedReservations.has(reservation.id) && (
+                                                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor"
+                                                            viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round"
+                                                                strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                        </svg>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
                                         <div className="p-4">
                                             {/* Time Badge */}
                                             <div className="flex justify-between items-start mb-2">
@@ -387,7 +510,10 @@ export default function ReservationAdminPage() {
 
                                             {/* Add this button to your reservation card */}
                                             <button
-                                                onClick={() => handleSendReminder(reservation)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleSendReminder(reservation);
+                                                }}
                                                 className="mt-2 w-full px-3 py-1 text-sm text-blue-600 hover:text-blue-800 
                                                            border border-blue-600 hover:border-blue-800 rounded-lg 
                                                            transition-colors flex items-center justify-center gap-2"
@@ -414,9 +540,28 @@ export default function ReservationAdminPage() {
                             return (
                                 <div
                                     key={reservation.id}
-                                    className={`bg-white rounded-lg shadow-md overflow-hidden transition-all ${isPassed ? 'opacity-60' : ''
-                                        }`}
+                                    className={`relative bg-white rounded-lg shadow-md overflow-hidden 
+                                              ${isSelectionMode ? 'cursor-pointer' : ''}`}
+                                    onClick={() => isSelectionMode && toggleReservationSelection(reservation.id)}
                                 >
+                                    {isSelectionMode && (
+                                        <div className="absolute top-2 right-2 z-10">
+                                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center
+                                                   ${selectedReservations.has(reservation.id)
+                                                    ? 'bg-blue-600 border-blue-600'
+                                                    : 'border-gray-300'
+                                                }`}
+                                            >
+                                                {selectedReservations.has(reservation.id) && (
+                                                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round"
+                                                            strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="p-4">
                                         <div className={`${isCancelled ? 'line-through' : ''}`}>
                                             <div className="flex items-center gap-2 flex-wrap mb-2">
@@ -464,6 +609,25 @@ export default function ReservationAdminPage() {
                                                     </p>
                                                 </div>
                                             )}
+
+                                            {/* Add reminder button for future reservations */}
+                                            {viewMode === 'future' && !isCancelled && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleSendReminder(reservation);
+                                                    }}
+                                                    className="mt-2 w-full px-3 py-1 text-sm text-blue-600 hover:text-blue-800 
+                                                               border border-blue-600 hover:border-blue-800 rounded-lg 
+                                                               transition-colors flex items-center justify-center gap-2"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                    </svg>
+                                                    Send Reminder
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -483,6 +647,16 @@ export default function ReservationAdminPage() {
                         </p>
                     </div>
                 )}
+
+                <ReminderModal
+                    isOpen={modalOpen}
+                    isLoading={modalLoading}
+                    success={modalSuccess}
+                    error={modalError}
+                    onClose={() => setModalOpen(false)}
+                    totalEmails={totalEmailCount}
+                    sentEmails={sentEmailCount}
+                />
             </div>
         </AdminLayout>
     );
