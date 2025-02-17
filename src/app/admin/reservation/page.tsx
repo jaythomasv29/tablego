@@ -42,11 +42,31 @@ const generateTimeSlots = () => {
 };
 
 // Add this helper function at the top of the file
-const formatDate = (date: Date) => {
+const formatDate = (date: Timestamp | string | Date) => {
+    // If it's a Timestamp
+    if (date && typeof date === 'object' && 'toDate' in date) {
+        return date.toDate().toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: 'America/Los_Angeles'
+        });
+    }
+    // If it's a string
+    if (typeof date === 'string') {
+        return new Date(date).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: 'America/Los_Angeles'
+        });
+    }
+    // If it's already a Date object
     return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
-        day: 'numeric'
+        day: 'numeric',
+        timeZone: 'America/Los_Angeles'
     });
 };
 
@@ -173,6 +193,22 @@ const getStatusText = (status: string, isPassed: boolean) => {
     }
 };
 
+// Add this helper function at the top of the file
+const getDateFromTimestamp = (date: Timestamp | string) => {
+    if (typeof date === 'string') {
+        return new Date(date);
+    }
+    return date.toDate();
+};
+
+// Update the helper function to handle both Timestamp and string
+const getDatePart = (date: Timestamp | string) => {
+    if (typeof date === 'string') {
+        return date.split('T')[0];
+    }
+    return date.toDate().toISOString().split('T')[0];
+};
+
 export default function ReservationAdminPage() {
     const [viewMode, setViewMode] = useState<'past' | 'today' | 'future' | 'chart'>('today');
     const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -193,10 +229,14 @@ export default function ReservationAdminPage() {
         const fetchReservations = async () => {
             setLoading(true);
             try {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const tomorrow = new Date(today);
-                tomorrow.setDate(tomorrow.getDate() + 1);
+                // Get today's date in PST and format as YYYY-MM-DD
+                const pstDate = new Date().toLocaleDateString('en-US', {
+                    timeZone: 'America/Los_Angeles',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                });
+                const today = new Date(pstDate).toISOString().split('T')[0];
 
                 const reservationsRef = collection(db, 'reservations');
                 const q = query(reservationsRef);
@@ -204,41 +244,20 @@ export default function ReservationAdminPage() {
 
                 const fetchedReservations = querySnapshot.docs.map(doc => {
                     const data = doc.data();
-                    const reservationDate = new Date(data.date);
                     return {
                         id: doc.id,
                         ...data,
-                        date: Timestamp.fromDate(reservationDate)
                     } as Reservation;
                 });
 
                 let filteredReservations: Reservation[] = [];
 
                 switch (viewMode) {
-                    case 'past':
-                        filteredReservations = fetchedReservations.filter(res => {
-                            const today = new Date();
-                            const todayUTC = Date.UTC(
-                                today.getUTCFullYear(),
-                                today.getUTCMonth(),
-                                today.getUTCDate()
-                            );
-
-                            const resDate = typeof res.date === 'string' ? new Date(res.date) : res.date.toDate();
-                            const resDateUTC = Date.UTC(
-                                resDate.getUTCFullYear(),
-                                resDate.getUTCMonth(),
-                                resDate.getUTCDate()
-                            );
-
-                            return resDateUTC < todayUTC;
-                        }).sort((a, b) => b.date.toDate().getTime() - a.date.toDate().getTime());
-                        break;
-
                     case 'today':
                         filteredReservations = fetchedReservations.filter(res => {
-                            const today = new Date();
-                            return isSameDayUTC(res.date, today);
+                            // Compare just the date parts of the ISO strings
+                            const reservationDate = getDatePart(res.date);
+                            return reservationDate === today;
                         }).sort((a, b) => {
                             const timeA = convertTimeToMinutes(a.time);
                             const timeB = convertTimeToMinutes(b.time);
@@ -246,15 +265,20 @@ export default function ReservationAdminPage() {
                         });
                         break;
 
+                    case 'past':
+                        filteredReservations = fetchedReservations.filter(res => {
+                            return getDatePart(res.date) < today;
+                        }).sort((a, b) => getDatePart(b.date).localeCompare(getDatePart(a.date)));
+                        break;
+
                     case 'future':
-                        filteredReservations = fetchedReservations.filter(res =>
-                            isDateInFutureUTC(res.date)
-                        ).sort((a, b) => a.date.toDate().getTime() - b.date.toDate().getTime());
+                        filteredReservations = fetchedReservations.filter(res => {
+                            return getDatePart(res.date) > today;
+                        }).sort((a, b) => getDatePart(a.date).localeCompare(getDatePart(b.date)));
                         break;
                 }
 
                 setReservations(filteredReservations);
-
             } catch (error) {
                 console.error('Error fetching reservations:', error);
             } finally {
@@ -588,6 +612,15 @@ export default function ReservationAdminPage() {
                                 const isCancelled = reservation.status === 'cancelled';
                                 const isPassed = isReservationPassed(reservation.time);
 
+                                // Convert reservation date to PST using the helper function
+                                const pstDate = getDateFromTimestamp(reservation.date).toLocaleDateString('en-US', {
+                                    weekday: 'long',
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                    timeZone: 'America/Los_Angeles'
+                                });
+
                                 return (
                                     <div
                                         key={reservation.id}
@@ -616,10 +649,15 @@ export default function ReservationAdminPage() {
                                         <div className="p-4">
                                             {/* Status and Time Header */}
                                             <div className="flex justify-between items-start mb-2">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-medium
-                                                    ${isPassed ? 'bg-gray-100 text-gray-600' : 'bg-blue-100 text-blue-800'}`}>
-                                                    {reservation.time}
-                                                </span>
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-medium text-gray-900">
+                                                        {pstDate}
+                                                    </span>
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium mt-1
+                                                        ${isPassed ? 'bg-gray-100 text-gray-600' : 'bg-blue-100 text-blue-800'}`}>
+                                                        {reservation.time}
+                                                    </span>
+                                                </div>
                                                 <div className="flex gap-1">
                                                     {/* Status Badge - Always show */}
                                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(reservation.status, isPassed)}`}>
@@ -741,7 +779,7 @@ export default function ReservationAdminPage() {
                                         <div className="flex justify-between items-start mb-2">
                                             <div className="flex flex-col">
                                                 <span className="text-sm font-medium text-gray-900">
-                                                    {formatDate(reservation.date.toDate())}
+                                                    {formatDate(reservation.date)}
                                                 </span>
                                                 <span className="text-sm text-gray-600">{reservation.time}</span>
                                             </div>

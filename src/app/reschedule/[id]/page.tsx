@@ -92,39 +92,50 @@ interface BusinessDay {
     holidayName?: string;
 }
 
-// Update generateTimeSlots function
+// Add this helper function at the top
+const getPSTDate = () => {
+    return new Date(new Date().toLocaleString('en-US', {
+        timeZone: 'America/Los_Angeles'
+    }));
+};
+
+// Update generateTimeSlots function to properly handle today's slots
 const generateTimeSlots = async (date: Date) => {
     try {
-        const dateString = date.toLocaleDateString('en-US', {
+        const pstDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+        const dateString = pstDate.toLocaleDateString('en-US', {
             weekday: 'long',
-            timeZone: "America/Los_Angeles"
+            timeZone: 'America/Los_Angeles'
         }).toLowerCase();
 
         const hoursDoc = await getDoc(doc(db, 'settings', 'businessHours'));
-        if (!hoursDoc.exists()) {
-            throw new Error('Business hours not found');
-        }
+        if (!hoursDoc.exists()) return [];
 
         const businessHours = hoursDoc.data() as BusinessHours;
         const dayHours = businessHours[dateString];
         if (!dayHours) return [];
 
         const slots: TimeSlot[] = [];
-        const pstNow = new Date();
-        const isToday = date.toDateString() === pstNow.toDateString();
-        const currentMinutes = isToday ? pstNow.getHours() * 60 + pstNow.getMinutes() : 0;
+        const pstNow = getPSTDate();
 
-        // Process lunch hours
+        // Compare dates in PST for today's check
+        const isToday = pstDate.toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' }) ===
+            pstNow.toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' });
+
+        // For today, use PST time for comparison
+        const currentPSTHour = pstNow.getHours();
+        const currentPSTMinutes = pstNow.getMinutes();
+        const currentTotalMinutes = currentPSTHour * 60 + currentPSTMinutes;
+
+        // Process lunch and dinner slots
         if (dayHours.lunch.isOpen) {
-            let start = timeToMinutes(dayHours.lunch.open);
-            const end = timeToMinutes(dayHours.lunch.close) - 30; // Subtract 30 minutes from closing time
+            const lunchStart = timeToMinutes(dayHours.lunch.open);
+            const lunchEnd = timeToMinutes(dayHours.lunch.close) - 30;
 
-            if (isToday && start < currentMinutes) {
-                start = Math.ceil((currentMinutes + 30) / slotDuration) * slotDuration;
-            }
-
-            for (let time = start; time <= end - slotDuration; time += slotDuration) {
-                if (!isToday || time >= currentMinutes + 30) {
+            // For today, only show future times
+            if (!isToday || currentTotalMinutes < lunchEnd) {
+                const startTime = isToday ? Math.max(lunchStart, currentTotalMinutes + 30) : lunchStart;
+                for (let time = startTime; time <= lunchEnd; time += slotDuration) {
                     slots.push({
                         time: minutesToTime(time),
                         period: 'lunch'
@@ -133,17 +144,14 @@ const generateTimeSlots = async (date: Date) => {
             }
         }
 
-        // Process dinner hours
         if (dayHours.dinner.isOpen) {
-            let start = timeToMinutes(dayHours.dinner.open);
-            const end = timeToMinutes(dayHours.dinner.close) - 30; // Subtract 30 minutes from closing time
+            const dinnerStart = timeToMinutes(dayHours.dinner.open);
+            const dinnerEnd = timeToMinutes(dayHours.dinner.close) - 30;
 
-            if (isToday && start < currentMinutes) {
-                start = Math.ceil((currentMinutes + 30) / slotDuration) * slotDuration;
-            }
-
-            for (let time = start; time <= end - slotDuration; time += slotDuration) {
-                if (!isToday || time >= currentMinutes + 30) {
+            // For today, only show future times
+            if (!isToday || currentTotalMinutes < dinnerEnd) {
+                const startTime = isToday ? Math.max(dinnerStart, currentTotalMinutes + 30) : dinnerStart;
+                for (let time = startTime; time <= dinnerEnd; time += slotDuration) {
                     slots.push({
                         time: minutesToTime(time),
                         period: 'dinner'
@@ -176,6 +184,45 @@ const minutesToTime = (minutes: number): string => {
     return `${displayHours}:${mins.toString().padStart(2, '0')} ${period}`;
 };
 
+// Add these helper functions at the top
+const convertUTCToPST = (utcDate: string) => {
+    return new Date(utcDate).toLocaleString('en-US', {
+        timeZone: 'America/Los_Angeles'
+    });
+};
+
+const isSamePSTDay = (date1: string, date2: string) => {
+    const pst1 = new Date(convertUTCToPST(date1));
+    const pst2 = new Date(convertUTCToPST(date2));
+
+    return pst1.getFullYear() === pst2.getFullYear() &&
+        pst1.getMonth() === pst2.getMonth() &&
+        pst1.getDate() === pst2.getDate();
+};
+
+// Add this at the top with other helper functions
+const formatLADate = (date: Date) => {
+    return date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'America/Los_Angeles'
+    });
+};
+
+// Add this helper function to format the date and time
+const formatDateTime = (date: string, time: string) => {
+    const pstDate = new Date(date).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'America/Los_Angeles'
+    });
+    return { pstDate, time };
+};
+
 export default function ReschedulePage({ params }: PageProps) {
     const { id } = use(params);
     const [reservation, setReservation] = useState<Reservation | null>(null);
@@ -185,6 +232,7 @@ export default function ReschedulePage({ params }: PageProps) {
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [selectedTime, setSelectedTime] = useState<string>('');
     const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
+    const [todaysReservations, setTodaysReservations] = useState<any[]>([]);
 
     useEffect(() => {
         const fetchReservation = async () => {
@@ -225,19 +273,22 @@ export default function ReschedulePage({ params }: PageProps) {
 
         try {
             setLoading(true);
-            // Format the date to match "2025-02-16T22:01:32.590Z" format
-            const formattedDate = new Date(
-                selectedDate.getFullYear(),
-                selectedDate.getMonth(),
-                selectedDate.getDate(),
-                12, // Set to noon to avoid timezone issues
-                0,
-                0
-            ).toISOString();
+            // Convert selected date to PST then to UTC for storage
+            const pstDate = new Date(selectedDate.toLocaleString('en-US', {
+                timeZone: 'America/Los_Angeles'
+            }));
+
+            // Set the time to noon PST to avoid date shifting
+            pstDate.setHours(12, 0, 0, 0);
+
+            // Convert to UTC for storage
+            const utcDate = new Date(pstDate.toLocaleString('en-US', {
+                timeZone: 'UTC'
+            })).toISOString();
 
             await updateDoc(doc(db, 'reservations', id), {
-                date: formattedDate, // Save as ISO string instead of Timestamp
-                time: selectedTime, // Already in correct format (e.g., "6:30 PM")
+                date: utcDate,
+                time: selectedTime,
                 updatedAt: new Date().toISOString(),
                 status: 'confirmed'
             });
@@ -252,7 +303,7 @@ export default function ReschedulePage({ params }: PageProps) {
                     reservationId: reservation?.id,
                     email: reservation?.email,
                     name: reservation?.name,
-                    date: formattedDate,
+                    date: utcDate,
                     time: selectedTime,
                     guests: reservation?.guests,
                     phone: reservation?.phone
@@ -269,42 +320,138 @@ export default function ReschedulePage({ params }: PageProps) {
     };
 
     const fetchAvailableTimeSlots = async (date: Date) => {
-        const allTimeSlots = await generateTimeSlots(date);
-        const availableSlots = await checkTimeSlotAvailability(date, allTimeSlots);
+        try {
+            const allTimeSlots = await generateTimeSlots(date);
 
-        if (reservation &&
-            date.toDateString() === getDateFromTimestamp(reservation.date).toDateString()) {
-            if (!availableSlots.includes(reservation.time)) {
-                availableSlots.push(reservation.time);
-            }
+            // Get today's date and time in Los Angeles timezone
+            const laDateTime = new Date().toLocaleString('en-US', {
+                timeZone: 'America/Los_Angeles',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+
+            console.log('Current LA Time:', new Date().toLocaleString('en-US', {
+                timeZone: 'America/Los_Angeles',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            }));
+            console.log('Current LA Date:', laDateTime);
+
+            // Query all reservations
+            const reservationsRef = collection(db, 'reservations');
+            const querySnapshot = await getDocs(reservationsRef);
+
+            // Filter for today's reservations in LA time
+            const existingReservations = querySnapshot.docs
+                .filter(doc => {
+                    const reservationDate = new Date(doc.data().date).toLocaleString('en-US', {
+                        timeZone: 'America/Los_Angeles',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    });
+
+                    // Log each reservation's date for debugging
+                    console.log('Reservation Date:', reservationDate, 'Time:', doc.data().time);
+
+                    return (
+                        reservationDate === laDateTime && // Same date in LA
+                        doc.id !== id && // Not current reservation
+                        doc.data().status !== 'cancelled' // Not cancelled
+                    );
+                })
+                .map(doc => doc.data().time);
+
+            // Log filtered reservations
+            console.log('Today\'s Reservations:', existingReservations);
+
+            // Filter out booked times
+            let availableSlots = allTimeSlots.filter(time => !existingReservations.includes(time));
+
+            // Sort times
+            availableSlots.sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
+
+            setAvailableTimeSlots(availableSlots);
+
+            // Add this after fetching existing reservations in fetchAvailableTimeSlots
+            const todayReservations = querySnapshot.docs
+                .filter(doc => {
+                    const reservationDate = new Date(doc.data().date).toLocaleString('en-US', {
+                        timeZone: 'America/Los_Angeles',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    });
+                    return reservationDate === laDateTime && doc.data().status !== 'cancelled';
+                })
+                .map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+            setTodaysReservations(todayReservations);
+        } catch (error) {
+            console.error('Error fetching available time slots:', error);
+            setAvailableTimeSlots([]);
         }
-
-        // Sort time slots
-        availableSlots.sort((a, b) => {
-            const timeA = new Date(`1970/01/01 ${a}`).getTime();
-            const timeB = new Date(`1970/01/01 ${b}`).getTime();
-            return timeA - timeB;
-        });
-
-        setAvailableTimeSlots(availableSlots);
     };
 
     const handleDateChange = (newDate: Date | null) => {
-        setSelectedDate(newDate);
-        setSelectedTime('');
-        if (newDate) {
-            fetchAvailableTimeSlots(newDate);
+        if (!newDate) {
+            setSelectedDate(null);
+            setSelectedTime('');
+            return;
         }
+
+        // Convert selected date to PST
+        const pstDate = new Date(newDate.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+        setSelectedDate(pstDate);
+        setSelectedTime('');
+        fetchAvailableTimeSlots(pstDate);
     };
 
     const checkTimeSlotAvailability = async (date: Date, timeSlots: string[]) => {
-        const startOfDay = new Date(date);
-        startOfDay.setHours(0, 0, 0, 0);
-
-        const endOfDay = new Date(date);
-        endOfDay.setHours(23, 59, 59, 999);
-
         try {
+            // Convert input date to PST and format it to match Firebase date format
+            const pstDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+            const startOfDay = new Date(Date.UTC(
+                pstDate.getFullYear(),
+                pstDate.getMonth(),
+                pstDate.getDate(),
+                0, 0, 0, 0
+            )).toISOString();
+
+            const endOfDay = new Date(Date.UTC(
+                pstDate.getFullYear(),
+                pstDate.getMonth(),
+                pstDate.getDate(),
+                23, 59, 59, 999
+            )).toISOString();
+
+            // Get all reservations for the day using the ISO string format
+            const reservationsRef = collection(db, 'reservations');
+            const q = query(
+                reservationsRef,
+                where('date', '>=', startOfDay),
+                where('date', '<=', endOfDay)
+            );
+
+            const querySnapshot = await getDocs(q);
+            const bookedTimes = querySnapshot.docs
+                .filter(doc => doc.id !== id && doc.data().status !== 'cancelled')
+                .map(doc => doc.data().time);
+
+            // Convert business hours to minutes for accurate comparison
+            const convertTimeToMinutes = (time: string) => {
+                const [timeStr, period] = time.split(' ');
+                const [hours, minutes] = timeStr.split(':').map(Number);
+                let totalMinutes = hours * 60 + minutes;
+                if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
+                if (period === 'AM' && hours === 12) totalMinutes = minutes;
+                return totalMinutes;
+            };
+
             const hoursDoc = await getDoc(doc(db, 'settings', 'businessHours'));
             if (!hoursDoc.exists()) {
                 throw new Error('Business hours not found');
@@ -322,33 +469,10 @@ export default function ReschedulePage({ params }: PageProps) {
                 }
             };
 
-            // Convert business hours to minutes for accurate comparison
-            const convertTimeToMinutes = (time: string) => {
-                const [timeStr, period] = time.split(' ');
-                const [hours, minutes] = timeStr.split(':').map(Number);
-                let totalMinutes = hours * 60 + minutes;
-                if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
-                if (period === 'AM' && hours === 12) totalMinutes = minutes;
-                return totalMinutes;
-            };
-
             const lunchStart = convertTimeToMinutes(businessHours.lunch.start);
             const lunchEnd = convertTimeToMinutes(businessHours.lunch.end);
             const dinnerStart = convertTimeToMinutes(businessHours.dinner.start);
             const dinnerEnd = convertTimeToMinutes(businessHours.dinner.end);
-
-            // Get all reservations for the day
-            const reservationsRef = collection(db, 'reservations');
-            const q = query(
-                reservationsRef,
-                where('date', '>=', Timestamp.fromDate(startOfDay)),
-                where('date', '<=', Timestamp.fromDate(endOfDay))
-            );
-
-            const querySnapshot = await getDocs(q);
-            const bookedTimes = querySnapshot.docs
-                .filter(doc => doc.id !== id && doc.data().status !== 'cancelled')
-                .map(doc => doc.data().time);
 
             // Filter available time slots
             return timeSlots.filter(time => {
@@ -464,21 +588,31 @@ export default function ReschedulePage({ params }: PageProps) {
                 className="min-h-screen flex items-center justify-center px-4"
             >
                 <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
+                    {/* Add Today's Date Header */}
+                    <div className="mb-6 text-center">
+                        <h2 className="text-xl font-semibold text-gray-900">
+                            Today: {formatLADate(new Date())}
+                        </h2>
+                        <p className="text-gray-600 mt-1">
+                            {new Date().toLocaleString('en-US', {
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true,
+                                timeZone: 'America/Los_Angeles'
+                            })}
+                        </p>
+                    </div>
+
                     <h2 className="text-2xl font-bold text-gray-900 mb-6">Reschedule Reservation</h2>
                     {reservation && (
                         <div className="space-y-6">
                             <div className="bg-gray-50 p-4 rounded-lg">
                                 <h3 className="font-medium text-gray-900 mb-2">Current Reservation</h3>
-                                <p className="text-gray-600">
-                                    {getDateFromTimestamp(reservation.date).toLocaleDateString('en-US', {
-                                        weekday: 'long',
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric'
-                                    })}
+                                <p className="text-gray-600 font-medium">
+                                    {formatLADate(getDateFromTimestamp(reservation.date))}
                                 </p>
-                                <p className="text-gray-600">{reservation.time}</p>
-                                <p className="text-gray-600">{reservation.guests} guests</p>
+                                <p className="text-gray-600">Time: {reservation.time}</p>
+                                <p className="text-gray-600">Guests: {reservation.guests}</p>
                             </div>
 
                             <div className="space-y-4">
@@ -538,6 +672,27 @@ export default function ReschedulePage({ params }: PageProps) {
                             </div>
                         </div>
                     )}
+
+                    {/* Add this JSX after the current reservation card */}
+                    <div className="mt-8">
+                        <h3 className="font-medium text-gray-900 mb-4">Today's Reservations</h3>
+                        <div className="space-y-4">
+                            {todaysReservations.map((res) => {
+                                const { pstDate } = formatDateTime(res.date, res.time);
+                                return (
+                                    <div key={res.id} className="bg-gray-50 p-4 rounded-lg">
+                                        <p className="text-gray-900 font-medium">{pstDate}</p>
+                                        <p className="text-gray-600">Time: {res.time}</p>
+                                        <p className="text-gray-600">Guests: {res.guests}</p>
+                                        <p className="text-gray-600">Name: {res.name}</p>
+                                    </div>
+                                );
+                            })}
+                            {todaysReservations.length === 0 && (
+                                <p className="text-gray-500">No reservations for today</p>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </motion.div>
             <Footer />
