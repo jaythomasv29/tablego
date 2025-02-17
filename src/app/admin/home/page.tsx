@@ -470,15 +470,15 @@ export default function AdminHome() {
     const handleConfirmReservation = async (reservationId: string) => {
         setIsConfirming(reservationId);
         try {
-            const reservationRef = doc(db, 'reservations', reservationId);
-            await updateDoc(reservationRef, {
-                status: 'confirmed'
-            });
-            // Refresh both pending reservations and metrics
-            await Promise.all([
-                fetchPendingReservations(),
-                fetchMetrics()
-            ]);
+            // const reservationRef = doc(db, 'reservations', reservationId);
+            // await updateDoc(reservationRef, {
+            //     status: 'confirmed'
+            // });
+            // // Refresh both pending reservations and metrics
+            // await Promise.all([
+            //     fetchPendingReservations(),
+            //     fetchMetrics()
+            // ]);
             // Add success toast notification
             toast.success('Reservation confirmed successfully!');
         } catch (error) {
@@ -772,7 +772,7 @@ export default function AdminHome() {
                         <div id="pending-reservations" className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow mb-6">
                             <div className="flex items-center justify-between mb-4">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-600">Pending Reservations</p>
+                                    <p className="text-sm font-medium text-gray-600">New Reservations</p>
                                     <p className="text-3xl font-bold text-gray-900">{pendingReservations.length}</p>
                                 </div>
                                 <div className="p-3 bg-yellow-50 rounded-full">
@@ -818,7 +818,7 @@ export default function AdminHome() {
 
                                     {pendingReservations.length === 0 && (
                                         <p className="text-center text-gray-500 py-4">
-                                            No pending reservations
+                                            No new reservations
                                         </p>
                                     )}
                                 </div>

@@ -466,6 +466,13 @@ export default function ReservationAdminPage() {
         }
     };
 
+    // Replace handleConfirmReservation with handleClose
+    const handleClose = (reservationId: string) => {
+        // Just remove the reservation from the list in UI
+        const updatedReservations = reservations.filter(r => r.id !== reservationId);
+        setReservations(updatedReservations);
+    };
+
     return (
         <AdminLayout>
             <div className="p-4 sm:p-6 bg-gray-100 min-h-screen">
@@ -735,6 +742,15 @@ export default function ReservationAdminPage() {
                                                         Sent {formatTimeAgo(reservation.reminderSentAt.toDate())}
                                                     </span>
                                                 )}
+                                            </button>
+
+                                            {/* Update the button in the JSX */}
+                                            <button
+                                                onClick={() => handleClose(reservation.id)}
+                                                className="px-3 py-1 rounded-full text-sm font-medium 
+                                                           bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                            >
+                                                Close
                                             </button>
                                         </div>
                                     </div>
