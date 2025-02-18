@@ -358,14 +358,12 @@ export default function ReservationAdminPage() {
 
     // Update handleSendReminder
     const handleSendReminder = async (reservation: Reservation) => {
-        setModalOpen(true);
-        setModalLoading(true);
-        setModalSuccess(false);
-        setModalError(null);
-        setTotalEmailCount(1);
-        setSentEmailCount(0);
-
         try {
+            // Convert the date properly before sending
+            const dateToSend = typeof reservation.date === 'string'
+                ? reservation.date  // If it's already a string, use it directly
+                : reservation.date.toDate().toISOString();  // If it's a Timestamp, convert to ISO string
+
             const response = await fetch('/api/send-reminder', {
                 method: 'POST',
                 headers: {
@@ -375,24 +373,21 @@ export default function ReservationAdminPage() {
                     reservationId: reservation.id,
                     email: reservation.email,
                     name: reservation.name,
-                    date: reservation.date.toDate().toISOString(),
+                    date: dateToSend,
                     time: reservation.time,
                     guests: reservation.guests
                 }),
             });
 
-            if (!response.ok) throw new Error('Failed to send reminder');
+            if (!response.ok) {
+                throw new Error('Failed to send reminder');
+            }
 
-            // Update the UI immediately
+            // Update the reservation's reminder status
             updateReservationReminderStatus(reservation.id);
-
-            setSentEmailCount(1);
-            setModalSuccess(true);
         } catch (error) {
-            setModalError('Failed to send reminder');
             console.error('Error sending reminder:', error);
-        } finally {
-            setModalLoading(false);
+            throw error;
         }
     };
 
@@ -433,6 +428,10 @@ export default function ReservationAdminPage() {
         try {
             for (let i = 0; i < selectedReservationsList.length; i++) {
                 const reservation = selectedReservationsList[i];
+                const dateToSend = typeof reservation.date === 'string'
+                    ? reservation.date
+                    : reservation.date.toDate().toISOString();
+
                 const response = await fetch('/api/send-reminder', {
                     method: 'POST',
                     headers: {
@@ -442,7 +441,7 @@ export default function ReservationAdminPage() {
                         reservationId: reservation.id,
                         email: reservation.email,
                         name: reservation.name,
-                        date: reservation.date.toDate().toISOString(),
+                        date: dateToSend,
                         time: reservation.time,
                         guests: reservation.guests
                     }),
