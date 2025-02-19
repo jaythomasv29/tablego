@@ -561,7 +561,11 @@ export default function ReservationForm() {
         <div className="bg-gray-50 rounded-lg p-6 mb-8 text-left">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Reservation Details</h3>
           <p className="text-gray-600">Name: {reservationDetails.name}</p>
-          <p className="text-gray-600">Date: {formatDisplayDate(reservationDetails.date)}</p>
+          <p className="text-gray-600">Date: {
+            // Use formattedDate from API if available, otherwise format the date
+            reservationDetails.formattedDate ||
+            (reservationDetails.date && formatDisplayDate(reservationDetails.date))
+          }</p>
           <p className="text-gray-600">Time: {reservationDetails.time}</p>
           <p className="text-gray-600">Guests: {reservationDetails.guests}</p>
           <p className="text-gray-600">Email: {reservationDetails.email}</p>
