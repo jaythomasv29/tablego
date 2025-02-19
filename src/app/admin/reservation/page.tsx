@@ -620,13 +620,6 @@ export default function ReservationAdminPage() {
                                 const isPassed = isReservationPassed(reservation.time);
 
                                 // Convert reservation date to PST using the helper function
-                                const pstDate = getDateFromTimestamp(reservation.date).toLocaleDateString('en-US', {
-                                    weekday: 'long',
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric',
-                                    timeZone: 'America/Los_Angeles'
-                                });
 
                                 return (
                                     <div
@@ -658,7 +651,7 @@ export default function ReservationAdminPage() {
                                             <div className="flex justify-between items-start mb-2">
                                                 <div className="flex flex-col">
                                                     <span className="text-sm font-medium text-gray-900">
-                                                        {pstDate}
+                                                        {formatReadableDatePST(reservation.date)}
                                                     </span>
                                                     <span className={`px-2 py-1 rounded-full text-xs font-medium mt-1
                                                         ${isPassed ? 'bg-gray-100 text-gray-600' : 'bg-blue-100 text-blue-800'}`}>

@@ -4,15 +4,15 @@ export const formatReadableDatePST = (isoString: string): string => {
     // Convert the ISO string to a Date object
     const date = new Date(isoString);
 
-    // Adjust for PST by adding 8 hours if it's before 8 AM UTC
-    date.setUTCHours(date.getUTCHours() + 8);
+    // Normalize to UTC midnight to ensure consistency across different times of the same day
+    const normalizedDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 
-    // Convert to PST (America/Los_Angeles) and format as a readable date
+    // Format the date in UTC without shifting
     return new Intl.DateTimeFormat('en-US', {
         weekday: 'long',
         month: 'long',
         day: 'numeric',
         year: 'numeric',
-        timeZone: 'UTC' // Ensures the correct PST conversion
-    }).format(date);
+        timeZone: 'UTC' // Ensure it stays in UTC
+    }).format(normalizedDate);
 }; 
