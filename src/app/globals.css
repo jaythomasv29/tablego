@@ -22,6 +22,63 @@
     }
 }
 
+/* Override input styles */
+input,
+select,
+textarea,
+.MuiInputBase-input,
+.MuiOutlinedInput-input {
+    background-color: white !important;
+    color: black !important;
+}
+
+/* Remove black focus border and customize focus state */
+input:focus,
+select:focus,
+textarea:focus,
+.MuiInputBase-input:focus,
+.MuiOutlinedInput-input:focus {
+    outline: none !important;
+    /* border-color: #4F46E5 !important;
+    /* Indigo-600 color, or choose your preferred color */
+    /* box-shadow: 0 0 0 1px #4F46E5 !important; */
+    /* Optional: adds a subtle glow */
+}
+
+/* Override placeholder styles with maximum specificity */
+input::placeholder,
+input::-webkit-input-placeholder,
+input::-moz-placeholder,
+input:-ms-input-placeholder,
+input:-moz-placeholder,
+select::placeholder,
+select::-webkit-input-placeholder,
+select::-moz-placeholder,
+select:-ms-input-placeholder,
+select:-moz-placeholder,
+textarea::placeholder,
+textarea::-webkit-input-placeholder,
+textarea::-moz-placeholder,
+textarea:-ms-input-placeholder,
+textarea:-moz-placeholder {
+    color: black !important;
+    opacity: 1 !important;
+}
+
+/* Additional specific overrides for MUI components */
+.MuiInputBase-input::placeholder,
+.MuiOutlinedInput-input::placeholder {
+    color: black !important;
+    opacity: 1 !important;
+}
+
+/* Force black text for select options */
+select,
+select option {
+    color: black !important;
+    background-color: white !important;
+}
+
 .animate-slide-up {
     animation: slide-up 0.3s ease-out forwards;
 }
