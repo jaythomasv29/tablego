@@ -6,6 +6,7 @@ import { collection, query, where, getDocs, Timestamp, orderBy } from 'firebase/
 import Link from 'next/link';
 import AdminLayout from '@/components/AdminLayout';
 import ReminderModal from '@/components/ReminderModal';
+import { formatReadableDatePST } from '@/utils/dateUtils';
 
 interface Reservation {
     id: string;
@@ -360,9 +361,9 @@ export default function ReservationAdminPage() {
     const handleSendReminder = async (reservation: Reservation) => {
         try {
             // Convert the date properly before sending
-            const dateToSend = typeof reservation.date === 'string'
-                ? reservation.date  // If it's already a string, use it directly
-                : reservation.date.toDate().toISOString();  // If it's a Timestamp, convert to ISO string
+            // const dateToSend = typeof reservation.date === 'string'
+            //     ? reservation.date  // If it's already a string, use it directly
+            //     : reservation.date.toDate().toISOString();  // If it's a Timestamp, convert to ISO string
 
             const response = await fetch('/api/send-reminder', {
                 method: 'POST',
@@ -373,7 +374,7 @@ export default function ReservationAdminPage() {
                     reservationId: reservation.id,
                     email: reservation.email,
                     name: reservation.name,
-                    date: dateToSend,
+                    date: formatReadableDatePST(reservation.date),
                     time: reservation.time,
                     guests: reservation.guests
                 }),
@@ -794,7 +795,7 @@ export default function ReservationAdminPage() {
                                         <div className="flex justify-between items-start mb-2">
                                             <div className="flex flex-col">
                                                 <span className="text-sm font-medium text-gray-900">
-                                                    {formatDate(reservation.date)}
+                                                    {formatReadableDatePST(reservation.date)}
                                                 </span>
                                                 <span className="text-sm text-gray-600">{reservation.time}</span>
                                             </div>
