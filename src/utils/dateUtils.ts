@@ -13,6 +13,6 @@ export const formatReadableDatePST = (isoString: string): string => {
         month: 'long',
         day: 'numeric',
         year: 'numeric',
-        timeZone: 'America/Los_Angeles' // Ensures the correct PST conversion
+        timeZone: 'UTC' // Ensures the correct PST conversion
     }).format(date);
 }; 
