@@ -45,7 +45,7 @@ interface DashboardMetrics {
 
 interface Reservation {
     id: string;
-    date: Timestamp;
+    date: Date;
     time: string;
     name: string;
     guests: number;
@@ -335,13 +335,19 @@ export default function AdminHome() {
             const reservationsRef = collection(db, 'reservations');
             const q = query(
                 reservationsRef,
-                where('marked', '==', false)
+                where('marked', '==', false),
+                orderBy('date', 'desc')
             );
             const snapshot = await getDocs(q);
-            const reservations = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })) as Reservation[];
+            const reservations = snapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    ...data,
+                    // Convert Firestore Timestamp to JavaScript Date
+                    date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date)
+                };
+            }) as Reservation[];
             setPendingReservations(reservations);
         } catch (error) {
             console.error('Error fetching reservations:', error);
@@ -448,10 +454,14 @@ export default function AdminHome() {
         try {
             const reservationRef = doc(db, 'reservations', reservationId);
             await updateDoc(reservationRef, {
-                marked: true
+                marked: true,
+                markedAt: new Date()
             });
-            // Refresh the reservations list
-            await fetchPendingReservations();
+
+            setPendingReservations(prev =>
+                prev.filter(reservation => reservation.id !== reservationId)
+            );
+
             toast.success('Reservation marked');
         } catch (error) {
             console.error('Error marking reservation:', error);

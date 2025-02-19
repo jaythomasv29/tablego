@@ -112,19 +112,29 @@ interface MenuItem {
 const formatDisplayDate = (dateString: string) => {
   if (!dateString) return '';
 
-  // Split the date string to get year, month, day
-  const [year, month, day] = dateString.split('-').map(Number);
+  try {
+    // If it's a Date object, convert to ISO string first
+    const date = dateString instanceof Date
+      ? dateString.toISOString().split('T')[0]
+      : dateString;
 
-  // Create date object with explicit UTC time at noon to avoid timezone shifts
-  const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    // Split the date string to get year, month, day
+    const [year, month, day] = date.split('-').map(Number);
 
-  return date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC'  // Keep it in UTC to prevent shifts
-  });
+    // Create date object with explicit UTC time at noon to avoid timezone shifts
+    const formattedDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+
+    return formattedDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: 'UTC'
+    });
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return dateString; // Return original string if formatting fails
+  }
 };
 
 export default function ReservationForm() {
@@ -551,9 +561,7 @@ export default function ReservationForm() {
         <div className="bg-gray-50 rounded-lg p-6 mb-8 text-left">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Reservation Details</h3>
           <p className="text-gray-600">Name: {reservationDetails.name}</p>
-          <p className="text-gray-600">Date: {
-            reservationDetails.formattedDate || formatDisplayDate(reservationDetails.date)
-          }</p>
+          <p className="text-gray-600">Date: {formatDisplayDate(reservationDetails.date)}</p>
           <p className="text-gray-600">Time: {reservationDetails.time}</p>
           <p className="text-gray-600">Guests: {reservationDetails.guests}</p>
           <p className="text-gray-600">Email: {reservationDetails.email}</p>
