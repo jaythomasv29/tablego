@@ -35,6 +35,25 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Add this helper function at the top
+const formatDisplayDate = (dateString: string) => {
+  if (!dateString) return '';
+
+  // Split the date string to get year, month, day
+  const [year, month, day] = dateString.split('-').map(Number);
+
+  // Create date object with explicit UTC time at noon to avoid timezone shifts
+  const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC'  // Keep it in UTC to prevent shifts
+  });
+};
+
 export async function POST(request: Request) {
   try {
     const { formData } = await request.json() as { formData: CateringFormData };
@@ -46,12 +65,8 @@ export async function POST(request: Request) {
       status: 'pending'
     });
 
-    const readableDate = new Date(formData.date).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    // Use the new formatter instead of direct Date conversion
+    const readableDate = formatDisplayDate(formData.date);
 
     const selectedDishesHTML = formData.selectedDishes.map((dish: Dish) => `
           <div style="display: inline-block; margin: 10px; text-align: center; width: 200px;">

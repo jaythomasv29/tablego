@@ -47,6 +47,7 @@ const CateringPage = () => {
     }>>([]);
 
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         const fetchMenuItems = async () => {
@@ -78,6 +79,14 @@ const CateringPage = () => {
     };
 
     const handleNext = () => {
+        if (step === 1 && !validateStep1()) {
+            alert('Please fill in all required fields');
+            return;
+        }
+        if (step === 2 && !validateStep2()) {
+            alert('Please fill in all required fields');
+            return;
+        }
         setStep(prev => prev + 1);
     };
 
@@ -91,14 +100,17 @@ const CateringPage = () => {
             formData.phone.trim() !== '';
     };
 
+    const validateStep2 = () => {
+        return formData.address.trim() !== '' &&
+            formData.date.trim() !== '' &&
+            formData.time.trim() !== '' &&
+            formData.partySize.trim() !== '';
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!validateStep1()) {
-            alert('Please fill in all required fields in Step 1');
-            setStep(1);
-            return;
-        }
+        if (!isSubmitting) return;
 
         try {
             const selectedDishesWithDetails = formData.selectedDishes.map(id => {
@@ -153,6 +165,8 @@ const CateringPage = () => {
             if (error instanceof Error && !error.message.includes('200')) {
                 alert('Failed to submit inquiry. Please try again.');
             }
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -170,6 +184,24 @@ const CateringPage = () => {
                 ...prev,
                 selectedDishes: [...prev.selectedDishes, itemId]
             };
+        });
+    };
+
+    const formatDisplayDate = (dateString: string) => {
+        if (!dateString) return '';
+
+        // Split the date string to get year, month, day
+        const [year, month, day] = dateString.split('-').map(Number);
+
+        // Create date object with explicit UTC time at noon to avoid timezone shifts
+        const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+
+        return date.toLocaleDateString('en-US', {
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+            timeZone: 'UTC'  // Keep it in UTC to prevent shifts
         });
     };
 
@@ -225,6 +257,7 @@ const CateringPage = () => {
                                             onChange={handleInputChange}
                                             className={inputClassName}
                                             required
+                                            placeholder="Your full name *"
                                         />
                                     </div>
                                     <div>
@@ -269,7 +302,7 @@ const CateringPage = () => {
                                             name="address"
                                             value={formData.address}
                                             onChange={handleInputChange}
-                                            placeholder="e.g 543 Emerson St. Palo Alto, CA 94301"
+                                            placeholder="Event location *"
                                             className={inputClassName}
                                             required
                                         />
@@ -281,8 +314,8 @@ const CateringPage = () => {
                                             name="budget"
                                             value={formData.budget}
                                             onChange={handleInputChange}
+                                            placeholder="Approximate budget (optional)"
                                             className={inputClassName}
-                                            required
                                         />
                                     </div>
                                     <div>
@@ -294,6 +327,7 @@ const CateringPage = () => {
                                             onChange={handleInputChange}
                                             className={inputClassName}
                                             required
+                                            min={new Date().toISOString().split('T')[0]}
                                         />
                                     </div>
                                     <div>
@@ -314,6 +348,7 @@ const CateringPage = () => {
                                             name="partySize"
                                             value={formData.partySize}
                                             onChange={handleInputChange}
+                                            placeholder="Number of guests *"
                                             className={inputClassName}
                                             required
                                         />
@@ -434,7 +469,7 @@ const CateringPage = () => {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <p className="text-sm text-gray-500">Date</p>
-                                                <p className="text-sm font-medium">{new Date(formData.date).toLocaleDateString()}</p>
+                                                <p className="text-sm font-medium">{formatDisplayDate(formData.date)}</p>
                                             </div>
                                             <div>
                                                 <p className="text-sm text-gray-500">Time</p>
@@ -511,11 +546,8 @@ const CateringPage = () => {
                                 ) : (
                                     <button
                                         type="submit"
-                                        className={`${validateStep1()
-                                            ? 'bg-green-600 hover:bg-green-700'
-                                            : 'bg-gray-400 cursor-not-allowed'
-                                            } text-white px-4 py-2 rounded transition-colors ml-auto`}
-                                        disabled={!validateStep1()}
+                                        onClick={() => setIsSubmitting(true)}
+                                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition-colors ml-auto"
                                     >
                                         Submit Inquiry
                                     </button>

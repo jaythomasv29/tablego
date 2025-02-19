@@ -55,6 +55,7 @@ interface Reservation {
     comments?: string;
     reminderSent?: boolean;
     reminderSentAt?: Timestamp;
+    marked?: boolean;
 }
 
 interface PendingReservation {
@@ -147,7 +148,7 @@ export default function AdminHome() {
     });
     const [loading, setLoading] = useState(true);
     const [todaysReservations, setTodaysReservations] = useState<Reservation[]>([]);
-    const [pendingReservations, setPendingReservations] = useState<PendingReservation[]>([]);
+    const [pendingReservations, setPendingReservations] = useState<Reservation[]>([]);
     const [isConfirming, setIsConfirming] = useState<string>('');
     const [showMobileNotification, setShowMobileNotification] = useState(true);
     const [activeTab, setActiveTab] = useState<'dashboard' | 'messages'>('dashboard');
@@ -331,43 +332,19 @@ export default function AdminHome() {
 
     const fetchPendingReservations = async () => {
         try {
+            const reservationsRef = collection(db, 'reservations');
             const q = query(
-                collection(db, 'reservations'),
-                where('status', '==', 'pending'),
-                orderBy('date', 'asc')
+                reservationsRef,
+                where('marked', '==', false)
             );
-            console.log('Fetching pending reservations...');
             const snapshot = await getDocs(q);
-            console.log('Total documents found:', snapshot.size);
-
-            const pendingRes = snapshot.docs.map(doc => {
-                const data = doc.data();
-                console.log('Reservation data:', data);
-
-                // Handle different date formats
-                let dateObj;
-                if (data.date?.toDate) {
-                    // If it's a Firestore Timestamp
-                    dateObj = data.date.toDate();
-                } else if (data.date) {
-                    // If it's a string or another format
-                    dateObj = new Date(data.date);
-                } else {
-                    // Fallback to current date if no date is provided
-                    dateObj = new Date();
-                }
-
-                return {
-                    id: doc.id,
-                    ...data,
-                    date: dateObj
-                };
-            }) as PendingReservation[];
-
-            console.log('Processed pending reservations:', pendingRes);
-            setPendingReservations(pendingRes);
+            const reservations = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            })) as Reservation[];
+            setPendingReservations(reservations);
         } catch (error) {
-            console.error('Error fetching pending reservations:', error);
+            console.error('Error fetching reservations:', error);
         }
     };
 
@@ -467,26 +444,18 @@ export default function AdminHome() {
         ]
     };
 
-    const handleConfirmReservation = async (reservationId: string) => {
-        setIsConfirming(reservationId);
+    const handleMarkReservation = async (reservationId: string) => {
         try {
-            // const reservationRef = doc(db, 'reservations', reservationId);
-            // await updateDoc(reservationRef, {
-            //     status: 'confirmed'
-            // });
-            // // Refresh both pending reservations and metrics
-            // await Promise.all([
-            //     fetchPendingReservations(),
-            //     fetchMetrics()
-            // ]);
-            // Add success toast notification
-            toast.success('Reservation confirmed successfully!');
+            const reservationRef = doc(db, 'reservations', reservationId);
+            await updateDoc(reservationRef, {
+                marked: true
+            });
+            // Refresh the reservations list
+            await fetchPendingReservations();
+            toast.success('Reservation marked');
         } catch (error) {
-            console.error('Error confirming reservation:', error);
-            // Add error toast notification
-            toast.error('Failed to confirm reservation');
-        } finally {
-            setIsConfirming('');
+            console.error('Error marking reservation:', error);
+            toast.error('Failed to mark reservation');
         }
     };
 
@@ -768,7 +737,7 @@ export default function AdminHome() {
                             </div>
                         </StaggeredList>
 
-                        {/* Pending Reservations Card - Full Width */}
+                        {/* New Reservations Card - Full Width */}
                         <div id="pending-reservations" className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow mb-6">
                             <div className="flex items-center justify-between mb-4">
                                 <div>
@@ -803,14 +772,12 @@ export default function AdminHome() {
                                                     </p>
                                                 </div>
                                                 <button
-                                                    onClick={() => handleConfirmReservation(reservation.id)}
-                                                    disabled={isConfirming === reservation.id}
-                                                    className={`px-3 py-1 rounded-full text-sm font-medium 
-                                                        ${isConfirming === reservation.id
-                                                            ? 'bg-gray-100 text-gray-400'
-                                                            : 'bg-green-50 text-green-600 hover:bg-green-100'}`}
+                                                    onClick={() => handleMarkReservation(reservation.id)}
+                                                    className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
                                                 >
-                                                    {isConfirming === reservation.id ? 'Confirming...' : 'Confirm'}
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
                                                 </button>
                                             </div>
                                         </div>
@@ -826,7 +793,7 @@ export default function AdminHome() {
                         </div>
 
                         {/* Analytics Chart */}
-                        <div className="bg-white rounded-xl shadow-md p-6">
+                        {/* <div className="bg-white rounded-xl shadow-md p-6">
                             <div className="h-[400px]">
                                 {loading ? (
                                     <div className="flex justify-center items-center h-full">
@@ -836,7 +803,7 @@ export default function AdminHome() {
                                     <Line options={options} data={chartData} />
                                 )}
                             </div>
-                        </div>
+                        </div> */}
                     </>
                 ) : (
                     <div className="bg-white rounded-xl shadow-md p-6">

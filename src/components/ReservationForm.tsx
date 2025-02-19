@@ -51,15 +51,15 @@ const initialData: ReservationData = {
   comments: '',
 };
 
-type ReservationDetails = {
-  reservationId: string;
+interface ReservationDetails {
   name: string;
   date: string;
+  formattedDate?: string;
   time: string;
   guests: number;
   email: string;
-};
-
+  reservationId: string;
+}
 
 export interface BusinessHours {
   [key: string]: {
@@ -107,6 +107,25 @@ interface MenuItem {
   category: string;
   imageUrl: string;
 }
+
+// Add this helper function at the top
+const formatDisplayDate = (dateString: string) => {
+  if (!dateString) return '';
+
+  // Split the date string to get year, month, day
+  const [year, month, day] = dateString.split('-').map(Number);
+
+  // Create date object with explicit UTC time at noon to avoid timezone shifts
+  const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC'  // Keep it in UTC to prevent shifts
+  });
+};
 
 export default function ReservationForm() {
   const [step, setStep] = useState(0);
@@ -532,7 +551,9 @@ export default function ReservationForm() {
         <div className="bg-gray-50 rounded-lg p-6 mb-8 text-left">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Reservation Details</h3>
           <p className="text-gray-600">Name: {reservationDetails.name}</p>
-          <p className="text-gray-600">Date: {reservationDetails.date}</p>
+          <p className="text-gray-600">Date: {
+            reservationDetails.formattedDate || formatDisplayDate(reservationDetails.date)
+          }</p>
           <p className="text-gray-600">Time: {reservationDetails.time}</p>
           <p className="text-gray-600">Guests: {reservationDetails.guests}</p>
           <p className="text-gray-600">Email: {reservationDetails.email}</p>

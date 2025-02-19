@@ -15,8 +15,32 @@ interface CateringOrder {
     guests: number;
     status: 'pending' | 'completed';
     message?: string;
-    createdAt: string;
+    createdAt: { toDate: () => Date } | string;
 }
+
+const formatDate = (date: { toDate: () => Date } | string) => {
+    if (!date) return '-';
+
+    try {
+        // If it's a Firebase Timestamp (has toDate method)
+        if (typeof date === 'object' && 'toDate' in date) {
+            return date.toDate().toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        // If it's a string
+        return new Date(date).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    } catch (error) {
+        return '-';
+    }
+};
 
 export default function CateringPage() {
     const [orders, setOrders] = useState<CateringOrder[]>([]);
@@ -82,7 +106,7 @@ export default function CateringPage() {
                             {orders.map((order) => (
                                 <tr key={order.id}>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {new Date(order.createdAt).toLocaleDateString()}
+                                        {formatDate(order.createdAt)}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                         {order.name}
@@ -92,7 +116,7 @@ export default function CateringPage() {
                                         <div>{order.phone}</div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        <div>Date: {order.date}</div>
+                                        <div>Event Date: {formatDate(order.date)}</div>
                                         <div>Time: {order.time}</div>
                                         <div>Guests: {order.guests}</div>
                                     </td>
