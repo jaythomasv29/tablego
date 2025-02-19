@@ -137,6 +137,18 @@ const formatDisplayDate = (dateString: string) => {
   }
 };
 
+const formatDisplayDate2 = (isoString) => {
+  if (!isoString) return '';
+
+  const date = new Date(isoString);
+
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',  // Example: "Wednesday"
+    month: 'long',    // Example: "February"
+    day: 'numeric',   // Example: "19"
+    year: 'numeric'   // Example: "2025"
+  });
+};
 export default function ReservationForm() {
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<ReservationData>(initialData);
@@ -563,8 +575,7 @@ export default function ReservationForm() {
           <p className="text-gray-600">Name: {reservationDetails.name}</p>
           <p className="text-gray-600">Date: {
             // Use formattedDate from API if available, otherwise format the date
-            reservationDetails.formattedDate ||
-            (reservationDetails.date && formatDisplayDate(reservationDetails.date))
+            formatDisplayDate2(reservationDetails.date)
           }</p>
           <p className="text-gray-600">Time: {reservationDetails.time}</p>
           <p className="text-gray-600">Guests: {reservationDetails.guests}</p>
