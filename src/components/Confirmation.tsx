@@ -99,7 +99,6 @@ const Confirmation: React.FC<ConfirmationProps> = ({ formData, onSubmit, isSubmi
           <li>We allow a 10-minute grace period for late arrivals. After this period, your table may be given to waiting guests</li>
           <li>Reservations can be made online, via phone, or in person</li>
           <li>If you need to cancel or reschedule, please do so at least 24 hours in advance</li>
-          <li>A 20% service fee will be added for parties of 6 or more</li>
           <li>We strive to accommodate seating preferences (e.g., outdoor, window, booth seating), but they are not guaranteed</li>
           <li>We respect your privacy and will never sell or share your personal data with third parties.</li>
           <li>Your reservation details (such as name, phone number, and email) are used only for managing your booking and providing important updates.</li>
