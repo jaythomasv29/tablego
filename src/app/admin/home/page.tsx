@@ -53,6 +53,7 @@ interface Reservation {
     email: string;
     status: string;
     comments?: string;
+    createdAt?: string;
     reminderSent?: boolean;
     reminderSentAt?: Timestamp;
     marked?: boolean;

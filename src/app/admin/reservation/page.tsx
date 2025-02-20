@@ -7,10 +7,11 @@ import Link from 'next/link';
 import AdminLayout from '@/components/AdminLayout';
 import ReminderModal from '@/components/ReminderModal';
 import { formatReadableDatePST } from '@/utils/dateUtils';
+import { Users, Calendar, Clock, Mail } from 'lucide-react';
 
 interface Reservation {
     id: string;
-    date: Timestamp;
+    date: Timestamp | any;
     time: string;
     name: string;
     guests: number;
@@ -18,6 +19,7 @@ interface Reservation {
     email: string;
     comments: string;
     status: string;
+    createdAt?: any;
     cancelledAt?: Timestamp | string;
     selected?: boolean;
     reminderSent?: boolean;
@@ -607,7 +609,7 @@ export default function ReservationAdminPage() {
 
                 {viewMode === 'today' ? (
                     // Compact Card View for Today's Reservations
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                         {timeSlots.map((timeSlot) => {
                             const slotReservations = filteredReservations.filter(
                                 res => res.time === timeSlot
@@ -619,132 +621,65 @@ export default function ReservationAdminPage() {
                                 const isCancelled = reservation.status === 'cancelled';
                                 const isPassed = isReservationPassed(reservation.time);
 
-                                // Convert reservation date to PST using the helper function
-
                                 return (
-                                    <div
-                                        key={reservation.id}
-                                        className={`relative bg-white rounded-lg shadow-md overflow-hidden 
-                                                  ${isSelectionMode ? 'cursor-pointer' : ''}`}
-                                        onClick={() => isSelectionMode && toggleReservationSelection(reservation.id)}
+                                    <div key={reservation.id}
+                                        className="bg-white rounded-lg shadow p-3 flex flex-col min-h-[300px] relative"
                                     >
-                                        {isSelectionMode && (
-                                            <div className="absolute top-2 right-2 z-10">
-                                                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center
-                                                       ${selectedReservations.has(reservation.id)
-                                                        ? 'bg-blue-600 border-blue-600'
-                                                        : 'border-gray-300'
-                                                    }`}
-                                                >
-                                                    {selectedReservations.has(reservation.id) && (
-                                                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor"
-                                                            viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round"
-                                                                strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                        </svg>
-                                                    )}
-                                                </div>
+                                        {/* Header Section */}
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="flex items-center gap-1">
+                                                <Calendar className="w-3.5 h-3.5 text-gray-500" />
+                                                <h3 className="text-xs font-medium">{formatDate(reservation.date)}</h3>
                                             </div>
-                                        )}
-                                        <div className="p-4">
-                                            {/* Status and Time Header */}
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div className="flex flex-col">
-                                                    <span className="text-sm font-medium text-gray-900">
-                                                        {formatReadableDatePST(reservation.date)}
-                                                    </span>
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium mt-1
-                                                        ${isPassed ? 'bg-gray-100 text-gray-600' : 'bg-blue-100 text-blue-800'}`}>
-                                                        {reservation.time}
-                                                    </span>
-                                                </div>
-                                                <div className="flex gap-1">
-                                                    {/* Status Badge - Always show */}
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(reservation.status, isPassed)}`}>
-                                                        {getStatusText(reservation.status, isPassed)}
-                                                    </span>
-                                                    {/* Reminder Badge - Show if sent */}
-                                                    {reservation.reminderSent && (
-                                                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                            Reminder Sent
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {/* Guest Info */}
-                                            <div className={`${isCancelled ? 'line-through' : ''}`}>
-                                                <h3 className="text-base font-semibold text-gray-900">
-                                                    {reservation.name}
-                                                </h3>
-
-                                                {/* Guest Count */}
-                                                <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                                                    <span className="font-medium">{reservation.guests} guests</span>
-                                                </div>
-
-                                                {/* Contact Info */}
-                                                <div className="mt-2 space-y-1 text-sm text-gray-600">
-                                                    <p className="truncate">{reservation.phone}</p>
-                                                    <p className="truncate">{reservation.email}</p>
-                                                </div>
-
-                                                {/* Notes (if any) */}
-                                                {reservation.comments && (
-                                                    <div className="mt-2 pt-2 border-t border-gray-100">
-                                                        <p className="text-sm text-gray-600 line-clamp-2">
-                                                            <span className="font-medium">Notes:</span>{' '}
-                                                            {reservation.comments}
-                                                        </p>
-                                                    </div>
-                                                )}
-
-                                                {/* Cancellation Timestamp */}
-                                                {isCancelled && reservation.cancelledAt && (
-                                                    <div className="mt-2 pt-2 border-t border-gray-100">
-                                                        <p className="text-xs text-gray-500" suppressHydrationWarning>
-                                                            Cancelled: {formatDateTime(reservation.cancelledAt)}
-                                                        </p>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* Update the reminder button to show sent status */}
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleSendReminder(reservation);
-                                                }}
-                                                disabled={!canSendReminder(reservation)}
-                                                className={`mt-2 w-full px-3 py-1 text-sm rounded-lg transition-colors 
-                                                            flex flex-col items-center justify-center gap-1
-                                                            ${!canSendReminder(reservation)
-                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                        : 'text-blue-600 hover:text-blue-800 border border-blue-600 hover:border-blue-800'
-                                                    }`}
+                                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium
+                                                ${reservation.status === 'Confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}
                                             >
-                                                <div className="flex items-center gap-2">
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                                    </svg>
-                                                    {reservation.reminderSent ? 'Reminder Sent' : 'Send Reminder'}
+                                                {reservation.status}
+                                            </span>
+                                        </div>
+
+                                        {/* Content Section */}
+                                        <div className="space-y-2 flex-grow">
+                                            <div>
+                                                <h4 className="font-medium text-sm mb-0.5">{reservation.name}</h4>
+                                                <div className="flex items-center gap-1 text-[10px] text-gray-600">
+                                                    <Users className="w-3 h-3" />
+                                                    <span>{reservation.guests} guests</span>
+                                                    <span>•</span>
+                                                    <Clock className="w-3 h-3" />
+                                                    <span>{reservation.time}</span>
                                                 </div>
+                                            </div>
+
+                                            <div className="space-y-0.5 text-[10px] text-gray-600">
+                                                <p>{reservation.phone}</p>
+                                                <p>{reservation.email}</p>
+                                                <p className="text-[10px] text-gray-500">
+                                                    requested on: {formatDateTime(reservation.createdAt)}
+                                                </p>
+                                            </div>
+
+                                            {reservation.comments && (
+                                                <div>
+                                                    <p className="text-[10px] font-medium">Notes:</p>
+                                                    <p className="text-[10px] text-gray-600 line-clamp-2">{reservation.comments}</p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Footer Section */}
+                                        <div className="mt-2 pt-2 border-t">
+                                            <div className="flex flex-col gap-1">
+                                                <button className="w-full flex items-center justify-center gap-1 px-2 py-1 text-blue-600 border border-blue-600 rounded text-[10px]">
+                                                    <Mail className="w-3 h-3" />
+                                                    {reservation.reminderSent ? 'Reminder Sent' : 'Send Reminder'}
+                                                </button>
                                                 {reservation.reminderSent && reservation.reminderSentAt && (
-                                                    <span className="text-xs text-gray-500">
+                                                    <span className="text-[9px] text-gray-500 text-center">
                                                         Sent {formatTimeAgo(reservation.reminderSentAt.toDate())}
                                                     </span>
                                                 )}
-                                            </button>
-
-                                            {/* Update the button in the JSX */}
-                                            {/* <button
-                                                onClick={() => handleClose(reservation.id)}
-                                                className="px-3 py-1 rounded-full text-sm font-medium 
-                                                           bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                            >
-                                                Close
-                                            </button> */}
+                                            </div>
                                         </div>
                                     </div>
                                 );
@@ -753,109 +688,67 @@ export default function ReservationAdminPage() {
                     </div>
                 ) : (
                     // Card View for Past and Future
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                         {filteredReservations.map((reservation) => {
                             const isCancelled = reservation.status === 'cancelled';
                             const isPassed = viewMode === 'past';
 
                             return (
-                                <div
-                                    key={reservation.id}
-                                    className={`relative bg-white rounded-lg shadow-md overflow-hidden 
-                                              ${isSelectionMode ? 'cursor-pointer' : ''}`}
-                                    onClick={() => isSelectionMode && toggleReservationSelection(reservation.id)}
+                                <div key={reservation.id}
+                                    className="bg-white rounded-lg shadow p-3 flex flex-col min-h-[300px] relative"
                                 >
-                                    {isSelectionMode && (
-                                        <div className="absolute top-2 right-2 z-10">
-                                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center
-                                                   ${selectedReservations.has(reservation.id)
-                                                    ? 'bg-blue-600 border-blue-600'
-                                                    : 'border-gray-300'
-                                                }`}
-                                            >
-                                                {selectedReservations.has(reservation.id) && (
-                                                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor"
-                                                        viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round"
-                                                            strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                    </svg>
-                                                )}
-                                            </div>
+                                    {/* Header Section */}
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div className="flex items-center gap-1">
+                                            <Calendar className="w-3.5 h-3.5 text-gray-500" />
+                                            <h3 className="text-xs font-medium">{formatDate(reservation.date)}</h3>
                                         </div>
-                                    )}
-                                    <div className="p-4">
-                                        {/* Status and Date Header */}
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-medium text-gray-900">
-                                                    {formatReadableDatePST(reservation.date)}
-                                                </span>
-                                                <span className="text-sm text-gray-600">{reservation.time}</span>
-                                            </div>
-                                            <div className="flex gap-1">
-                                                {/* Status Badge - Always show */}
-                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(reservation.status, isPassed)}`}>
-                                                    {getStatusText(reservation.status, isPassed)}
-                                                </span>
-                                                {/* Reminder Badge - Show if sent */}
-                                                {reservation.reminderSent && (
-                                                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                        Reminder Sent
-                                                    </span>
-                                                )}
+                                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium
+                                            ${reservation.status === 'Confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}
+                                        >
+                                            {reservation.status}
+                                        </span>
+                                    </div>
+
+                                    {/* Content Section */}
+                                    <div className="space-y-2 flex-grow">
+                                        <div>
+                                            <h4 className="font-medium text-sm mb-0.5">{reservation.name}</h4>
+                                            <div className="flex items-center gap-1 text-[10px] text-gray-600">
+                                                <Users className="w-3 h-3" />
+                                                <span>{reservation.guests} guests</span>
+                                                <span>•</span>
+                                                <Clock className="w-3 h-3" />
+                                                <span>{reservation.time}</span>
                                             </div>
                                         </div>
 
-                                        {/* Compact info row */}
-                                        <div className="flex items-center gap-3 text-sm text-gray-600 mb-2">
-                                            <span>{reservation.name}</span>
-                                            <span>•</span>
-                                            <span>{reservation.guests} guests</span>
-                                        </div>
-
-                                        {/* Contact info */}
-                                        <div className="text-sm text-gray-600">
+                                        <div className="space-y-0.5 text-[10px] text-gray-600">
                                             <p>{reservation.phone}</p>
-                                            <p className="truncate">{reservation.email}</p>
+                                            <p>{reservation.email}</p>
                                         </div>
 
-                                        {/* Notes (if any) */}
                                         {reservation.comments && (
-                                            <div className="mt-2 pt-2 border-t border-gray-100">
-                                                <p className="text-sm text-gray-600 line-clamp-2">
-                                                    <span className="font-medium">Notes:</span>{' '}
-                                                    {reservation.comments}
-                                                </p>
+                                            <div>
+                                                <p className="text-[10px] font-medium">Notes:</p>
+                                                <p className="text-[10px] text-gray-600 line-clamp-2">{reservation.comments}</p>
                                             </div>
                                         )}
+                                    </div>
 
-                                        {/* Cancellation info */}
-                                        {isCancelled && reservation.cancelledAt && (
-                                            <div className="mt-2 pt-2 border-t border-gray-100">
-                                                <p className="text-xs text-gray-500" suppressHydrationWarning>
-                                                    Cancelled: {formatDateTime(reservation.cancelledAt)}
-                                                </p>
-                                            </div>
-                                        )}
-
-                                        {/* Add reminder button for future reservations */}
-                                        {viewMode === 'future' && !isCancelled && (
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleSendReminder(reservation);
-                                                }}
-                                                className="mt-2 w-full px-3 py-1 text-sm text-blue-600 hover:text-blue-800 
-                                                           border border-blue-600 hover:border-blue-800 rounded-lg 
-                                                           transition-colors flex items-center justify-center gap-2"
-                                            >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                                </svg>
-                                                Send Reminder
+                                    {/* Footer Section */}
+                                    <div className="mt-2 pt-2 border-t">
+                                        <div className="flex flex-col gap-1">
+                                            <button className="w-full flex items-center justify-center gap-1 px-2 py-1 text-blue-600 border border-blue-600 rounded text-[10px]">
+                                                <Mail className="w-3 h-3" />
+                                                {reservation.reminderSent ? 'Reminder Sent' : 'Send Reminder'}
                                             </button>
-                                        )}
+                                            {reservation.reminderSent && reservation.reminderSentAt && (
+                                                <span className="text-[9px] text-gray-500 text-center">
+                                                    Sent {formatTimeAgo(reservation.reminderSentAt.toDate())}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             );
