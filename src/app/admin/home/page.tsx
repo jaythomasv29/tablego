@@ -17,12 +17,16 @@ import {
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import toast, { Toaster } from 'react-hot-toast';
-import { X } from 'lucide-react';
+import { ArrowRightCircle, X } from 'lucide-react';
 import PageTransition from '@/components/PageTransition';
 import StaggeredList from '@/components/StaggeredList';
 import { subscribeToPushNotifications } from '@/utils/serviceWorker';
 import { Bell } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
+import { Calendar, Users, Clock } from 'lucide-react';
+import { formatReadableDatePST } from '@/utils/dateUtils';
+import { Reservation } from '../reservation/page';
+import Link from 'next/link';
 
 // Register ChartJS components
 ChartJS.register(
@@ -43,21 +47,21 @@ interface DashboardMetrics {
     newCatering: number;
 }
 
-interface Reservation {
-    id: string;
-    date: Date;
-    time: string;
-    name: string;
-    guests: number;
-    phone: string;
-    email: string;
-    status: string;
-    comments?: string;
-    createdAt?: string;
-    reminderSent?: boolean;
-    reminderSentAt?: Timestamp;
-    marked?: boolean;
-}
+// interface Reservation {
+//     id: string;
+//     date: Date;
+//     time: string;
+//     name: string;
+//     guests: number;
+//     phone: string;
+//     email: string;
+//     status: string;
+//     comments?: string;
+//     createdAt?: string;
+//     reminderSent?: boolean;
+//     reminderSentAt?: Timestamp;
+//     marked?: boolean;
+// }
 
 interface PendingReservation {
     id: string;
@@ -134,6 +138,36 @@ function MobileNotification({ count, onClose }: MobileNotificationProps) {
         </div>
     );
 }
+
+// Add this helper function after the imports
+const formatTimeAgo = (date: Date) => {
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+
+    if (diffInHours < 1) {
+        const minutes = Math.floor(diffInHours * 60);
+        return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+    }
+    if (diffInHours < 24) {
+        const hours = Math.floor(diffInHours);
+        return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+    }
+    const days = Math.floor(diffInHours / 24);
+    return `${days} day${days !== 1 ? 's' : ''} ago`;
+};
+
+const convertTimeToMinutes = (time: string): number => {
+    const [rawTime, period] = time.split(' ');
+    let [hours, minutes] = rawTime.split(':').map(Number);
+
+    if (period === 'PM' && hours !== 12) {
+        hours += 12;
+    } else if (period === 'AM' && hours === 12) {
+        hours = 0;
+    }
+
+    return hours * 60 + minutes;
+};
 
 export default function AdminHome() {
     const [totalViews, setTotalViews] = useState<number>(0);
@@ -219,7 +253,11 @@ export default function AdminHome() {
                         name: data.name || '',
                         guests: data.guests || 0,
                         phone: data.phone || '',
-                        email: data.email || ''
+                        email: data.email || '',
+                        comments: data.comments || '',
+                        createdAt: data.createdAt,
+                        reminderSent: data.reminderSent,
+                        reminderSentAt: data.reminderSentAt
                     };
                 }).filter(res => res.status === 'pending');
 
@@ -265,65 +303,68 @@ export default function AdminHome() {
 
     const fetchMetrics = async () => {
         try {
+            // Get today's date in PST and format as YYYY-MM-DD
+            const pstDate = new Date().toLocaleDateString('en-US', {
+                timeZone: 'America/Los_Angeles',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+            const today = new Date(pstDate).toISOString().split('T')[0];
+
             const reservationsRef = collection(db, 'reservations');
             const snapshot = await getDocs(reservationsRef);
-            const today = new Date().toDateString();
-            const uniqueEmails = new Set(snapshot.docs.map(doc => doc.data().email));
-            const uniquePhones = new Set(snapshot.docs.map(doc => doc.data().phone));
+
+            const uniqueEmails = new Set();
+            const uniquePhones = new Set();
             let todayCount = 0;
-            // Store today's reservations
             const todaysList: Reservation[] = [];
 
             snapshot.forEach((doc) => {
                 const data = doc.data();
-                if (new Date(data.date).toDateString() === today) {
+                const reservationDate = data.date instanceof Timestamp
+                    ? data.date.toDate().toISOString().split('T')[0]
+                    : new Date(data.date).toISOString().split('T')[0];
+
+                // Compare just the date parts
+                if (reservationDate === today) {
+                    todayCount++;
                     todaysList.push({
                         id: doc.id,
-                        date: data.date,
+                        date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date),
                         time: data.time,
                         name: data.name,
                         guests: data.guests,
+                        phone: data.phone,
+                        email: data.email,
                         status: data.status || 'pending',
-                        phone: data.phone || '',
-                        email: data.email || '',
-                        comments: data.comments,
+                        comments: data.comments || '',
+                        createdAt: data.createdAt,
                         reminderSent: data.reminderSent,
                         reminderSentAt: data.reminderSentAt
                     });
                 }
-                // Get unique customers by email and phone
-
-
-                // const today = new Date().toDateString();
 
                 if (data.email) uniqueEmails.add(data.email);
                 if (data.phone) uniquePhones.add(data.phone);
+            });
 
-                // Count today's reservations
-                if (new Date(data.date).toDateString() === today) {
-                    todayCount++;
-                }
+            // Sort today's reservations by time
+            todaysList.sort((a, b) => {
+                const timeA = convertTimeToMinutes(a.time);
+                const timeB = convertTimeToMinutes(b.time);
+                return timeA - timeB;
             });
 
             setTodaysReservations(todaysList);
-
-            // Add catering fetch
-            const cateringRef = collection(db, 'catering');
-            const cateringSnapshot = await getDocs(cateringRef);
-
-            // Count new (uncompleted) catering requests
-            const newCateringCount = cateringSnapshot.docs.filter(
-                doc => doc.data().status === 'pending'
-            ).length;
-
             setMetrics({
                 totalReservations: snapshot.size,
                 uniqueCustomers: uniqueEmails.size + uniquePhones.size,
                 todayReservations: todayCount,
-                totalCatering: cateringSnapshot.size,
-                newCatering: newCateringCount,
-
+                totalCatering: metrics.totalCatering,
+                newCatering: metrics.newCatering,
             });
+
         } catch (error) {
             console.error('Error fetching metrics:', error);
         } finally {
@@ -637,7 +678,7 @@ export default function AdminHome() {
                     <>
                         {/* Metrics Cards Grid */}
                         <StaggeredList>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                                 {/* Total Page Views Card */}
                                 {/* <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
                                     <div className="flex items-center justify-between">
@@ -685,37 +726,6 @@ export default function AdminHome() {
                                     </div>
                                 </div>
 
-                                {/* Today's Reservations Card */}
-                                <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow relative group">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-600">Today's Reservations</p>
-                                            <p className="text-3xl font-bold text-gray-900">{metrics.todayReservations}</p>
-
-                                            {/* Tooltip */}
-                                            {todaysReservations.length > 0 && (
-                                                <div className="absolute left-0 top-full mt-2 w-64 bg-white shadow-lg rounded-lg p-4 hidden group-hover:block z-10">
-                                                    <div className="max-h-48 overflow-y-auto">
-                                                        {todaysReservations.map((res, index) => (
-                                                            <div key={index} className="mb-2 pb-2 border-b border-gray-100 last:border-0">
-                                                                <p className="font-medium">{res.name}</p>
-                                                                <p className="text-sm text-gray-600">
-                                                                    {res.time} • {res.guests} guests
-                                                                </p>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="p-3 bg-purple-50 rounded-full">
-                                            <svg className="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                            </svg>
-                                        </div>
-                                    </div>
-                                </div>
-
                                 {/* Total Catering Deals Card */}
                                 <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
                                     <div className="flex items-center justify-between">
@@ -747,6 +757,20 @@ export default function AdminHome() {
                                 </div>
                             </div>
                         </StaggeredList>
+
+                        {/* Today's Reservations Card - Full Width */}
+                        <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow mb-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600">Today's Reservations</p>
+                                    <p className="text-3xl flex items-center gap-2 font-bold text-gray-900">{metrics.todayReservations}  <Link href="/admin/reservation" className="inline-flex w-fit items-center gap-2 text-sm bg-blue-500 text-white px-2 py-1 rounded-md transition-colors">View All <ArrowRightCircle className="w-4 h-4" /></Link></p>
+                                </div>
+                                <div className="p-3 bg-purple-50 rounded-full">
+                                    <Calendar className="w-6 h-6 text-purple-500" />
+                                </div>
+                            </div>
+
+                        </div>
 
                         {/* New Reservations Card - Full Width */}
                         <div id="pending-reservations" className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow mb-6">

@@ -8,8 +8,10 @@ import AdminLayout from '@/components/AdminLayout';
 import ReminderModal from '@/components/ReminderModal';
 import { formatReadableDatePST } from '@/utils/dateUtils';
 import { Users, Calendar, Clock, Mail } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { Toaster } from 'react-hot-toast';
 
-interface Reservation {
+export interface Reservation {
     id: string;
     date: Timestamp | any;
     time: string;
@@ -361,36 +363,40 @@ export default function ReservationAdminPage() {
 
     // Update handleSendReminder
     const handleSendReminder = async (reservation: Reservation) => {
-        try {
-            // Convert the date properly before sending
-            // const dateToSend = typeof reservation.date === 'string'
-            //     ? reservation.date  // If it's already a string, use it directly
-            //     : reservation.date.toDate().toISOString();  // If it's a Timestamp, convert to ISO string
+        if (!canSendReminder(reservation)) {
+            toast.error('Reminder already sent recently');
+            return;
+        }
 
+        try {
+            toast.loading('Sending reminder...', { id: reservation.id });
             const response = await fetch('/api/send-reminder', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     reservationId: reservation.id,
                     email: reservation.email,
                     name: reservation.name,
-                    date: formatReadableDatePST(reservation.date),
+                    date: reservation.date,
                     time: reservation.time,
                     guests: reservation.guests
                 }),
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to send reminder');
-            }
+            if (!response.ok) throw new Error('Failed to send reminder');
 
-            // Update the reservation's reminder status
-            updateReservationReminderStatus(reservation.id);
+            // Update UI optimistically
+            const updatedReservations = filteredReservations.map(r =>
+                r.id === reservation.id
+                    ? { ...r, reminderSent: true, reminderSentAt: Timestamp.now() }
+                    : r
+            );
+            setReservations(updatedReservations);
+
+            toast.success('Reminder sent successfully', { id: reservation.id });
         } catch (error) {
             console.error('Error sending reminder:', error);
-            throw error;
+            toast.error('Failed to send reminder', { id: reservation.id });
         }
     };
 
@@ -670,15 +676,23 @@ export default function ReservationAdminPage() {
                                         {/* Footer Section */}
                                         <div className="mt-2 pt-2 border-t">
                                             <div className="flex flex-col gap-1">
-                                                <button className="w-full flex items-center justify-center gap-1 px-2 py-1 text-blue-600 border border-blue-600 rounded text-[10px]">
-                                                    <Mail className="w-3 h-3" />
-                                                    {reservation.reminderSent ? 'Reminder Sent' : 'Send Reminder'}
+                                                <button
+                                                    onClick={() => handleSendReminder(reservation)}
+                                                    disabled={!canSendReminder(reservation)}
+                                                    className={`w-full flex items-center justify-center gap-1 px-2 py-1 rounded text-[10px] transition-colors
+                                                        ${!canSendReminder(reservation)
+                                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                            : 'text-blue-600 border border-blue-600 hover:bg-blue-50'
+                                                        }`}
+                                                >
+                                                    <Mail className={`w-3 h-3 ${!canSendReminder(reservation) ? 'text-gray-400' : ''}`} />
+                                                    {reservation.reminderSent
+                                                        ? `Reminder Sent ${reservation.reminderSentAt
+                                                            ? `(${formatTimeAgo(reservation.reminderSentAt.toDate())})`
+                                                            : ''}`
+                                                        : 'Send Reminder'
+                                                    }
                                                 </button>
-                                                {reservation.reminderSent && reservation.reminderSentAt && (
-                                                    <span className="text-[9px] text-gray-500 text-center">
-                                                        Sent {formatTimeAgo(reservation.reminderSentAt.toDate())}
-                                                    </span>
-                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -739,15 +753,23 @@ export default function ReservationAdminPage() {
                                     {/* Footer Section */}
                                     <div className="mt-2 pt-2 border-t">
                                         <div className="flex flex-col gap-1">
-                                            <button className="w-full flex items-center justify-center gap-1 px-2 py-1 text-blue-600 border border-blue-600 rounded text-[10px]">
-                                                <Mail className="w-3 h-3" />
-                                                {reservation.reminderSent ? 'Reminder Sent' : 'Send Reminder'}
+                                            <button
+                                                onClick={() => handleSendReminder(reservation)}
+                                                disabled={!canSendReminder(reservation)}
+                                                className={`w-full flex items-center justify-center gap-1 px-2 py-1 rounded text-[10px] transition-colors
+                                                    ${!canSendReminder(reservation)
+                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                        : 'text-blue-600 border border-blue-600 hover:bg-blue-50'
+                                                    }`}
+                                            >
+                                                <Mail className={`w-3 h-3 ${!canSendReminder(reservation) ? 'text-gray-400' : ''}`} />
+                                                {reservation.reminderSent
+                                                    ? `Reminder Sent ${reservation.reminderSentAt
+                                                        ? `(${formatTimeAgo(reservation.reminderSentAt.toDate())})`
+                                                        : ''}`
+                                                    : 'Send Reminder'
+                                                }
                                             </button>
-                                            {reservation.reminderSent && reservation.reminderSentAt && (
-                                                <span className="text-[9px] text-gray-500 text-center">
-                                                    Sent {formatTimeAgo(reservation.reminderSentAt.toDate())}
-                                                </span>
-                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -777,6 +799,8 @@ export default function ReservationAdminPage() {
                     totalEmails={totalEmailCount}
                     sentEmails={sentEmailCount}
                 />
+
+                <Toaster position="bottom-right" />
             </div>
         </AdminLayout>
     );
