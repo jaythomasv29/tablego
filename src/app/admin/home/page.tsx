@@ -169,6 +169,22 @@ const convertTimeToMinutes = (time: string): number => {
     return hours * 60 + minutes;
 };
 
+// Add this helper function
+const isReservationPassed = (reservationTime: string): boolean => {
+    const [time, period] = reservationTime.split(' ');
+    const [hours, minutes] = time.split(':').map(Number);
+    const now = new Date();
+
+    let compareHours = hours;
+    if (period === 'PM' && hours !== 12) compareHours += 12;
+    if (period === 'AM' && hours === 12) compareHours = 0;
+
+    const reservationDate = new Date();
+    reservationDate.setHours(compareHours, minutes);
+
+    return now > reservationDate;
+};
+
 export default function AdminHome() {
     const [totalViews, setTotalViews] = useState<number>(0);
     const [dailyViews, setDailyViews] = useState<{ date: string; views: number }[]>([]);
@@ -791,7 +807,8 @@ export default function AdminHome() {
                                     {pendingReservations.map((reservation) => (
                                         <div
                                             key={reservation.id}
-                                            className="border-b pb-4 last:border-0 last:pb-0"
+                                            className={`bg-white rounded-lg shadow p-3 flex flex-col min-h-[300px] relative ${isReservationPassed(reservation.time) ? 'opacity-60' : ''
+                                                }`}
                                         >
                                             <div className="flex justify-between items-start mb-2">
                                                 <div>

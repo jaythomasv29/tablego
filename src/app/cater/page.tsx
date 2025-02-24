@@ -60,6 +60,7 @@ const CateringPage = () => {
                     imageUrl: doc.data().imageUrl,
                     category: doc.data().category || ''
                 }));
+                console.log(items);
 
                 setMenuItems(items);
             } catch (error) {
@@ -378,7 +379,7 @@ const CateringPage = () => {
                                     </div>
 
                                     {/* Categories in order */}
-                                    {['Appetizers', 'Soup', 'Salad', 'Signature Dishes', 'Wok', 'Curry', 'Sides'].map(category => {
+                                    {['Appetizers', 'Soup', 'Salad', 'Signature Dishes', 'Wok', 'Noodles', 'Curry', 'Sides'].map(category => {
                                         const categoryItems = menuItems.filter(item => item.category === category);
 
                                         return categoryItems.length > 0 ? (

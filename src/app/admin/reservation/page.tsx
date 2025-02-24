@@ -715,7 +715,7 @@ export default function ReservationAdminPage() {
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="flex items-center gap-1">
                                             <Calendar className="w-3.5 h-3.5 text-gray-500" />
-                                            <h3 className="text-xs font-medium">{formatDate(reservation.date)}</h3>
+                                            <h3 className="text-xs font-medium">{formatReadableDatePST(reservation.date)}</h3>
                                         </div>
                                         <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium
                                             ${reservation.status === 'Confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}
