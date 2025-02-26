@@ -116,6 +116,10 @@ export async function POST(request: Request) {
         <strong style="color: #4f46e5; display: inline-block; width: 140px;">Email:</strong>
         <span style="color: #374151;">${formData.email}</span>
       </td>
+      <td style="padding: 12px 0;">
+        <strong style="color: #4f46e5; display: inline-block; width: 140px;">Phone:</strong>
+        <span style="color: #374151;">${formData.phone}</span>
+      </td>
     </tr>
                   <tr>
                     <td style="padding: 12px 0;">

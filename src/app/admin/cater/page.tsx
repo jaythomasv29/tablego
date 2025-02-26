@@ -105,17 +105,17 @@ export default function CateringPage() {
                         <tbody className="divide-y divide-gray-200">
                             {orders.map((order) => (
                                 <tr key={order.id}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
                                         {formatDate(order.createdAt)}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    <td className="px-6 py-4 whitespace-nowrap text-xs font-medium text-gray-900">
                                         {order.name}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
                                         <div>{order.email}</div>
                                         <div>{order.phone}</div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
                                         <div>Event Date: {formatDate(order.date)}</div>
                                         <div>Time: {order.time}</div>
                                         <div>Guests: {order.guests}</div>
@@ -129,7 +129,7 @@ export default function CateringPage() {
                                             {order.status}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-gray-500">
+                                    <td className="px-6 py-4 text-xs text-gray-500">
                                         {order.message || '-'}
                                     </td>
                                 </tr>
