@@ -76,7 +76,7 @@ export default function CateringPage() {
 
     return (
         <AdminLayout>
-            <div className="container mx-auto px-4 py-8">
+            <div className="container mx-auto py-8 w-full">
                 <h1 className="text-2xl font-bold mb-6">Catering Orders</h1>
                 <div className="overflow-x-auto">
                     <table className="min-w-full bg-white shadow-md rounded-lg overflow-hidden">
@@ -84,9 +84,6 @@ export default function CateringPage() {
                             <tr>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Date Submitted
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Name
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Contact
@@ -110,8 +107,6 @@ export default function CateringPage() {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-xs font-medium text-gray-900">
                                         {order.name}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
                                         <div>{order.email}</div>
                                         <div>{order.phone}</div>
                                     </td>
