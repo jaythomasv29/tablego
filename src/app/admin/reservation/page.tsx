@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { db } from "@/firebase"
-import { collection, query, where, getDocs, Timestamp, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, orderBy, doc, updateDoc } from 'firebase/firestore';
 import Link from 'next/link';
 import AdminLayout from '@/components/AdminLayout';
 import ReminderModal from '@/components/ReminderModal';
@@ -10,6 +10,11 @@ import { formatReadableDatePST } from '@/utils/dateUtils';
 import { Users, Calendar, Clock, Mail } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Toaster } from 'react-hot-toast';
+import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 export interface Reservation {
     id: string;
@@ -26,6 +31,7 @@ export interface Reservation {
     selected?: boolean;
     reminderSent?: boolean;
     reminderSentAt?: Timestamp;
+    attendanceStatus?: 'show' | 'no-show' | 'pending';
 }
 
 // Add new helper functions
@@ -229,6 +235,30 @@ export default function ReservationAdminPage() {
     const [modalError, setModalError] = useState<string | null>(null);
     const [sentEmailCount, setSentEmailCount] = useState(0);
     const [totalEmailCount, setTotalEmailCount] = useState(0);
+
+    // Add handleAttendanceUpdate function inside the component
+    const handleAttendanceUpdate = async (reservationId: string, status: 'show' | 'no-show' | 'pending') => {
+        try {
+            const reservationRef = doc(db, 'reservations', reservationId);
+            await updateDoc(reservationRef, {
+                attendanceStatus: status
+            });
+
+            // Update local state
+            setReservations((prevReservations: Reservation[]) =>
+                prevReservations.map((res: Reservation) =>
+                    res.id === reservationId
+                        ? { ...res, attendanceStatus: status }
+                        : res
+                )
+            );
+
+            toast.success('Attendance status updated');
+        } catch (error) {
+            console.error('Error updating attendance status:', error);
+            toast.error('Failed to update attendance status');
+        }
+    };
 
     useEffect(() => {
         const fetchReservations = async () => {
@@ -615,7 +645,7 @@ export default function ReservationAdminPage() {
 
                 {viewMode === 'today' ? (
                     // Compact Card View for Today's Reservations
-                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                         {timeSlots.map((timeSlot) => {
                             const slotReservations = filteredReservations.filter(
                                 res => res.time === timeSlot
@@ -628,151 +658,213 @@ export default function ReservationAdminPage() {
                                 const isPassed = isReservationPassed(reservation.time);
 
                                 return (
-                                    <div key={reservation.id}
-                                        className="bg-white rounded-lg shadow p-3 flex flex-col min-h-[300px] relative"
-                                    >
-                                        {/* Header Section */}
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div className="flex items-center gap-1">
-                                                <Calendar className="w-3.5 h-3.5 text-gray-500" />
-                                                <h3 className="text-xs font-medium">{formatReadableDatePST(reservation.date)}</h3>
+                                    <Card key={reservation.id} className="relative">
+                                        <CardHeader className="pb-2">
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex items-center gap-2">
+                                                    <Calendar className="w-4 h-4 text-gray-500" />
+                                                    <h3 className="text-sm font-medium">{formatReadableDatePST(reservation.date)}</h3>
+                                                </div>
+                                                <Badge variant={reservation.status === 'Confirmed' ? 'success' : 'warning'}>
+                                                    {reservation.status}
+                                                </Badge>
                                             </div>
-                                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium
-                                                ${reservation.status === 'Confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}
-                                            >
-                                                {reservation.status}
-                                            </span>
-                                        </div>
-
-                                        {/* Content Section */}
-                                        <div className="space-y-2 flex-grow">
+                                        </CardHeader>
+                                        <CardContent className="space-y-4">
                                             <div>
-                                                <h4 className="font-medium text-sm mb-0.5">{reservation.name}</h4>
-                                                <div className="flex items-center gap-1 text-[10px] text-gray-600">
-                                                    <Users className="w-3 h-3" />
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <h4 className="font-medium text-base">{reservation.name}</h4>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className={cn(
+                                                                    "ml-2",
+                                                                    reservation.attendanceStatus === 'show' && "bg-green-100 text-green-800 hover:bg-green-200",
+                                                                    reservation.attendanceStatus === 'no-show' && "bg-red-100 text-red-800 hover:bg-red-200",
+                                                                    reservation.attendanceStatus === 'pending' && "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                                                                )}
+                                                            >
+                                                                {reservation.attendanceStatus === 'show' ? 'Show' :
+                                                                    reservation.attendanceStatus === 'no-show' ? 'No Show' :
+                                                                        'Select Status'}
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuRadioGroup
+                                                                value={reservation.attendanceStatus || 'pending'}
+                                                                onValueChange={(value) => handleAttendanceUpdate(reservation.id, value as 'show' | 'no-show' | 'pending')}
+                                                            >
+                                                                <DropdownMenuRadioItem value="show">Show</DropdownMenuRadioItem>
+                                                                <DropdownMenuRadioItem value="no-show">No Show</DropdownMenuRadioItem>
+                                                                <DropdownMenuRadioItem value="pending">Pending</DropdownMenuRadioItem>
+                                                            </DropdownMenuRadioGroup>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-sm text-gray-600">
+                                                    <Users className="w-4 h-4" />
                                                     <span>{reservation.guests} guests</span>
                                                     <span>•</span>
-                                                    <Clock className="w-3 h-3" />
+                                                    <Clock className="w-4 h-4" />
                                                     <span>{reservation.time}</span>
                                                 </div>
                                             </div>
 
-                                            <div className="space-y-0.5 text-[10px] text-gray-600">
-                                                <p>{reservation.phone}</p>
-                                                <p>{reservation.email}</p>
-                                                <p className="text-[10px] text-gray-500">
+                                            <div className="space-y-1 text-sm text-gray-600">
+                                                <p className="flex items-center gap-2">
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                                    </svg>
+                                                    {reservation.phone}
+                                                </p>
+                                                <p className="flex items-center gap-2">
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                    </svg>
+                                                    {reservation.email}
+                                                </p>
+                                                <p className="text-xs text-gray-500">
                                                     requested on: {formatDateTime(reservation.createdAt)}
                                                 </p>
                                             </div>
 
                                             {reservation.comments && (
-                                                <div>
-                                                    <p className="text-[10px] font-medium">Notes:</p>
-                                                    <p className="text-[10px] text-gray-600 line-clamp-2">{reservation.comments}</p>
+                                                <div className="bg-gray-50 rounded-md p-3">
+                                                    <p className="text-xs font-medium text-gray-700 mb-1">Notes:</p>
+                                                    <p className="text-xs text-gray-600 line-clamp-3 hover:line-clamp-none transition-all duration-200 cursor-pointer">
+                                                        {reservation.comments}
+                                                    </p>
                                                 </div>
                                             )}
-                                        </div>
-
-                                        {/* Footer Section */}
-                                        <div className="mt-2 pt-2 border-t">
-                                            <div className="flex flex-col gap-1">
-                                                <button
-                                                    onClick={() => handleSendReminder(reservation)}
-                                                    disabled={!canSendReminder(reservation)}
-                                                    className={`w-full flex items-center justify-center gap-1 px-2 py-1 rounded text-[10px] transition-colors
-                                                        ${!canSendReminder(reservation)
-                                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                            : 'text-blue-600 border border-blue-600 hover:bg-blue-50'
-                                                        }`}
-                                                >
-                                                    <Mail className={`w-3 h-3 ${!canSendReminder(reservation) ? 'text-gray-400' : ''}`} />
-                                                    {reservation.reminderSent
-                                                        ? `Reminder Sent ${reservation.reminderSentAt
-                                                            ? `(${formatTimeAgo(reservation.reminderSentAt.toDate())})`
-                                                            : ''}`
-                                                        : 'Send Reminder'
-                                                    }
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            });
-                        }).filter(Boolean)}
-                    </div>
-                ) : (
-                    // Card View for Past and Future
-                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                        {filteredReservations.map((reservation) => {
-                            const isCancelled = reservation.status === 'cancelled';
-                            const isPassed = viewMode === 'past';
-
-                            return (
-                                <div key={reservation.id}
-                                    className="bg-white rounded-lg shadow p-3 flex flex-col min-h-[300px] relative"
-                                >
-                                    {/* Header Section */}
-                                    <div className="flex justify-between items-start mb-2">
-                                        <div className="flex items-center gap-1">
-                                            <Calendar className="w-3.5 h-3.5 text-gray-500" />
-                                            <h3 className="text-xs font-medium">{formatReadableDatePST(reservation.date)}</h3>
-                                        </div>
-                                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium
-                                            ${reservation.status === 'Confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}
-                                        >
-                                            {reservation.status}
-                                        </span>
-                                    </div>
-
-                                    {/* Content Section */}
-                                    <div className="space-y-2 flex-grow">
-                                        <div>
-                                            <h4 className="font-medium text-sm mb-0.5">{reservation.name}</h4>
-                                            <div className="flex items-center gap-1 text-[10px] text-gray-600">
-                                                <Users className="w-3 h-3" />
-                                                <span>{reservation.guests} guests</span>
-                                                <span>•</span>
-                                                <Clock className="w-3 h-3" />
-                                                <span>{reservation.time}</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-0.5 text-[10px] text-gray-600">
-                                            <p>{reservation.phone}</p>
-                                            <p>{reservation.email}</p>
-                                        </div>
-
-                                        {reservation.comments && (
-                                            <div>
-                                                <p className="text-[10px] font-medium">Notes:</p>
-                                                <p className="text-[10px] text-gray-600 line-clamp-2">{reservation.comments}</p>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Footer Section */}
-                                    <div className="mt-2 pt-2 border-t">
-                                        <div className="flex flex-col gap-1">
-                                            <button
+                                        </CardContent>
+                                        <CardFooter className="pt-2">
+                                            <Button
                                                 onClick={() => handleSendReminder(reservation)}
                                                 disabled={!canSendReminder(reservation)}
-                                                className={`w-full flex items-center justify-center gap-1 px-2 py-1 rounded text-[10px] transition-colors
-                                                    ${!canSendReminder(reservation)
-                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                        : 'text-blue-600 border border-blue-600 hover:bg-blue-50'
-                                                    }`}
+                                                variant={reservation.reminderSent ? "secondary" : "default"}
+                                                className="w-full rounded-full"
+                                                size="sm"
                                             >
-                                                <Mail className={`w-3 h-3 ${!canSendReminder(reservation) ? 'text-gray-400' : ''}`} />
+                                                <Mail className={`w-4 h-4 mr-2 ${!canSendReminder(reservation) ? 'text-gray-400' : ''}`} />
                                                 {reservation.reminderSent
                                                     ? `Reminder Sent ${reservation.reminderSentAt
                                                         ? `(${formatTimeAgo(reservation.reminderSentAt.toDate())})`
                                                         : ''}`
                                                     : 'Send Reminder'
                                                 }
-                                            </button>
+                                            </Button>
+                                        </CardFooter>
+                                    </Card>
+                                );
+                            });
+                        }).filter(Boolean)}
+                    </div>
+                ) : (
+                    // Card View for Past and Future
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {filteredReservations.map((reservation) => {
+                            const isCancelled = reservation.status === 'cancelled';
+                            const isPassed = viewMode === 'past';
+
+                            return (
+                                <Card key={reservation.id} className="relative">
+                                    <CardHeader className="pb-2">
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex items-center gap-2">
+                                                <Calendar className="w-4 h-4 text-gray-500" />
+                                                <h3 className="text-sm font-medium">{formatReadableDatePST(reservation.date)}</h3>
+                                            </div>
+                                            <Badge variant={reservation.status === 'Confirmed' ? 'success' : 'warning'}>
+                                                {reservation.status}
+                                            </Badge>
                                         </div>
-                                    </div>
-                                </div>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div>
+                                            <div className="flex justify-between items-start mb-2">
+                                                <h4 className="font-medium text-base">{reservation.name}</h4>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className={cn(
+                                                                "ml-2",
+                                                                reservation.attendanceStatus === 'show' && "bg-green-100 text-green-800 hover:bg-green-200",
+                                                                reservation.attendanceStatus === 'no-show' && "bg-red-100 text-red-800 hover:bg-red-200",
+                                                                reservation.attendanceStatus === 'pending' && "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                                                            )}
+                                                        >
+                                                            {reservation.attendanceStatus === 'show' ? 'Show' :
+                                                                reservation.attendanceStatus === 'no-show' ? 'No Show' :
+                                                                    'Select Status'}
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuRadioGroup
+                                                            value={reservation.attendanceStatus || 'pending'}
+                                                            onValueChange={(value) => handleAttendanceUpdate(reservation.id, value as 'show' | 'no-show' | 'pending')}
+                                                        >
+                                                            <DropdownMenuRadioItem value="show">Show</DropdownMenuRadioItem>
+                                                            <DropdownMenuRadioItem value="no-show">No Show</DropdownMenuRadioItem>
+                                                            <DropdownMenuRadioItem value="pending">Pending</DropdownMenuRadioItem>
+                                                        </DropdownMenuRadioGroup>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                                                <Users className="w-4 h-4" />
+                                                <span>{reservation.guests} guests</span>
+                                                <span>•</span>
+                                                <Clock className="w-4 h-4" />
+                                                <span>{reservation.time}</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-1 text-sm text-gray-600">
+                                            <p className="flex items-center gap-2">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                                </svg>
+                                                {reservation.phone}
+                                            </p>
+                                            <p className="flex items-center gap-2">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                </svg>
+                                                {reservation.email}
+                                            </p>
+                                        </div>
+
+                                        {reservation.comments && (
+                                            <div className="bg-gray-50 rounded-md p-3">
+                                                <p className="text-sm font-medium text-gray-700 mb-1">Notes:</p>
+                                                <p className="text-sm text-gray-600 line-clamp-3 hover:line-clamp-none transition-all duration-200 cursor-pointer">
+                                                    {reservation.comments}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                    <CardFooter className="pt-2">
+                                        <Button
+                                            onClick={() => handleSendReminder(reservation)}
+                                            disabled={!canSendReminder(reservation)}
+                                            variant={reservation.reminderSent ? "secondary" : "default"}
+                                            className="w-full rounded-full"
+                                            size="sm"
+                                        >
+                                            <Mail className={`w-4 h-4 mr-2 ${!canSendReminder(reservation) ? 'text-gray-400' : ''}`} />
+                                            {reservation.reminderSent
+                                                ? `Reminder Sent ${reservation.reminderSentAt
+                                                    ? `(${formatTimeAgo(reservation.reminderSentAt.toDate())})`
+                                                    : ''}`
+                                                : 'Send Reminder'
+                                            }
+                                        </Button>
+                                    </CardFooter>
+                                </Card>
                             );
                         })}
                     </div>
