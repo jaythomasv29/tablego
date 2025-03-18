@@ -31,7 +31,7 @@ export interface Reservation {
     selected?: boolean;
     reminderSent?: boolean;
     reminderSentAt?: Timestamp;
-    attendanceStatus?: 'show' | 'no-show';
+    attendanceStatus?: 'show' | 'no-show' | 'default';
 }
 
 // Add new helper functions
@@ -237,18 +237,18 @@ export default function ReservationAdminPage() {
     const [totalEmailCount, setTotalEmailCount] = useState(0);
 
     // Add handleAttendanceUpdate function inside the component
-    const handleAttendanceUpdate = async (reservationId: string, status: 'show' | 'no-show') => {
+    const handleAttendanceUpdate = async (reservationId: string, status: 'show' | 'no-show' | 'default') => {
         try {
             const reservationRef = doc(db, 'reservations', reservationId);
             await updateDoc(reservationRef, {
-                attendanceStatus: status
+                attendanceStatus: status === 'default' ? null : status
             });
 
             // Update local state
             setReservations((prevReservations: Reservation[]) =>
                 prevReservations.map((res: Reservation) =>
                     res.id === reservationId
-                        ? { ...res, attendanceStatus: status }
+                        ? { ...res, attendanceStatus: status === 'default' ? undefined : status }
                         : res
                 )
             );
@@ -683,7 +683,7 @@ export default function ReservationAdminPage() {
                                                                     "ml-2 bg-white",
                                                                     reservation.attendanceStatus === 'show' && "text-green-800 hover:bg-green-50",
                                                                     reservation.attendanceStatus === 'no-show' && "text-red-800 hover:bg-red-50",
-                                                                    !reservation.attendanceStatus && "text-gray-800 hover:bg-gray-50"
+                                                                    (!reservation.attendanceStatus || reservation.attendanceStatus === 'default') && "text-gray-800 hover:bg-gray-50"
                                                                 )}
                                                             >
                                                                 {reservation.attendanceStatus === 'show' ? 'Show' :
@@ -693,11 +693,12 @@ export default function ReservationAdminPage() {
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
                                                             <DropdownMenuRadioGroup
-                                                                value={reservation.attendanceStatus || ''}
-                                                                onValueChange={(value) => handleAttendanceUpdate(reservation.id, value as 'show' | 'no-show')}
+                                                                value={reservation.attendanceStatus || 'default'}
+                                                                onValueChange={(value) => handleAttendanceUpdate(reservation.id, value as 'show' | 'no-show' | 'default')}
                                                             >
                                                                 <DropdownMenuRadioItem value="show">Show</DropdownMenuRadioItem>
                                                                 <DropdownMenuRadioItem value="no-show">No Show</DropdownMenuRadioItem>
+                                                                <DropdownMenuRadioItem value="default">Select Status</DropdownMenuRadioItem>
                                                             </DropdownMenuRadioGroup>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
@@ -793,7 +794,7 @@ export default function ReservationAdminPage() {
                                                                 "ml-2 bg-white",
                                                                 reservation.attendanceStatus === 'show' && "text-green-800 hover:bg-green-50",
                                                                 reservation.attendanceStatus === 'no-show' && "text-red-800 hover:bg-red-50",
-                                                                !reservation.attendanceStatus && "text-gray-800 hover:bg-gray-50"
+                                                                (!reservation.attendanceStatus || reservation.attendanceStatus === 'default') && "text-gray-800 hover:bg-gray-50"
                                                             )}
                                                         >
                                                             {reservation.attendanceStatus === 'show' ? 'Show' :
@@ -803,11 +804,12 @@ export default function ReservationAdminPage() {
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
                                                         <DropdownMenuRadioGroup
-                                                            value={reservation.attendanceStatus || ''}
-                                                            onValueChange={(value) => handleAttendanceUpdate(reservation.id, value as 'show' | 'no-show')}
+                                                            value={reservation.attendanceStatus || 'default'}
+                                                            onValueChange={(value) => handleAttendanceUpdate(reservation.id, value as 'show' | 'no-show' | 'default')}
                                                         >
                                                             <DropdownMenuRadioItem value="show">Show</DropdownMenuRadioItem>
                                                             <DropdownMenuRadioItem value="no-show">No Show</DropdownMenuRadioItem>
+                                                            <DropdownMenuRadioItem value="default">Select Status</DropdownMenuRadioItem>
                                                         </DropdownMenuRadioGroup>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
