@@ -31,7 +31,7 @@ export interface Reservation {
     selected?: boolean;
     reminderSent?: boolean;
     reminderSentAt?: Timestamp;
-    attendanceStatus?: 'show' | 'no-show' | 'pending';
+    attendanceStatus?: 'show' | 'no-show';
 }
 
 // Add new helper functions
@@ -237,7 +237,7 @@ export default function ReservationAdminPage() {
     const [totalEmailCount, setTotalEmailCount] = useState(0);
 
     // Add handleAttendanceUpdate function inside the component
-    const handleAttendanceUpdate = async (reservationId: string, status: 'show' | 'no-show' | 'pending') => {
+    const handleAttendanceUpdate = async (reservationId: string, status: 'show' | 'no-show') => {
         try {
             const reservationRef = doc(db, 'reservations', reservationId);
             await updateDoc(reservationRef, {
@@ -680,10 +680,10 @@ export default function ReservationAdminPage() {
                                                                 variant="outline"
                                                                 size="sm"
                                                                 className={cn(
-                                                                    "ml-2",
-                                                                    reservation.attendanceStatus === 'show' && "bg-green-100 text-green-800 hover:bg-green-200",
-                                                                    reservation.attendanceStatus === 'no-show' && "bg-red-100 text-red-800 hover:bg-red-200",
-                                                                    reservation.attendanceStatus === 'pending' && "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                                                                    "ml-2 bg-white",
+                                                                    reservation.attendanceStatus === 'show' && "text-green-800 hover:bg-green-50",
+                                                                    reservation.attendanceStatus === 'no-show' && "text-red-800 hover:bg-red-50",
+                                                                    !reservation.attendanceStatus && "text-gray-800 hover:bg-gray-50"
                                                                 )}
                                                             >
                                                                 {reservation.attendanceStatus === 'show' ? 'Show' :
@@ -693,12 +693,11 @@ export default function ReservationAdminPage() {
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
                                                             <DropdownMenuRadioGroup
-                                                                value={reservation.attendanceStatus || 'pending'}
-                                                                onValueChange={(value) => handleAttendanceUpdate(reservation.id, value as 'show' | 'no-show' | 'pending')}
+                                                                value={reservation.attendanceStatus || ''}
+                                                                onValueChange={(value) => handleAttendanceUpdate(reservation.id, value as 'show' | 'no-show')}
                                                             >
                                                                 <DropdownMenuRadioItem value="show">Show</DropdownMenuRadioItem>
                                                                 <DropdownMenuRadioItem value="no-show">No Show</DropdownMenuRadioItem>
-                                                                <DropdownMenuRadioItem value="pending">Pending</DropdownMenuRadioItem>
                                                             </DropdownMenuRadioGroup>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
@@ -791,10 +790,10 @@ export default function ReservationAdminPage() {
                                                             variant="outline"
                                                             size="sm"
                                                             className={cn(
-                                                                "ml-2",
-                                                                reservation.attendanceStatus === 'show' && "bg-green-100 text-green-800 hover:bg-green-200",
-                                                                reservation.attendanceStatus === 'no-show' && "bg-red-100 text-red-800 hover:bg-red-200",
-                                                                reservation.attendanceStatus === 'pending' && "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                                                                "ml-2 bg-white",
+                                                                reservation.attendanceStatus === 'show' && "text-green-800 hover:bg-green-50",
+                                                                reservation.attendanceStatus === 'no-show' && "text-red-800 hover:bg-red-50",
+                                                                !reservation.attendanceStatus && "text-gray-800 hover:bg-gray-50"
                                                             )}
                                                         >
                                                             {reservation.attendanceStatus === 'show' ? 'Show' :
@@ -804,12 +803,11 @@ export default function ReservationAdminPage() {
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
                                                         <DropdownMenuRadioGroup
-                                                            value={reservation.attendanceStatus || 'pending'}
-                                                            onValueChange={(value) => handleAttendanceUpdate(reservation.id, value as 'show' | 'no-show' | 'pending')}
+                                                            value={reservation.attendanceStatus || ''}
+                                                            onValueChange={(value) => handleAttendanceUpdate(reservation.id, value as 'show' | 'no-show')}
                                                         >
                                                             <DropdownMenuRadioItem value="show">Show</DropdownMenuRadioItem>
                                                             <DropdownMenuRadioItem value="no-show">No Show</DropdownMenuRadioItem>
-                                                            <DropdownMenuRadioItem value="pending">Pending</DropdownMenuRadioItem>
                                                         </DropdownMenuRadioGroup>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
