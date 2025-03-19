@@ -680,7 +680,7 @@ export default function ReservationAdminPage() {
                                                                 variant="outline"
                                                                 size="sm"
                                                                 className={cn(
-                                                                    "ml-2 bg-white",
+                                                                    "ml-2 bg-white border-gray-200 hover:bg-white",
                                                                     reservation.attendanceStatus === 'show' && "text-green-800 hover:bg-green-50",
                                                                     reservation.attendanceStatus === 'no-show' && "text-red-800 hover:bg-red-50",
                                                                     (!reservation.attendanceStatus || reservation.attendanceStatus === 'default') && "text-gray-800 hover:bg-gray-50"
@@ -791,7 +791,7 @@ export default function ReservationAdminPage() {
                                                             variant="outline"
                                                             size="sm"
                                                             className={cn(
-                                                                "ml-2 bg-white",
+                                                                "ml-2 bg-white border-gray-200 hover:bg-white",
                                                                 reservation.attendanceStatus === 'show' && "text-green-800 hover:bg-green-50",
                                                                 reservation.attendanceStatus === 'no-show' && "text-red-800 hover:bg-red-50",
                                                                 (!reservation.attendanceStatus || reservation.attendanceStatus === 'default') && "text-gray-800 hover:bg-gray-50"
