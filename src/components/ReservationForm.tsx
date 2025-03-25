@@ -109,35 +109,35 @@ interface MenuItem {
 }
 
 // Add this helper function at the top
-const formatDisplayDate = (dateString: string) => {
-  if (!dateString) return '';
+// const formatDisplayDate = (dateString: string) => {
+//   if (!dateString) return '';
 
-  try {
-    // If it's a Date object, convert to ISO string first
-    const date = dateString instanceof Date
-      ? dateString.toISOString().split('T')[0]
-      : dateString;
+//   try {
+//     // If it's a Date object, convert to ISO string first
+//     const date = dateString instanceof Date
+//       ? dateString.toISOString().split('T')[0]
+//       : dateString;
 
-    // Split the date string to get year, month, day
-    const [year, month, day] = date.split('-').map(Number);
+//     // Split the date string to get year, month, day
+//     const [year, month, day] = date.split('-').map(Number);
 
-    // Create date object with explicit UTC time at noon to avoid timezone shifts
-    const formattedDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+//     // Create date object with explicit UTC time at noon to avoid timezone shifts
+//     const formattedDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
 
-    return formattedDate.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-      timeZone: 'UTC'
-    });
-  } catch (error) {
-    console.error('Error formatting date:', error);
-    return dateString; // Return original string if formatting fails
-  }
-};
+//     return formattedDate.toLocaleDateString('en-US', {
+//       weekday: 'long',
+//       month: 'long',
+//       day: 'numeric',
+//       year: 'numeric',
+//       timeZone: 'UTC'
+//     });
+//   } catch (error) {
+//     console.error('Error formatting date:', error);
+//     return dateString; // Return original string if formatting fails
+//   }
+// };
 
-const formatDisplayDate2 = (isoString) => {
+const formatDisplayDate2 = (isoString: string) => {
   if (!isoString) return '';
 
   const date = new Date(isoString);
