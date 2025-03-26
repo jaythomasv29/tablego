@@ -1082,26 +1082,26 @@ export default function ReservationAdminPage() {
                                                                         >
                                                                             No Show
                                                                         </Button>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            onClick={() => handleSendReminder(reservation)}
+                                                                            disabled={!canSendReminder(reservation)}
+                                                                            variant="outline"
+                                                                            className="bg-white hover:bg-gray-50"
+                                                                        >
+                                                                            <Mail className="w-4 h-4 mr-1" />
+                                                                            <span className="inline">Email</span>
+                                                                        </Button>
                                                                     </div>
                                                                 </div>
                                                                 <div className="flex flex-wrap gap-2 mt-2 md:mt-0">
-                                                                    <Button
-                                                                        size="sm"
-                                                                        onClick={() => handleSendReminder(reservation)}
-                                                                        disabled={!canSendReminder(reservation)}
-                                                                        variant="outline"
-                                                                        className="bg-white hover:bg-gray-50"
-                                                                    >
-                                                                        <Mail className="w-4 h-4 mr-1" />
-                                                                        <span className="inline">Email</span>
-                                                                    </Button>
-                                                                    <Link
+                                                                    {/* <Link
                                                                         href={`/admin/reservation/${reservation.id}`}
                                                                         className="p-1.5 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors inline-flex items-center"
                                                                     >
                                                                         <Edit className="h-4 w-4 mr-1" />
                                                                         <span className="inline">Edit</span>
-                                                                    </Link>
+                                                                    </Link> */}
                                                                 </div>
                                                             </div>
                                                         </div>
