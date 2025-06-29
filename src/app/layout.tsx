@@ -35,7 +35,7 @@ export default function RootLayout({
       <body className={inter.className} suppressHydrationWarning>
         {children}
         <Analytics />
-        <FloatingContactButton />
+        {/* <FloatingContactButton /> */}
 
         {/* Add version info for debugging */}
         <div style={{ display: 'none' }} data-version={buildVersion}></div>
