@@ -4,7 +4,6 @@ import AdminLayout from '@/components/AdminLayout';
 import { useEffect, useState } from 'react';
 import { collection, getDocs, query, orderBy, limit, where, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebase';
-// import { getTotalPageViews } from '@/utils/analytics';
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -20,8 +19,6 @@ import toast, { Toaster } from 'react-hot-toast';
 import { ArrowRightCircle, X } from 'lucide-react';
 import PageTransition from '@/components/PageTransition';
 import StaggeredList from '@/components/StaggeredList';
-import { subscribeToPushNotifications } from '@/utils/serviceWorker';
-import { Bell } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { Calendar, Users, Clock } from 'lucide-react';
 import { formatReadableDatePST } from '@/utils/dateUtils';
@@ -188,14 +185,12 @@ const isReservationPassed = (reservationTime: string): boolean => {
 export default function AdminHome() {
     const [totalViews, setTotalViews] = useState<number>(0);
     const [dailyViews, setDailyViews] = useState<{ date: string; views: number }[]>([]);
-
     const [metrics, setMetrics] = useState<DashboardMetrics>({
         totalReservations: 0,
         uniqueCustomers: 0,
         todayReservations: 0,
         totalCatering: 0,
         newCatering: 0,
-
     });
     const [loading, setLoading] = useState(true);
     const [todaysReservations, setTodaysReservations] = useState<Reservation[]>([]);
@@ -205,8 +200,6 @@ export default function AdminHome() {
     const [activeTab, setActiveTab] = useState<'dashboard' | 'messages'>('dashboard');
     const [messages, setMessages] = useState<Message[]>([]);
     const [isMarkingRead, setIsMarkingRead] = useState<string>('');
-    const [pushEnabled, setPushEnabled] = useState(false);
-    const [lastNotifiedCount, setLastNotifiedCount] = useState(0);
     const [todayReservations, setTodayReservations] = useState<Reservation[]>([]);
 
     useEffect(() => {
@@ -227,95 +220,6 @@ export default function AdminHome() {
 
         fetchAnalytics();
     }, []);
-
-
-
-    useEffect(() => {
-        let isMounted = true;
-        const FIFTEEN_MINUTES = 15 * 60 * 1000;
-        const notificationInProgress = new Set<number>();
-
-        const checkPendingReservations = async () => {
-            // Skip if component unmounted
-            if (!isMounted) return;
-
-            try {
-                // Add a guard to prevent duplicate checks
-                const currentTime = Date.now();
-                if (notificationInProgress.has(currentTime)) {
-                    return;
-                }
-                notificationInProgress.add(currentTime);
-
-                const q = query(
-                    collection(db, 'reservations'),
-                    where('status', '==', 'pending')
-                );
-
-                const snapshot = await getDocs(q);
-                const pendingList = snapshot.docs.map(doc => {
-                    const data = doc.data();
-                    const date = data.date instanceof Date
-                        ? data.date
-                        : data.date?.toDate?.()
-                        || new Date(data.date);
-
-                    return {
-                        id: doc.id,
-                        ...data,
-                        date: date,
-                        status: data.status || 'pending',
-                        time: data.time || '',
-                        name: data.name || '',
-                        guests: data.guests || 0,
-                        phone: data.phone || '',
-                        email: data.email || '',
-                        comments: data.comments || '',
-                        createdAt: data.createdAt,
-                        reminderSent: data.reminderSent,
-                        reminderSentAt: data.reminderSentAt
-                    };
-                }).filter(res => res.status === 'pending');
-
-                setPendingReservations(pendingList);
-
-                // Only send if count has increased AND enough time has passed
-                if (pendingList.length > lastNotifiedCount && pushEnabled) {
-                    const lastCheck = localStorage.getItem('lastNotificationTime');
-                    const now = Date.now();
-
-                    if (!lastCheck || (now - parseInt(lastCheck)) >= FIFTEEN_MINUTES) {
-                        console.log('Sending notification for', pendingList.length, 'reservations');
-                        await fetch('/api/push', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                message: `You have ${pendingList.length} pending reservation${pendingList.length > 1 ? 's' : ''} to review`
-                            }),
-                        });
-                        setLastNotifiedCount(pendingList.length);
-                        localStorage.setItem('lastNotificationTime', now.toString());
-                    }
-                }
-
-                notificationInProgress.delete(currentTime);
-            } catch (error) {
-                console.error('Error checking reservations:', error);
-            }
-        };
-
-        // Initial check
-        checkPendingReservations();
-
-        // Use a longer interval and ensure cleanup
-        const interval = setInterval(checkPendingReservations, FIFTEEN_MINUTES);
-
-        return () => {
-            isMounted = false;
-            clearInterval(interval);
-            notificationInProgress.clear();
-        };
-    }, [pushEnabled, lastNotifiedCount]);
 
     const fetchMetrics = async () => {
         try {
@@ -559,38 +463,6 @@ export default function AdminHome() {
             setIsMarkingRead('');
         }
     };
-
-    useEffect(() => {
-        const registerBackgroundSync = async () => {
-            try {
-                const registration = await navigator.serviceWorker.ready;
-                if ('sync' in registration) {
-                    // Register periodic sync if supported
-                    if ('periodicSync' in registration) {
-                        const periodicReg = registration as unknown as { periodicSync: { register: Function } };
-                        const status = await navigator.permissions.query({
-                            name: 'periodic-background-sync' as PermissionName
-                        });
-
-                        if (status.state === 'granted') {
-                            await periodicReg.periodicSync.register('checkReservations', {
-                                minInterval: 15 * 60 * 1000
-                            });
-                        }
-                    }
-                    // Add type assertion for sync
-                    const syncReg = registration as unknown as { sync: { register: Function } };
-                    await syncReg.sync.register('checkReservations');
-                }
-            } catch (error) {
-                console.error('Error registering background sync:', error);
-            }
-        };
-
-        if (pushEnabled) {
-            registerBackgroundSync();
-        }
-    }, [pushEnabled]);
 
     useEffect(() => {
         const fetchTodayReservations = async () => {
