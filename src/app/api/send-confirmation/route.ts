@@ -5,76 +5,83 @@ import nodemailer from 'nodemailer';
 
 // Create reusable transporter with error handling
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false, // true for 465, false for other ports
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  debug: true, // Enable debug output
-  logger: true // Enable logger
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: false, // true for 465, false for other ports
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+    },
+    debug: true, // Enable debug output
+    logger: true // Enable logger
 });
 
 // Add the date formatter
 const formatDisplayDate = (dateString: string) => {
-  if (!dateString) return '';
+    if (!dateString) return '';
 
-  // Split the date string to get year, month, day
-  const [year, month, day] = dateString.split('-').map(Number);
+    // Split the date string to get year, month, day
+    const [year, month, day] = dateString.split('-').map(Number);
 
-  // Create date object with explicit UTC time at noon to avoid timezone shifts
-  const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    // Create date object with explicit UTC time at noon to avoid timezone shifts
+    const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
 
-  return date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC'
-  });
+    return date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+        timeZone: 'UTC'
+    });
 };
 
 export async function POST(request: Request) {
-  try {
-    const { formData } = await request.json();
-
-    // Format the date before sending it back
-    const formattedDate = formatDisplayDate(formData.date);
-
-    // Create reservation document with original date
-    const reservationRef = await addDoc(collection(db, 'reservations'), {
-      ...formData,
-      status: 'pending',
-      createdAt: new Date()
-    });
-
-    const readableDate = new Date(formData.date).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-
-    // Test transporter connection
     try {
-      await transporter.verify();
-      console.log('SMTP connection verified');
-    } catch (error) {
-      console.error('SMTP verification failed:', error);
-      throw new Error('Email service unavailable');
-    }
+        const { formData } = await request.json();
 
-    // Send email with better error handling
-    try {
-      // Send to customer
-      const cancelUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/cancel-reservation/${reservationRef.id}`;
+        // Convert the Date object to a consistent date string in PST
+        const dateToStore = formData.date instanceof Date
+            ? formData.date.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' }) // YYYY-MM-DD format
+            : formData.date; // Already a string
 
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: formData.email,
-        subject: 'Your Thaiphoon Restaurant Reservation Confirmation',
-        html: `
+        // Format the date before sending it back
+        const formattedDate = formatDisplayDate(dateToStore);
+
+        // Create reservation document with consistent date format
+        const reservationRef = await addDoc(collection(db, 'reservations'), {
+            ...formData,
+            date: dateToStore, // Store as YYYY-MM-DD string in PST
+            status: 'pending',
+            createdAt: new Date()
+        });
+
+        const readableDate = new Date(dateToStore + 'T12:00:00').toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: 'America/Los_Angeles'
+        });
+
+        // Test transporter connection
+        try {
+            await transporter.verify();
+            console.log('SMTP connection verified');
+        } catch (error) {
+            console.error('SMTP verification failed:', error);
+            throw new Error('Email service unavailable');
+        }
+
+        // Send email with better error handling
+        try {
+            // Send to customer
+            const cancelUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/cancel-reservation/${reservationRef.id}`;
+
+            await transporter.sendMail({
+                from: process.env.EMAIL_USER,
+                to: formData.email,
+                subject: 'Your Thaiphoon Restaurant Reservation Confirmation',
+                html: `
                     <!DOCTYPE html>
                     <html>
                         <head>
@@ -181,14 +188,14 @@ export async function POST(request: Request) {
                         </body>
                     </html>
                 `,
-      });
+            });
 
-      // Send copy to restaurant
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: process.env.EMAIL_USER,
-        subject: `New Reservation Request - ${formData.name}`,
-        html: `
+            // Send copy to restaurant
+            await transporter.sendMail({
+                from: process.env.EMAIL_USER,
+                to: process.env.EMAIL_USER,
+                subject: `New Reservation Request - ${formData.name}`,
+                html: `
                     <!DOCTYPE html>
                     <html>
                         <head>
@@ -261,29 +268,29 @@ export async function POST(request: Request) {
                         </body>
                     </html>
                 `,
-      });
+            });
 
-      console.log('Emails sent successfully');
+            console.log('Emails sent successfully');
+        } catch (error) {
+            console.error('Failed to send email:', error);
+            throw new Error('Failed to send confirmation email');
+        }
+
+        return NextResponse.json({
+            success: true,
+            reservationId: reservationRef.id,
+            reservationDetails: {
+                ...formData,
+                date: dateToStore, // Send back the original date string
+                formattedDate, // Also send the formatted date
+                reservationId: reservationRef.id
+            }
+        });
     } catch (error) {
-      console.error('Failed to send email:', error);
-      throw new Error('Failed to send confirmation email');
+        console.error('Error:', error);
+        return NextResponse.json(
+            { success: false, error: 'Failed to process reservation' },
+            { status: 500 }
+        );
     }
-
-    return NextResponse.json({
-      success: true,
-      reservationId: reservationRef.id,
-      reservationDetails: {
-        ...formData,
-        date: formData.date, // Send back the original date string
-        formattedDate, // Also send the formatted date
-        reservationId: reservationRef.id
-      }
-    });
-  } catch (error) {
-    console.error('Error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to process reservation' },
-      { status: 500 }
-    );
-  }
 }

@@ -29,12 +29,25 @@ interface PageProps {
 }
 
 const formatDate = (date: Reservation['date']) => {
+    // If it's already a YYYY-MM-DD string, create a date at noon PST to avoid timezone shifts
+    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        const d = new Date(date + 'T12:00:00');
+        return d.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: 'America/Los_Angeles'
+        });
+    }
+
     if (typeof date === 'string') {
         return new Date(date).toLocaleDateString('en-US', {
             weekday: 'long',
             year: 'numeric',
             month: 'long',
-            day: 'numeric'
+            day: 'numeric',
+            timeZone: 'America/Los_Angeles'
         });
     }
 
@@ -42,7 +55,8 @@ const formatDate = (date: Reservation['date']) => {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
-        day: 'numeric'
+        day: 'numeric',
+        timeZone: 'America/Los_Angeles'
     });
 };
 

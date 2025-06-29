@@ -320,13 +320,9 @@ export default function AdminHome() {
     const fetchMetrics = async () => {
         try {
             // Get today's date in PST and format as YYYY-MM-DD
-            const pstDate = new Date().toLocaleDateString('en-US', {
-                timeZone: 'America/Los_Angeles',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit'
+            const todayLocal = new Date().toLocaleDateString('en-CA', {
+                timeZone: 'America/Los_Angeles'
             });
-            const today = new Date(pstDate).toISOString().split('T')[0];
 
             const reservationsRef = collection(db, 'reservations');
             const snapshot = await getDocs(reservationsRef);
@@ -338,16 +334,30 @@ export default function AdminHome() {
 
             snapshot.forEach((doc) => {
                 const data = doc.data();
-                const reservationDate = data.date instanceof Timestamp
-                    ? data.date.toDate().toISOString().split('T')[0]
-                    : new Date(data.date).toISOString().split('T')[0];
+
+                // Handle different date formats consistently
+                let reservationDate: string;
+                if (typeof data.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
+                    // Already in YYYY-MM-DD format
+                    reservationDate = data.date;
+                } else if (data.date instanceof Timestamp) {
+                    // Firestore Timestamp
+                    reservationDate = data.date.toDate().toLocaleDateString('en-CA', {
+                        timeZone: 'America/Los_Angeles'
+                    });
+                } else {
+                    // ISO string or other format
+                    reservationDate = new Date(data.date).toLocaleDateString('en-CA', {
+                        timeZone: 'America/Los_Angeles'
+                    });
+                }
 
                 // Compare just the date parts
-                if (reservationDate === today) {
+                if (reservationDate === todayLocal) {
                     todayCount++;
                     todaysList.push({
                         id: doc.id,
-                        date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date),
+                        date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date + 'T12:00:00'),
                         time: data.time,
                         name: data.name,
                         guests: data.guests,

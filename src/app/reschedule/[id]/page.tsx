@@ -15,9 +15,7 @@ import { BusinessHours } from '@/components/ReservationForm';
 
 interface Reservation {
     id: string;
-    date: {
-        toDate: () => Date;
-    } | Timestamp | string;  // Updated type to handle all possible date formats
+    date: Timestamp | string | Date;  // Updated type to handle all possible date formats
     time: string;
     name: string;
     guests: number;
@@ -38,20 +36,26 @@ interface TimeSlot {
 
 const slotDuration = 30;
 
-// Add helper function to handle date conversion
-const getDateFromTimestamp = (date: Reservation['date']): Date => {
+// Add this helper function at the top of the file
+const getDateFromTimestamp = (date: Timestamp | string | Date) => {
+    // If it's already a YYYY-MM-DD string, create a date at noon PST to avoid timezone shifts
+    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return new Date(date + 'T12:00:00');
+    }
+
+    // If it's a Firestore Timestamp
+    if (date && typeof date === 'object' && 'toDate' in date) {
+        return date.toDate();
+    }
+
+    // If it's a string (ISO format)
     if (typeof date === 'string') {
         return new Date(date);
     }
-    if (date instanceof Timestamp) {
-        return date.toDate();
-    }
-    return date.toDate();
-};
 
-interface PageProps {
-    params: Promise<{ id: string }>;
-}
+    // If it's already a Date object
+    return date;
+};
 
 // Add this helper function to check if a time is in the future with buffer
 const isTimeInFutureWithBuffer = (time: string, bufferHours: number = 2): boolean => {
@@ -223,6 +227,10 @@ const formatDateTime = (date: string, time: string) => {
     return { pstDate, time };
 };
 
+interface PageProps {
+    params: Promise<{ id: string }>;
+}
+
 export default function ReschedulePage({ params }: PageProps) {
     const { id } = use(params);
     const [reservation, setReservation] = useState<Reservation | null>(null);
@@ -273,21 +281,13 @@ export default function ReschedulePage({ params }: PageProps) {
 
         try {
             setLoading(true);
-            // Convert selected date to PST then to UTC for storage
-            const pstDate = new Date(selectedDate.toLocaleString('en-US', {
+            // Convert selected date to YYYY-MM-DD format in PST timezone
+            const dateToStore = selectedDate.toLocaleDateString('en-CA', {
                 timeZone: 'America/Los_Angeles'
-            }));
-
-            // Set the time to noon PST to avoid date shifting
-            pstDate.setHours(12, 0, 0, 0);
-
-            // Convert to UTC for storage
-            const utcDate = new Date(pstDate.toLocaleString('en-US', {
-                timeZone: 'UTC'
-            })).toISOString();
+            });
 
             await updateDoc(doc(db, 'reservations', id), {
-                date: utcDate,
+                date: dateToStore, // Store as YYYY-MM-DD string in PST
                 time: selectedTime,
                 updatedAt: new Date().toISOString(),
                 status: 'confirmed'
@@ -303,7 +303,7 @@ export default function ReschedulePage({ params }: PageProps) {
                     reservationId: reservation?.id,
                     email: reservation?.email,
                     name: reservation?.name,
-                    date: utcDate,
+                    date: dateToStore,
                     time: selectedTime,
                     guests: reservation?.guests,
                     phone: reservation?.phone
@@ -413,28 +413,15 @@ export default function ReschedulePage({ params }: PageProps) {
 
     const checkTimeSlotAvailability = async (date: Date, timeSlots: string[]) => {
         try {
-            // Convert input date to PST and format it to match Firebase date format
-            const pstDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
-            const startOfDay = new Date(Date.UTC(
-                pstDate.getFullYear(),
-                pstDate.getMonth(),
-                pstDate.getDate(),
-                0, 0, 0, 0
-            )).toISOString();
+            // Convert input date to YYYY-MM-DD format in PST
+            const targetDate = date.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
 
-            const endOfDay = new Date(Date.UTC(
-                pstDate.getFullYear(),
-                pstDate.getMonth(),
-                pstDate.getDate(),
-                23, 59, 59, 999
-            )).toISOString();
-
-            // Get all reservations for the day using the ISO string format
+            // Get all reservations for the day using the date string format
             const reservationsRef = collection(db, 'reservations');
             const q = query(
                 reservationsRef,
-                where('date', '>=', startOfDay),
-                where('date', '<=', endOfDay)
+                where('date', '==', targetDate),
+                where('status', '!=', 'cancelled')
             );
 
             const querySnapshot = await getDocs(q);

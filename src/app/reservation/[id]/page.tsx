@@ -29,27 +29,50 @@ interface PageProps {
 }
 
 const formatReservationDate = (date: Reservation['date']) => {
+    // If it's already a YYYY-MM-DD string, create a date at noon PST to avoid timezone shifts
+    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        const d = new Date(date + 'T12:00:00');
+        return d.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: 'America/Los_Angeles'
+        });
+    }
+
     if (typeof date === 'string') {
         return new Date(date).toLocaleDateString('en-US', {
             weekday: 'long',
             year: 'numeric',
             month: 'long',
-            day: 'numeric'
+            day: 'numeric',
+            timeZone: 'America/Los_Angeles'
         });
     }
     return date.toDate().toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
-        day: 'numeric'
+        day: 'numeric',
+        timeZone: 'America/Los_Angeles'
     });
 };
 
 const getDateISOString = (date: Reservation['date']) => {
-    if (typeof date === 'string') {
-        return new Date(date).toISOString();
+    // If it's already a YYYY-MM-DD string, return it as-is
+    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return date;
     }
-    return date.toDate().toISOString();
+
+    if (typeof date === 'string') {
+        return new Date(date).toLocaleDateString('en-CA', {
+            timeZone: 'America/Los_Angeles'
+        });
+    }
+    return date.toDate().toLocaleDateString('en-CA', {
+        timeZone: 'America/Los_Angeles'
+    });
 };
 
 export default function ReservationPage({ params }: PageProps) {

@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar as CalendarIcon, Check, ChevronsUpDown, Users, Calendar, Clock, Mail, Edit, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Toaster } from 'react-hot-toast';
-import { ResponsiveBar } from '@nivo/bar';
+
 import ReminderModal from '@/components/ReminderModal';
 import { formatReadableDatePST } from '@/utils/dateUtils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -55,6 +55,17 @@ const generateTimeSlots = () => {
 
 // Add this helper function at the top of the file
 const formatDate = (date: Timestamp | string | Date) => {
+    // If it's already a YYYY-MM-DD string, create a date at noon PST to avoid timezone shifts
+    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        const d = new Date(date + 'T12:00:00');
+        return d.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: 'America/Los_Angeles'
+        });
+    }
+
     // If it's a Timestamp
     if (date && typeof date === 'object' && 'toDate' in date) {
         return date.toDate().toLocaleDateString('en-US', {
@@ -64,7 +75,8 @@ const formatDate = (date: Timestamp | string | Date) => {
             timeZone: 'America/Los_Angeles'
         });
     }
-    // If it's a string
+
+    // If it's a string (ISO format)
     if (typeof date === 'string') {
         return new Date(date).toLocaleDateString('en-US', {
             year: 'numeric',
@@ -73,6 +85,7 @@ const formatDate = (date: Timestamp | string | Date) => {
             timeZone: 'America/Los_Angeles'
         });
     }
+
     // If it's already a Date object
     return date.toLocaleDateString('en-US', {
         year: 'numeric',
@@ -245,6 +258,33 @@ const getMonthName = (date: Timestamp | string) => {
     return d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
 };
 
+// Add this helper function at the top of the file
+const getLocalDateString = (date: Date | string | Timestamp, timeZone = 'America/Los_Angeles') => {
+    // If it's already a YYYY-MM-DD string, return it directly
+    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return date;
+    }
+
+    // If it's a full ISO string, extract the date part and convert to local timezone
+    if (typeof date === 'string') {
+        const d = new Date(date);
+        return d.toLocaleDateString('en-CA', { timeZone });
+    }
+
+    // If it's a Date object
+    if (date instanceof Date) {
+        return date.toLocaleDateString('en-CA', { timeZone });
+    }
+
+    // If it's a Firestore Timestamp
+    if (date && typeof date === 'object' && 'toDate' in date) {
+        return date.toDate().toLocaleDateString('en-CA', { timeZone });
+    }
+
+    // Fallback
+    return new Date().toLocaleDateString('en-CA', { timeZone });
+};
+
 export default function ReservationAdminPage() {
     const [viewMode, setViewMode] = useState<'past' | 'today' | 'future' | 'chart'>('today');
     const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -290,13 +330,7 @@ export default function ReservationAdminPage() {
             setLoading(true);
             try {
                 // Get today's date in PST and format as YYYY-MM-DD
-                const pstDate = new Date().toLocaleDateString('en-US', {
-                    timeZone: 'America/Los_Angeles',
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit'
-                });
-                const today = new Date(pstDate).toISOString().split('T')[0];
+                const todayLocal = getLocalDateString(new Date());
 
                 const reservationsRef = collection(db, 'reservations');
                 const q = query(reservationsRef);
@@ -315,9 +349,8 @@ export default function ReservationAdminPage() {
                 switch (viewMode) {
                     case 'today':
                         filteredReservations = fetchedReservations.filter(res => {
-                            // Compare just the date parts of the ISO strings
-                            const reservationDate = getDatePart(res.date);
-                            return reservationDate === today;
+                            const reservationDateLocal = getLocalDateString(res.date);
+                            return reservationDateLocal === todayLocal;
                         }).sort((a, b) => {
                             const timeA = convertTimeToMinutes(a.time);
                             const timeB = convertTimeToMinutes(b.time);
@@ -327,14 +360,16 @@ export default function ReservationAdminPage() {
 
                     case 'past':
                         filteredReservations = fetchedReservations.filter(res => {
-                            return getDatePart(res.date) < today;
-                        }).sort((a, b) => getDatePart(b.date).localeCompare(getDatePart(a.date)));
+                            const reservationDateLocal = getLocalDateString(res.date);
+                            return reservationDateLocal < todayLocal;
+                        }).sort((a, b) => getLocalDateString(b.date).localeCompare(getLocalDateString(a.date)));
                         break;
 
                     case 'future':
                         filteredReservations = fetchedReservations.filter(res => {
-                            return getDatePart(res.date) > today;
-                        }).sort((a, b) => getDatePart(a.date).localeCompare(getDatePart(b.date)));
+                            const reservationDateLocal = getLocalDateString(res.date);
+                            return reservationDateLocal > todayLocal;
+                        }).sort((a, b) => getLocalDateString(a.date).localeCompare(getLocalDateString(b.date)));
                         break;
                 }
 
@@ -1115,7 +1150,7 @@ export default function ReservationAdminPage() {
                         })()}
                     </div>
                 ) : (
-                    // List View for Past Reservations - Sleek Vertical Lines
+                    // List View for Past Reservations - Enhanced with Complete Information
                     <div className="space-y-2">
                         {filteredReservations.map((reservation) => {
                             const isCancelled = reservation.status === 'cancelled';
@@ -1125,60 +1160,122 @@ export default function ReservationAdminPage() {
                                 <div
                                     key={reservation.id}
                                     className={`bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-200 border-l-4 ${isCancelled ? 'border-red-500' :
-                                        isPassed ? 'border-gray-400' :
-                                            'border-green-500'
+                                        reservation.attendanceStatus === 'show' ? 'border-green-500' :
+                                            reservation.attendanceStatus === 'no-show' ? 'border-orange-500' :
+                                                'border-gray-400'
                                         }`}
                                 >
                                     <div className="flex flex-col md:flex-row items-start p-3 sm:p-4">
-                                        {/* Mobile view - compact line item format */}
+                                        {/* Mobile view - Enhanced with complete information */}
                                         <div className="w-full md:hidden">
                                             <div className="flex justify-between items-start mb-2">
-                                                <div>
+                                                <div className="flex-1 mr-2">
                                                     <h3 className="font-medium text-gray-900 text-base max-sm:text-sm">{reservation.name}</h3>
                                                     <div className="flex flex-wrap items-center mt-1 text-xs max-sm:text-[10px] text-gray-600">
                                                         <span className="flex items-center mr-2 mb-1">
-                                                            <Users className="w-3.5 h-3.5 max-sm:w-3 max-sm:h-3 mr-1 text-gray-400" />
-                                                            {reservation.guests} {reservation.guests === 1 ? 'guest' : 'guests'}
+                                                            <Calendar className="w-3.5 h-3.5 max-sm:w-3 max-sm:h-3 mr-1 text-gray-400" />
+                                                            {formatDate(reservation.date)}
                                                         </span>
                                                         <span className="flex items-center mr-2 mb-1">
                                                             <Clock className="w-3.5 h-3.5 max-sm:w-3 max-sm:h-3 mr-1 text-gray-400" />
                                                             {reservation.time}
                                                         </span>
+                                                        <span className="flex items-center mr-2 mb-1">
+                                                            <Users className="w-3.5 h-3.5 max-sm:w-3 max-sm:h-3 mr-1 text-gray-400" />
+                                                            {reservation.guests} {reservation.guests === 1 ? 'guest' : 'guests'}
+                                                        </span>
                                                     </div>
                                                 </div>
-                                                <div>
+                                                <div className="flex flex-col items-end gap-1">
                                                     <Badge
-                                                        variant={reservation.status === 'Confirmed' ? 'success' : 'warning'}
+                                                        variant={isCancelled ? 'destructive' : reservation.status === 'confirmed' ? 'success' : 'warning'}
                                                         className="text-xs max-sm:text-[10px] px-2 max-sm:px-1.5 py-0.5"
                                                     >
                                                         {reservation.status}
                                                     </Badge>
+                                                    {reservation.attendanceStatus && (
+                                                        <Badge
+                                                            variant={reservation.attendanceStatus === 'show' ? 'success' : 'destructive'}
+                                                            className="text-xs max-sm:text-[10px] px-2 max-sm:px-1.5 py-0.5"
+                                                        >
+                                                            {reservation.attendanceStatus === 'show' ? 'Showed' : 'No-Show'}
+                                                        </Badge>
+                                                    )}
                                                 </div>
                                             </div>
 
-                                            {reservation.comments && (
-                                                <div className="mb-2 text-xs max-sm:text-[10px] text-gray-700 bg-gray-50 p-2 max-sm:p-1.5 rounded-md">
-                                                    <p className="line-clamp-2 hover:line-clamp-none">
-                                                        <span className="font-medium mr-1">Notes:</span>
-                                                        {reservation.comments}
-                                                    </p>
+                                            {/* Contact Information */}
+                                            <div className="mb-2 text-xs max-sm:text-[10px] text-gray-600 bg-gray-50 p-2 max-sm:p-1.5 rounded-md">
+                                                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                                                    <span className="flex items-center">
+                                                        <svg className="w-3 h-3 max-sm:w-2.5 max-sm:h-2.5 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                                        </svg>
+                                                        {reservation.phone}
+                                                    </span>
+                                                    <span className="flex items-center">
+                                                        <svg className="w-3 h-3 max-sm:w-2.5 max-sm:h-2.5 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                        </svg>
+                                                        {reservation.email}
+                                                    </span>
                                                 </div>
-                                            )}
+                                            </div>
 
-                                            <div className="flex items-center justify-between mb-2">
-                                                <div className="flex">
-                                                    {reservation.reminderSent && (
-                                                        <span className="text-xs max-sm:text-[10px] bg-green-50 text-green-700 px-2 max-sm:px-1.5 py-0.5 rounded flex items-center mr-2">
-                                                            <Mail className="w-3 h-3 max-sm:w-2.5 max-sm:h-2.5 mr-1" />
-                                                            Reminder Sent
+                                            {/* Reservation Details */}
+                                            <div className="mb-2 text-xs max-sm:text-[10px] text-gray-600">
+                                                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                                                    {reservation.createdAt && (
+                                                        <span className="flex items-center">
+                                                            <CalendarIcon className="w-3 h-3 max-sm:w-2.5 max-sm:h-2.5 mr-1 text-gray-400" />
+                                                            Booked: {formatDateTime(reservation.createdAt)}
+                                                        </span>
+                                                    )}
+                                                    {isCancelled && reservation.cancelledAt && (
+                                                        <span className="flex items-center text-red-600">
+                                                            <svg className="w-3 h-3 max-sm:w-2.5 max-sm:h-2.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
+                                                            Cancelled: {formatDateTime(reservation.cancelledAt)}
                                                         </span>
                                                     )}
                                                 </div>
                                             </div>
 
-                                            <div className="flex justify-between">
+                                            {reservation.comments && (
+                                                <div className="mb-2 text-xs max-sm:text-[10px] text-gray-700 bg-yellow-50 border border-yellow-200 p-2 max-sm:p-1.5 rounded-md">
+                                                    <p className="line-clamp-2 hover:line-clamp-none">
+                                                        <span className="font-medium mr-1 text-yellow-800">Notes:</span>
+                                                        {reservation.comments}
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {/* Status Indicators */}
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex flex-wrap gap-1">
+                                                    {reservation.reminderSent && (
+                                                        <span className="text-xs max-sm:text-[10px] bg-green-50 text-green-700 px-2 max-sm:px-1.5 py-0.5 rounded flex items-center">
+                                                            <Mail className="w-3 h-3 max-sm:w-2.5 max-sm:h-2.5 mr-1" />
+                                                            Reminder Sent
+                                                        </span>
+                                                    )}
+                                                    {reservation.attendanceStatus && (
+                                                        <span className={`text-xs max-sm:text-[10px] px-2 max-sm:px-1.5 py-0.5 rounded flex items-center ${reservation.attendanceStatus === 'show'
+                                                            ? 'bg-green-50 text-green-700'
+                                                            : 'bg-red-50 text-red-700'
+                                                            }`}>
+                                                            <Check className="w-3 h-3 max-sm:w-2.5 max-sm:h-2.5 mr-1" />
+                                                            {reservation.attendanceStatus === 'show' ? 'Customer Showed' : 'Customer No-Show'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Action Buttons */}
+                                            <div className="flex justify-between border-t pt-2">
                                                 <div className="flex sm:flex-row max-sm:flex-col max-sm:items-start gap-1.5">
-                                                    <div className="max-sm:mb-1 max-sm:text-[10px] text-gray-500">Attendance:</div>
+                                                    <div className="max-sm:mb-1 max-sm:text-[10px] text-gray-500">Update Attendance:</div>
                                                     <div className="flex gap-1.5">
                                                         <Button
                                                             size="sm"
@@ -1209,86 +1306,104 @@ export default function ReservationAdminPage() {
                                                     </div>
                                                 </div>
                                             </div>
-
-                                            <div className="flex sm:flex-row max-sm:flex-col max-sm:items-stretch justify-end gap-2 mt-2 border-t pt-2">
-                                                {/* <Button
-                                                    size="sm"
-                                                    onClick={() => handleSendSMS(reservation)}
-                                                    variant="outline"
-                                                    className="h-8 max-sm:h-7 px-2 max-sm:px-1.5 text-xs max-sm:text-[10px] bg-white"
-                                                >
-                                                    <MessageSquare className="w-3.5 h-3.5 max-sm:w-3 max-sm:h-3 mr-1" />
-                                                    SMS
-                                                </Button> */}
-                                                <Button
-                                                    size="sm"
-                                                    onClick={() => handleSendReminder(reservation)}
-                                                    disabled={!canSendReminder(reservation)}
-                                                    variant="outline"
-                                                    className="h-8 max-sm:h-7 px-2 max-sm:px-1.5 text-xs max-sm:text-[10px] bg-white"
-                                                >
-                                                    <Mail className="w-3.5 h-3.5 max-sm:w-3 max-sm:h-3 mr-1" />
-                                                    Email
-                                                </Button>
-
-                                            </div>
                                         </div>
 
-                                        {/* Desktop view - remains unchanged */}
+                                        {/* Desktop view - Enhanced with complete information */}
                                         <div className="hidden md:block flex-1 w-full">
-                                            <div className="flex flex-wrap items-center mb-1">
-                                                <h3 className="font-semibold text-gray-900 mr-2">{reservation.name}</h3>
+                                            <div className="flex flex-wrap items-center mb-2">
+                                                <h3 className="font-semibold text-gray-900 mr-3 text-lg">{reservation.name}</h3>
                                                 <Badge
-                                                    variant={reservation.status === 'Confirmed' ? 'success' : 'warning'}
+                                                    variant={isCancelled ? 'destructive' : reservation.status === 'confirmed' ? 'success' : 'warning'}
                                                     className="mr-2 mb-1"
                                                 >
                                                     {reservation.status}
                                                 </Badge>
+                                                {reservation.attendanceStatus && (
+                                                    <Badge
+                                                        variant={reservation.attendanceStatus === 'show' ? 'success' : 'destructive'}
+                                                        className="mr-2 mb-1"
+                                                    >
+                                                        {reservation.attendanceStatus === 'show' ? 'Showed' : 'No-Show'}
+                                                    </Badge>
+                                                )}
                                                 {reservation.reminderSent && reservation.reminderSentAt && (
                                                     <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded mb-1">
                                                         Email sent {formatTimeAgo(reservation.reminderSentAt.toDate())}
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 mb-2">
-                                                <span className="flex items-center">
-                                                    <Users className="w-3.5 h-3.5 mr-1 text-gray-400" />
-                                                    {reservation.guests} {reservation.guests === 1 ? 'guest' : 'guests'}
+
+                                            {/* Main reservation details */}
+                                            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600 mb-3">
+                                                <span className="flex items-center font-medium">
+                                                    <Calendar className="w-4 h-4 mr-2 text-blue-500" />
+                                                    <span className="text-gray-900">{formatDate(reservation.date)}</span>
                                                 </span>
                                                 <span className="flex items-center">
-                                                    <svg className="w-3.5 h-3.5 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <Clock className="w-4 h-4 mr-2 text-gray-400" />
+                                                    {reservation.time}
+                                                </span>
+                                                <span className="flex items-center">
+                                                    <Users className="w-4 h-4 mr-2 text-gray-400" />
+                                                    {reservation.guests} {reservation.guests === 1 ? 'guest' : 'guests'}
+                                                </span>
+                                            </div>
+
+                                            {/* Contact information */}
+                                            <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-600 mb-3">
+                                                <span className="flex items-center">
+                                                    <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                                     </svg>
                                                     {reservation.phone}
                                                 </span>
                                                 <span className="flex items-center">
-                                                    <svg className="w-3.5 h-3.5 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                                                     </svg>
                                                     {reservation.email}
                                                 </span>
-                                                {reservation.reminderSent && reservation.reminderSentAt && (
+                                            </div>
+
+                                            {/* Booking and cancellation details */}
+                                            <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500 mb-3">
+                                                {reservation.createdAt && (
                                                     <span className="flex items-center">
-                                                        <Mail className="w-3.5 h-3.5 mr-1 text-green-500" />
-                                                        <span className="text-green-600">
-                                                            Reminder: {reservation.reminderSentAt.toDate().toLocaleString()}
-                                                        </span>
+                                                        <CalendarIcon className="w-3.5 h-3.5 mr-1 text-gray-400" />
+                                                        Booked: {formatDateTime(reservation.createdAt)}
+                                                    </span>
+                                                )}
+                                                {isCancelled && reservation.cancelledAt && (
+                                                    <span className="flex items-center text-red-600">
+                                                        <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                        Cancelled: {formatDateTime(reservation.cancelledAt)}
+                                                    </span>
+                                                )}
+                                                {reservation.reminderSent && reservation.reminderSentAt && (
+                                                    <span className="flex items-center text-green-600">
+                                                        <Mail className="w-3.5 h-3.5 mr-1" />
+                                                        Reminder: {formatDateTime(reservation.reminderSentAt)}
                                                     </span>
                                                 )}
                                             </div>
+
                                             {reservation.comments && (
-                                                <div className="text-sm text-gray-700 bg-gray-50 p-2 rounded-md mb-2">
+                                                <div className="text-sm text-gray-700 bg-yellow-50 border border-yellow-200 p-3 rounded-md mb-3">
                                                     <p className="line-clamp-3 hover:line-clamp-none transition-all duration-200 cursor-pointer">
-                                                        <span className="font-medium text-xs text-gray-500 mr-1">Notes:</span>
+                                                        <span className="font-medium text-xs text-yellow-800 mr-2">Customer Notes:</span>
                                                         {reservation.comments}
                                                     </p>
                                                 </div>
                                             )}
                                         </div>
-                                        <div className="hidden md:flex md:w-auto flex-wrap items-center gap-2 mt-3 md:mt-0 md:ml-4 border-t md:border-t-0 pt-3 md:pt-0">
-                                            <div className="flex flex-col mr-2">
-                                                <span className="text-xs text-gray-500 mb-1">Attendance:</span>
-                                                <div className="flex space-x-1">
+
+                                        {/* Desktop Actions */}
+                                        <div className="hidden md:flex md:w-auto flex-col items-end gap-3 mt-3 md:mt-0 md:ml-6 border-t md:border-t-0 pt-3 md:pt-0">
+                                            <div className="flex flex-col items-end">
+                                                <span className="text-xs text-gray-500 mb-2">Update Attendance Status:</span>
+                                                <div className="flex space-x-2">
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
@@ -1300,7 +1415,8 @@ export default function ReservationAdminPage() {
                                                         )}
                                                         onClick={() => handleAttendanceUpdate(reservation.id, 'show')}
                                                     >
-                                                        Show
+                                                        <Check className="w-4 h-4 mr-1" />
+                                                        Showed
                                                     </Button>
                                                     <Button
                                                         size="sm"
@@ -1313,31 +1429,12 @@ export default function ReservationAdminPage() {
                                                         )}
                                                         onClick={() => handleAttendanceUpdate(reservation.id, 'no-show')}
                                                     >
+                                                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
                                                         No Show
                                                     </Button>
                                                 </div>
-                                            </div>
-                                            <div className="flex flex-wrap gap-2 mt-2 md:mt-0">
-                                                <Button
-                                                    size="sm"
-                                                    onClick={() => handleSendReminder(reservation)}
-                                                    disabled={!canSendReminder(reservation)}
-                                                    variant="outline"
-                                                    className="bg-white hover:bg-gray-50"
-                                                >
-                                                    <Mail className="w-4 h-4 mr-1" />
-                                                    <span className="inline">Email</span>
-                                                </Button>
-                                                {/* <Button
-                                                    size="sm"
-                                                    onClick={() => handleSendSMS(reservation)}
-                                                    variant="outline"
-                                                    className="bg-white hover:bg-gray-50"
-                                                >
-                                                    <MessageSquare className="w-4 h-4 mr-1" />
-                                                    <span className="inline">SMS</span>
-                                                </Button> */}
-
                                             </div>
                                         </div>
                                     </div>
