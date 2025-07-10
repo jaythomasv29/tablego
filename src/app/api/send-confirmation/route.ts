@@ -55,13 +55,36 @@ export async function POST(request: Request) {
             createdAt: new Date()
         });
 
-        const readableDate = new Date(dateToStore + 'T12:00:00').toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            timeZone: 'America/Los_Angeles'
-        });
+        // Improved date formatting for email - use multiple fallbacks
+        let readableDate = '';
+        try {
+            if (dateToStore && typeof dateToStore === 'string') {
+                // If it's a YYYY-MM-DD string, create a proper date
+                const dateForEmail = new Date(dateToStore + 'T12:00:00');
+                readableDate = dateForEmail.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    timeZone: 'America/Los_Angeles'
+                });
+            } else if (formData.date instanceof Date) {
+                // If the original date is a Date object, use it directly
+                readableDate = formData.date.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    timeZone: 'America/Los_Angeles'
+                });
+            } else {
+                // Fallback to formatted date
+                readableDate = formattedDate || 'Date not available';
+            }
+        } catch (error) {
+            console.error('Error formatting date for email:', error);
+            readableDate = formattedDate || 'Date not available';
+        }
 
         // Test transporter connection
         try {
