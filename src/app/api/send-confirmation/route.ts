@@ -39,10 +39,25 @@ export async function POST(request: Request) {
     try {
         const { formData } = await request.json();
 
-        // Convert the Date object to a consistent date string in PST
-        const dateToStore = formData.date instanceof Date
-            ? formData.date.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' }) // YYYY-MM-DD format
-            : formData.date; // Already a string
+        // Improved date handling - extract just the date part
+        let dateToStore = '';
+        let originalDate = null;
+
+        if (formData.date instanceof Date) {
+            originalDate = formData.date;
+            dateToStore = formData.date.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' }); // YYYY-MM-DD format
+        } else if (typeof formData.date === 'string') {
+            // If it's an ISO string, extract just the date part
+            if (formData.date.includes('T')) {
+                // It's a full ISO timestamp, extract date part
+                originalDate = new Date(formData.date);
+                dateToStore = originalDate.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+            } else {
+                // It's already in YYYY-MM-DD format
+                dateToStore = formData.date;
+                originalDate = new Date(formData.date + 'T12:00:00');
+            }
+        }
 
         // Format the date before sending it back
         const formattedDate = formatDisplayDate(dateToStore);
@@ -55,11 +70,11 @@ export async function POST(request: Request) {
             createdAt: new Date()
         });
 
-        // Improved date formatting for email - use multiple fallbacks
+        // Improved date formatting for email - use the clean date string
         let readableDate = '';
         try {
-            if (dateToStore && typeof dateToStore === 'string') {
-                // If it's a YYYY-MM-DD string, create a proper date
+            if (dateToStore && /^\d{4}-\d{2}-\d{2}$/.test(dateToStore)) {
+                // We have a clean YYYY-MM-DD string, create a proper date at noon
                 const dateForEmail = new Date(dateToStore + 'T12:00:00');
                 readableDate = dateForEmail.toLocaleDateString('en-US', {
                     weekday: 'long',
@@ -68,9 +83,9 @@ export async function POST(request: Request) {
                     day: 'numeric',
                     timeZone: 'America/Los_Angeles'
                 });
-            } else if (formData.date instanceof Date) {
-                // If the original date is a Date object, use it directly
-                readableDate = formData.date.toLocaleDateString('en-US', {
+            } else if (originalDate) {
+                // Use the original date object
+                readableDate = originalDate.toLocaleDateString('en-US', {
                     weekday: 'long',
                     year: 'numeric',
                     month: 'long',
@@ -83,8 +98,17 @@ export async function POST(request: Request) {
             }
         } catch (error) {
             console.error('Error formatting date for email:', error);
+            console.error('dateToStore:', dateToStore);
+            console.error('originalDate:', originalDate);
             readableDate = formattedDate || 'Date not available';
         }
+
+        console.log('Date processing debug:', {
+            originalFormData: formData.date,
+            dateToStore,
+            readableDate,
+            formattedDate
+        });
 
         // Test transporter connection
         try {
@@ -304,7 +328,7 @@ export async function POST(request: Request) {
             reservationId: reservationRef.id,
             reservationDetails: {
                 ...formData,
-                date: dateToStore, // Send back the original date string
+                date: dateToStore, // Send back the clean date string
                 formattedDate, // Also send the formatted date
                 reservationId: reservationRef.id
             }
