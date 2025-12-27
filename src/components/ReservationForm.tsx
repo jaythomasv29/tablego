@@ -25,6 +25,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import Banner from './Banner';
 import { TypeAnimation } from 'react-type-animation';
+import { useTimezone, TIMEZONE_OPTIONS } from '@/contexts/TimezoneContext';
 
 // Lazy load components that aren't needed immediately
 const AdditionalInfo = dynamic(() => import('./AdditionalInfo'));
@@ -137,19 +138,40 @@ interface MenuItem {
 //   }
 // };
 
-const formatDisplayDate2 = (isoString: string) => {
-  if (!isoString) return '';
+const formatDisplayDate2 = (dateString: string) => {
+  if (!dateString) return '';
 
-  const date = new Date(isoString);
+  // If it's a YYYY-MM-DD string, parse it directly to avoid timezone issues
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    const [year, month, day] = dateString.split('-').map(Number);
+    // Create date in UTC at noon to avoid any date shifting
+    const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: 'UTC'
+    });
+  }
 
+  // For other formats, try to parse and display
+  const date = new Date(dateString);
   return date.toLocaleDateString('en-US', {
-    weekday: 'long',  // Example: "Wednesday"
-    month: 'long',    // Example: "February"
-    day: 'numeric',   // Example: "19"
-    year: 'numeric'   // Example: "2025"
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
   });
 };
 export default function ReservationForm() {
+  const { timezone, loading: timezoneLoading } = useTimezone();
+  
+  // Get timezone label for display
+  const getTimezoneLabel = (value: string) => {
+    const option = TIMEZONE_OPTIONS.find(opt => opt.value === value);
+    return option ? option.label : value;
+  };
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<ReservationData>(initialData);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -157,15 +179,32 @@ export default function ReservationForm() {
   const [reservationDetails, setReservationDetails] = useState<ReservationDetails | null>(null);
   const [businessHours, setBusinessHours] = useState<BusinessHours | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<Date>(() => {
-    const pstToday = getPSTDate();
-    pstToday.setHours(12, 0, 0, 0);
-    return pstToday;
-  });
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   // usePageTracking();
   const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlot[]>([]);
   const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  
+  // Helper function to get current date in restaurant's timezone
+  const getRestaurantDate = (date?: Date): Date => {
+    const targetDate = date || new Date();
+    return new Date(
+      targetDate.toLocaleString("en-US", {
+        timeZone: timezone,
+      })
+    );
+  };
+  
+  // Initialize selectedDate once timezone is loaded
+  useEffect(() => {
+    if (!timezoneLoading && !selectedDate) {
+      const restaurantToday = getRestaurantDate();
+      restaurantToday.setHours(12, 0, 0, 0);
+      setSelectedDate(restaurantToday);
+      setFormData(prev => ({ ...prev, date: restaurantToday }));
+    }
+  }, [timezoneLoading, timezone]);
+  
   //  (businessHours)
   //  ('Generating time slots for:', selectedDate);
   // etc...
@@ -258,16 +297,16 @@ export default function ReservationForm() {
 
   // 1. Add helper function to check if we should show next day
   const shouldShowNextDay = (hours: BusinessHours): boolean => {
-    const pstNow = getPSTDate();
-    const currentDay = pstNow.toLocaleDateString('en-US', {
+    const restaurantNow = getRestaurantDate();
+    const currentDay = restaurantNow.toLocaleDateString('en-US', {
       weekday: 'long',
-      timeZone: "America/Los_Angeles"
+      timeZone: timezone
     }).toLowerCase();
     const currentHours = hours[currentDay];
 
     if (!currentHours) return true;
 
-    const currentMinutes = pstNow.getHours() * 60 + pstNow.getMinutes();
+    const currentMinutes = restaurantNow.getHours() * 60 + restaurantNow.getMinutes();
 
     // Convert closing time to minutes
     const timeToMinutes = (timeStr: string): number => {
@@ -312,16 +351,16 @@ export default function ReservationForm() {
   const generateTimeSlots = (date: Date, hours: BusinessHours): TimeSlot[] => {
     const dayOfWeek = date.toLocaleDateString('en-US', {
       weekday: 'long',
-      timeZone: "America/Los_Angeles"
+      timeZone: timezone
     }).toLowerCase();
 
     const dayHours = hours[dayOfWeek];
     if (!dayHours) return [];
 
     const slots: TimeSlot[] = [];
-    const pstNow = getPSTDate();
-    const isToday = date.toDateString() === pstNow.toDateString();
-    const currentMinutes = isToday ? pstNow.getHours() * 60 + pstNow.getMinutes() : 0;
+    const restaurantNow = getRestaurantDate();
+    const isToday = date.toDateString() === restaurantNow.toDateString();
+    const currentMinutes = isToday ? restaurantNow.getHours() * 60 + restaurantNow.getMinutes() : 0;
 
     // Helper function to convert time string to minutes (24-hour format)
     const timeToMinutes = (timeStr: string): number => {
@@ -526,12 +565,31 @@ export default function ReservationForm() {
 
     setIsSubmitting(true);
     try {
+      // Convert the date to YYYY-MM-DD string
+      // Use local timezone because the user picked the date visually on their calendar
+      // The date picker shows dates in local time, so we extract the local date they selected
+      let dateToSend: string;
+      if (formData.date instanceof Date) {
+        // Extract the local date components (what the user visually selected)
+        const year = formData.date.getFullYear();
+        const month = String(formData.date.getMonth() + 1).padStart(2, '0');
+        const day = String(formData.date.getDate()).padStart(2, '0');
+        dateToSend = `${year}-${month}-${day}`;
+      } else {
+        dateToSend = formData.date;
+      }
+      
+      const submissionData = {
+        ...formData,
+        date: dateToSend // Send as YYYY-MM-DD string (the calendar date user selected)
+      };
+      
       const response = await fetch('/api/send-confirmation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ formData }),
+        body: JSON.stringify({ formData: submissionData, timezone }),
       });
 
       const data = await response.json();
@@ -618,7 +676,7 @@ export default function ReservationForm() {
     fetchMenuItems();
   }, []);
 
-  if (isLoading) return (
+  if (isLoading || timezoneLoading || !selectedDate) return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
       <div className="bg-white rounded-lg shadow-xl p-8 flex flex-col items-center space-y-4">
         <div className="w-12 h-12 border-4 border-gray-200 border-t-indigo-600 rounded-full animate-spin"></div>
@@ -797,8 +855,12 @@ export default function ReservationForm() {
                             </button>
                           </div>
                         </div>
+                        {/* Timezone indicator */}
+                        <p className="text-white/70 text-xs mt-4">
+                          All times shown in {getTimezoneLabel(timezone)}
+                        </p>
                         <Link href="/menu">
-                          <h3 className="text-white hover:text-gray-200 mt-6 no-underline transition-colors text-sm">
+                          <h3 className="text-white hover:text-gray-200 mt-4 no-underline transition-colors text-sm">
                             Browse Full Menu
                           </h3>
                         </Link>
@@ -893,11 +955,5 @@ export default function ReservationForm() {
   );
 }
 
-const getPSTDate = (date?: Date): Date => {
-  const targetDate = date || new Date();
-  return new Date(
-    targetDate.toLocaleString("en-US", {
-      timeZone: "America/Los_Angeles",
-    })
-  );
-};
+// getPSTDate function has been replaced by getRestaurantDate in the component
+// which uses the timezone from the TimezoneContext

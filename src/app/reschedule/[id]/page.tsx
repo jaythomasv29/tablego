@@ -205,25 +205,59 @@ const isSamePSTDay = (date1: string, date2: string) => {
 };
 
 // Add this at the top with other helper functions
-const formatLADate = (date: Date) => {
-    return date.toLocaleDateString('en-US', {
+const formatLADate = (date: Date | string) => {
+    // If it's a YYYY-MM-DD string, parse it directly to avoid timezone issues
+    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        const [year, month, day] = date.split('-').map(Number);
+        const d = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+        return d.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: 'UTC'
+        });
+    }
+    
+    if (date instanceof Date) {
+        return date.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    }
+    
+    return new Date(date as string).toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
-        day: 'numeric',
-        timeZone: 'America/Los_Angeles'
+        day: 'numeric'
     });
 };
 
 // Add this helper function to format the date and time
 const formatDateTime = (date: string, time: string) => {
-    const pstDate = new Date(date).toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        timeZone: 'America/Los_Angeles'
-    });
+    // If it's a YYYY-MM-DD string, parse it directly to avoid timezone issues
+    let pstDate: string;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        const [year, month, day] = date.split('-').map(Number);
+        const d = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+        pstDate = d.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: 'UTC'
+        });
+    } else {
+        pstDate = new Date(date).toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    }
     return { pstDate, time };
 };
 

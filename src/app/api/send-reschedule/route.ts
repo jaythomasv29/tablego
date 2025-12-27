@@ -11,15 +11,31 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-export async function POST(request: Request) {
-    try {
-        const { email, name, date, time, guests, reservationId } = await request.json();
-        const readableDate = new Date(date).toLocaleDateString('en-US', {
+// Helper function to format date without timezone issues
+const formatDateForEmail = (dateString: string): string => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        const [year, month, day] = dateString.split('-').map(Number);
+        const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+        return date.toLocaleDateString('en-US', {
             weekday: 'long',
             year: 'numeric',
             month: 'long',
-            day: 'numeric'
+            day: 'numeric',
+            timeZone: 'UTC'
         });
+    }
+    return new Date(dateString).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+};
+
+export async function POST(request: Request) {
+    try {
+        const { email, name, date, time, guests, reservationId } = await request.json();
+        const readableDate = formatDateForEmail(date);
 
         await transporter.sendMail({
             from: process.env.EMAIL_USER,

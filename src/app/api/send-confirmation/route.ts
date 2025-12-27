@@ -37,27 +37,36 @@ const formatDisplayDate = (dateString: string) => {
 
 export async function POST(request: Request) {
     try {
-        const { formData } = await request.json();
+        const { formData, timezone = 'America/Los_Angeles' } = await request.json();
 
-        // Improved date handling - extract just the date part
+        // Improved date handling - extract just the date part using the restaurant's timezone
         let dateToStore = '';
         let originalDate = null;
 
-        if (formData.date instanceof Date) {
-            originalDate = formData.date;
-            dateToStore = formData.date.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' }); // YYYY-MM-DD format
-        } else if (typeof formData.date === 'string') {
-            // If it's an ISO string, extract just the date part
-            if (formData.date.includes('T')) {
-                // It's a full ISO timestamp, extract date part
-                originalDate = new Date(formData.date);
-                dateToStore = originalDate.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-            } else {
-                // It's already in YYYY-MM-DD format
+        if (typeof formData.date === 'string') {
+            // If it's already in YYYY-MM-DD format, use it directly
+            if (/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) {
                 dateToStore = formData.date;
                 originalDate = new Date(formData.date + 'T12:00:00');
+            } else if (formData.date.includes('T')) {
+                // It's a full ISO timestamp - convert to restaurant timezone
+                originalDate = new Date(formData.date);
+                dateToStore = originalDate.toLocaleDateString('en-CA', { timeZone: timezone });
+            } else {
+                // Other string format
+                originalDate = new Date(formData.date);
+                dateToStore = originalDate.toLocaleDateString('en-CA', { timeZone: timezone });
             }
+        } else if (formData.date instanceof Date) {
+            originalDate = formData.date;
+            dateToStore = formData.date.toLocaleDateString('en-CA', { timeZone: timezone });
         }
+        
+        console.log('Date processing:', {
+            input: formData.date,
+            timezone,
+            dateToStore
+        });
 
         // Format the date before sending it back
         const formattedDate = formatDisplayDate(dateToStore);
@@ -70,7 +79,7 @@ export async function POST(request: Request) {
             createdAt: new Date()
         });
 
-        // Improved date formatting for email - use the clean date string
+        // Improved date formatting for email - use the clean date string and restaurant's timezone
         let readableDate = '';
         try {
             if (dateToStore && /^\d{4}-\d{2}-\d{2}$/.test(dateToStore)) {
@@ -81,7 +90,7 @@ export async function POST(request: Request) {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric',
-                    timeZone: 'America/Los_Angeles'
+                    timeZone: timezone
                 });
             } else if (originalDate) {
                 // Use the original date object
@@ -90,7 +99,7 @@ export async function POST(request: Request) {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric',
-                    timeZone: 'America/Los_Angeles'
+                    timeZone: timezone
                 });
             } else {
                 // Fallback to formatted date

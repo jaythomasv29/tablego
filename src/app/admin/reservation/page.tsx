@@ -16,6 +16,7 @@ import ReminderModal from '@/components/ReminderModal';
 import { formatReadableDatePST } from '@/utils/dateUtils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useTimezone, TIMEZONE_OPTIONS } from '@/contexts/TimezoneContext';
 
 export interface Reservation {
     id: string;
@@ -54,15 +55,18 @@ const generateTimeSlots = () => {
 };
 
 // Add this helper function at the top of the file
-const formatDate = (date: Timestamp | string | Date) => {
-    // If it's already a YYYY-MM-DD string, create a date at noon PST to avoid timezone shifts
+const formatDate = (date: Timestamp | string | Date, timezone: string = 'America/Los_Angeles') => {
+    // If it's already a YYYY-MM-DD string, parse it directly without timezone conversion
+    // Since this represents a calendar date (not a moment in time), we display it as-is
     if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        const d = new Date(date + 'T12:00:00');
+        const [year, month, day] = date.split('-').map(Number);
+        // Create a date object and format it - using UTC to avoid any timezone shifts
+        const d = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
         return d.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
-            timeZone: 'America/Los_Angeles'
+            timeZone: 'UTC' // Use UTC since we constructed the date in UTC
         });
     }
 
@@ -72,7 +76,7 @@ const formatDate = (date: Timestamp | string | Date) => {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
-            timeZone: 'America/Los_Angeles'
+            timeZone: timezone
         });
     }
 
@@ -82,7 +86,7 @@ const formatDate = (date: Timestamp | string | Date) => {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
-            timeZone: 'America/Los_Angeles'
+            timeZone: timezone
         });
     }
 
@@ -91,7 +95,7 @@ const formatDate = (date: Timestamp | string | Date) => {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
-        timeZone: 'America/Los_Angeles'
+        timeZone: timezone
     });
 };
 
@@ -259,7 +263,7 @@ const getMonthName = (date: Timestamp | string) => {
 };
 
 // Add this helper function at the top of the file
-const getLocalDateString = (date: Date | string | Timestamp, timeZone = 'America/Los_Angeles') => {
+const getLocalDateStringHelper = (date: Date | string | Timestamp, timeZone: string) => {
     // If it's already a YYYY-MM-DD string, return it directly
     if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
         return date;
@@ -286,11 +290,13 @@ const getLocalDateString = (date: Date | string | Timestamp, timeZone = 'America
 };
 
 export default function ReservationAdminPage() {
-    const [viewMode, setViewMode] = useState<'past' | 'today' | 'future' | 'chart'>('today');
+    const { timezone, loading: timezoneLoading } = useTimezone();
+    const [viewMode, setViewMode] = useState<'past' | 'yesterday' | 'today' | 'tomorrow' | 'future' | 'chart'>('today');
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [currentTimeDisplay, setCurrentTimeDisplay] = useState<string>('');
     const timeSlots = generateTimeSlots();
     const [selectedReservations, setSelectedReservations] = useState<Set<string>>(new Set());
     const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -300,6 +306,12 @@ export default function ReservationAdminPage() {
     const [modalError, setModalError] = useState<string | null>(null);
     const [sentEmailCount, setSentEmailCount] = useState(0);
     const [totalEmailCount, setTotalEmailCount] = useState(0);
+    
+    // Get timezone label for display
+    const getTimezoneLabel = (value: string) => {
+        const option = TIMEZONE_OPTIONS.find(opt => opt.value === value);
+        return option ? option.label : value;
+    };
 
     // Add handleAttendanceUpdate function inside the component
     const handleAttendanceUpdate = async (reservationId: string, status: 'show' | 'no-show' | 'default') => {
@@ -326,12 +338,26 @@ export default function ReservationAdminPage() {
     };
 
     useEffect(() => {
+        // Wait for timezone to be loaded
+        if (timezoneLoading) return;
+        
         const fetchReservations = async () => {
             setLoading(true);
             try {
-                // Get today's date in PST and format as YYYY-MM-DD
-                const todayLocal = getLocalDateString(new Date());
-
+                // Get today's date in restaurant's timezone and format as YYYY-MM-DD
+                const now = new Date();
+                const todayLocal = now.toLocaleDateString('en-CA', { timeZone: timezone });
+                
+                // Calculate yesterday and tomorrow by parsing today's date string
+                // This ensures we're working in the restaurant's timezone correctly
+                const [year, month, day] = todayLocal.split('-').map(Number);
+                
+                const yesterdayDate = new Date(year, month - 1, day - 1);
+                const yesterdayLocal = `${yesterdayDate.getFullYear()}-${String(yesterdayDate.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDate.getDate()).padStart(2, '0')}`;
+                
+                const tomorrowDate = new Date(year, month - 1, day + 1);
+                const tomorrowLocal = `${tomorrowDate.getFullYear()}-${String(tomorrowDate.getMonth() + 1).padStart(2, '0')}-${String(tomorrowDate.getDate()).padStart(2, '0')}`;
+                
                 const reservationsRef = collection(db, 'reservations');
                 const q = query(reservationsRef);
                 const querySnapshot = await getDocs(q);
@@ -349,7 +375,7 @@ export default function ReservationAdminPage() {
                 switch (viewMode) {
                     case 'today':
                         filteredReservations = fetchedReservations.filter(res => {
-                            const reservationDateLocal = getLocalDateString(res.date);
+                            const reservationDateLocal = getLocalDateStringHelper(res.date, timezone);
                             return reservationDateLocal === todayLocal;
                         }).sort((a, b) => {
                             const timeA = convertTimeToMinutes(a.time);
@@ -358,18 +384,42 @@ export default function ReservationAdminPage() {
                         });
                         break;
 
-                    case 'past':
+                    case 'yesterday':
                         filteredReservations = fetchedReservations.filter(res => {
-                            const reservationDateLocal = getLocalDateString(res.date);
-                            return reservationDateLocal < todayLocal;
-                        }).sort((a, b) => getLocalDateString(b.date).localeCompare(getLocalDateString(a.date)));
+                            const reservationDateLocal = getLocalDateStringHelper(res.date, timezone);
+                            return reservationDateLocal === yesterdayLocal;
+                        }).sort((a, b) => {
+                            const timeA = convertTimeToMinutes(a.time);
+                            const timeB = convertTimeToMinutes(b.time);
+                            return timeA - timeB;
+                        });
+                        break;
+
+                    case 'tomorrow':
+                        filteredReservations = fetchedReservations.filter(res => {
+                            const reservationDateLocal = getLocalDateStringHelper(res.date, timezone);
+                            return reservationDateLocal === tomorrowLocal;
+                        }).sort((a, b) => {
+                            const timeA = convertTimeToMinutes(a.time);
+                            const timeB = convertTimeToMinutes(b.time);
+                            return timeA - timeB;
+                        });
+                        break;
+
+                    case 'past':
+                        // Past = all dates before yesterday
+                        filteredReservations = fetchedReservations.filter(res => {
+                            const reservationDateLocal = getLocalDateStringHelper(res.date, timezone);
+                            return reservationDateLocal < yesterdayLocal;
+                        }).sort((a, b) => getLocalDateStringHelper(b.date, timezone).localeCompare(getLocalDateStringHelper(a.date, timezone)));
                         break;
 
                     case 'future':
+                        // Future = all dates after tomorrow
                         filteredReservations = fetchedReservations.filter(res => {
-                            const reservationDateLocal = getLocalDateString(res.date);
-                            return reservationDateLocal > todayLocal;
-                        }).sort((a, b) => getLocalDateString(a.date).localeCompare(getLocalDateString(b.date)));
+                            const reservationDateLocal = getLocalDateStringHelper(res.date, timezone);
+                            return reservationDateLocal > tomorrowLocal;
+                        }).sort((a, b) => getLocalDateStringHelper(a.date, timezone).localeCompare(getLocalDateStringHelper(b.date, timezone)));
                         break;
                 }
 
@@ -382,15 +432,36 @@ export default function ReservationAdminPage() {
         };
 
         fetchReservations();
-    }, [viewMode]);
+    }, [viewMode, timezone, timezoneLoading]);
 
     useEffect(() => {
-        const timer = setInterval(() => {
-            setCurrentTime(new Date());
-        }, 1000);
+        const updateTime = () => {
+            const now = new Date();
+            setCurrentTime(now);
+            
+            // Format time for display in restaurant's timezone
+            const timeString = now.toLocaleTimeString('en-US', {
+                timeZone: timezone,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true,
+            });
+            const dateString = now.toLocaleDateString('en-US', {
+                timeZone: timezone,
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+            });
+            setCurrentTimeDisplay(`${dateString} at ${timeString}`);
+        };
+        
+        updateTime();
+        const timer = setInterval(updateTime, 1000);
 
         return () => clearInterval(timer);
-    }, []);
+    }, [timezone]);
 
     const convertTimeToMinutes = (time: string): number => {
         const [rawTime, period] = time.split(' ');
@@ -406,7 +477,10 @@ export default function ReservationAdminPage() {
     };
 
     const isReservationPassed = (reservationTime: string) => {
+        // Get current time in restaurant's timezone
         const now = new Date();
+        const restaurantNow = new Date(now.toLocaleString("en-US", { timeZone: timezone }));
+        
         const [time, period] = reservationTime.split(' ');
         const [hours, minutes] = time.split(':').map(Number);
 
@@ -417,8 +491,8 @@ export default function ReservationAdminPage() {
             reservationHours = 0;
         }
 
-        return (now.getHours() > reservationHours) ||
-            (now.getHours() === reservationHours && now.getMinutes() > minutes);
+        return (restaurantNow.getHours() > reservationHours) ||
+            (restaurantNow.getHours() === reservationHours && restaurantNow.getMinutes() > minutes);
     };
 
     // Filter reservations based on search term
@@ -621,29 +695,58 @@ export default function ReservationAdminPage() {
                     </svg>
                     Back to Dashboard
                 </Link>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-center text-gray-800">
+                <h1 className="text-2xl sm:text-3xl font-bold mb-4 text-center text-gray-800">
                     Reservation Overview
                 </h1>
 
+                {/* Current Time in Restaurant's Timezone */}
+                <div className="mb-6 flex justify-center">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-sm border border-gray-200">
+                        <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div className="text-sm">
+                            <span className="text-gray-500">Current time in </span>
+                            <span className="font-medium text-gray-700">{getTimezoneLabel(timezone)}</span>
+                            <span className="text-gray-500">: </span>
+                            <span className="font-medium text-gray-900">{currentTimeDisplay}</span>
+                        </div>
+                    </div>
+                </div>
+
                 {/* View Mode Selector */}
                 <div className="mb-6">
-                    <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
+                    <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
                         <button
-                            className={`px-4 sm:px-6 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base 
+                            className={`px-3 sm:px-5 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base 
                                 ${viewMode === 'past' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}
                             onClick={() => setViewMode('past')}
                         >
                             Past
                         </button>
                         <button
-                            className={`px-4 sm:px-6 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base 
+                            className={`px-3 sm:px-5 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base 
+                                ${viewMode === 'yesterday' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}
+                            onClick={() => setViewMode('yesterday')}
+                        >
+                            Yesterday
+                        </button>
+                        <button
+                            className={`px-3 sm:px-5 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base 
                                 ${viewMode === 'today' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}
                             onClick={() => setViewMode('today')}
                         >
                             Today
                         </button>
                         <button
-                            className={`px-4 sm:px-6 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base 
+                            className={`px-3 sm:px-5 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base 
+                                ${viewMode === 'tomorrow' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}
+                            onClick={() => setViewMode('tomorrow')}
+                        >
+                            Tomorrow
+                        </button>
+                        <button
+                            className={`px-3 sm:px-5 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base 
                                 ${viewMode === 'future' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}
                             onClick={() => setViewMode('future')}
                         >
@@ -684,23 +787,6 @@ export default function ReservationAdminPage() {
                     </div>
                 )}
 
-                {/* Clock for Today's View */}
-                {viewMode === 'today' && (
-                    <div className="mb-6 text-center">
-                        <div className="inline-flex items-center bg-white px-4 py-2 rounded-lg shadow-sm">
-                            <svg className="w-5 h-5 text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span className="text-lg font-semibold text-gray-700" suppressHydrationWarning>
-                                {currentTime.toLocaleTimeString('en-US', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    hour12: true
-                                })}
-                            </span>
-                        </div>
-                    </div>
-                )}
 
                 {/* Add these buttons after the view mode selector */}
                 <div className="flex justify-between items-center mb-4">
@@ -1047,7 +1133,7 @@ export default function ReservationAdminPage() {
                                                                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 mb-2">
                                                                     <span className="flex items-center">
                                                                         <Calendar className="w-3.5 h-3.5 mr-1 text-gray-400" />
-                                                                        {formatReadableDatePST(reservation.date)}
+                                                                        {formatReadableDatePST(reservation.date, timezone)}
                                                                     </span>
                                                                     <span className="flex items-center">
                                                                         <Clock className="w-3.5 h-3.5 mr-1 text-gray-400" />
@@ -1174,7 +1260,7 @@ export default function ReservationAdminPage() {
                                                     <div className="flex flex-wrap items-center mt-1 text-xs max-sm:text-[10px] text-gray-600">
                                                         <span className="flex items-center mr-2 mb-1">
                                                             <Calendar className="w-3.5 h-3.5 max-sm:w-3 max-sm:h-3 mr-1 text-gray-400" />
-                                                            {formatDate(reservation.date)}
+                                                            {formatDate(reservation.date, timezone)}
                                                         </span>
                                                         <span className="flex items-center mr-2 mb-1">
                                                             <Clock className="w-3.5 h-3.5 max-sm:w-3 max-sm:h-3 mr-1 text-gray-400" />
@@ -1303,6 +1389,18 @@ export default function ReservationAdminPage() {
                                                         >
                                                             No-show
                                                         </Button>
+                                                        {viewMode === 'tomorrow' && (
+                                                            <Button
+                                                                size="sm"
+                                                                onClick={() => handleSendReminder(reservation)}
+                                                                disabled={!canSendReminder(reservation)}
+                                                                variant="outline"
+                                                                className="h-7 max-sm:h-6 text-xs max-sm:text-[10px] max-sm:px-1 bg-white border-gray-200"
+                                                            >
+                                                                <Mail className="w-3.5 h-3.5 max-sm:w-3 max-sm:h-3 mr-1" />
+                                                                Email
+                                                            </Button>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -1337,7 +1435,7 @@ export default function ReservationAdminPage() {
                                             <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600 mb-3">
                                                 <span className="flex items-center font-medium">
                                                     <Calendar className="w-4 h-4 mr-2 text-blue-500" />
-                                                    <span className="text-gray-900">{formatDate(reservation.date)}</span>
+                                                    <span className="text-gray-900">{formatDate(reservation.date, timezone)}</span>
                                                 </span>
                                                 <span className="flex items-center">
                                                     <Clock className="w-4 h-4 mr-2 text-gray-400" />
@@ -1402,7 +1500,7 @@ export default function ReservationAdminPage() {
                                         {/* Desktop Actions */}
                                         <div className="hidden md:flex md:w-auto flex-col items-end gap-3 mt-3 md:mt-0 md:ml-6 border-t md:border-t-0 pt-3 md:pt-0">
                                             <div className="flex flex-col items-end">
-                                                <span className="text-xs text-gray-500 mb-2">Update Attendance Status:</span>
+                                                <span className="text-xs text-gray-500 mb-2">{viewMode === 'tomorrow' ? 'Actions:' : 'Update Attendance Status:'}</span>
                                                 <div className="flex space-x-2">
                                                     <Button
                                                         size="sm"
@@ -1434,6 +1532,18 @@ export default function ReservationAdminPage() {
                                                         </svg>
                                                         No Show
                                                     </Button>
+                                                    {viewMode === 'tomorrow' && (
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={() => handleSendReminder(reservation)}
+                                                            disabled={!canSendReminder(reservation)}
+                                                            variant="outline"
+                                                            className="bg-white hover:bg-gray-50"
+                                                        >
+                                                            <Mail className="w-4 h-4 mr-1" />
+                                                            <span className="inline">Email</span>
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>

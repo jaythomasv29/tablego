@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Calendar, Users, User, Mail, Phone, MessageSquare, Check, Loader2 } from 'lucide-react';
 import { ReservationData } from './ReservationForm';
 import PolicyModal from './PolicyModal';
+import { useTimezone, TIMEZONE_OPTIONS } from '@/contexts/TimezoneContext';
 
 interface ConfirmationProps {
   formData: ReservationData;
@@ -12,8 +13,34 @@ interface ConfirmationProps {
   isValid: boolean;
 }
 
+// Format the date the user selected (the calendar date they clicked)
+const formatSelectedDate = (date: Date): string => {
+  // Extract local date components (what the user visually selected on the calendar)
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const day = date.getDate();
+  
+  // Create a UTC date to format without timezone shifts
+  const utcDate = new Date(Date.UTC(year, month, day, 12, 0, 0));
+  
+  return utcDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'UTC'
+  });
+};
+
 const Confirmation: React.FC<ConfirmationProps> = ({ formData, onSubmit, isSubmitting, isValid }) => {
   const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
+  const { timezone } = useTimezone();
+  
+  // Get timezone label for display
+  const getTimezoneLabel = (value: string) => {
+    const option = TIMEZONE_OPTIONS.find(opt => opt.value === value);
+    return option ? option.label : value;
+  };
 
   const InfoRow = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => (
     <div className="flex items-start space-x-3 py-3">
@@ -34,8 +61,8 @@ const Confirmation: React.FC<ConfirmationProps> = ({ formData, onSubmit, isSubmi
       <div className="bg-gray-50 rounded-xl p-6 space-y-2">
         <InfoRow
           icon={Calendar}
-          label="Date & Time"
-          value={`${formData.date.toLocaleDateString()} at ${formData.time}`}
+          label={`Date & Time (${getTimezoneLabel(timezone)})`}
+          value={`${formatSelectedDate(formData.date)} at ${formData.time}`}
         />
         <InfoRow
           icon={Users}

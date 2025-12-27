@@ -24,6 +24,7 @@ import { Calendar, Users, Clock } from 'lucide-react';
 import { formatReadableDatePST } from '@/utils/dateUtils';
 import { Reservation } from '../reservation/page';
 import Link from 'next/link';
+import { useTimezone } from '@/contexts/TimezoneContext';
 
 // Register ChartJS components
 ChartJS.register(
@@ -183,6 +184,7 @@ const isReservationPassed = (reservationTime: string): boolean => {
 };
 
 export default function AdminHome() {
+    const { timezone } = useTimezone();
     const [totalViews, setTotalViews] = useState<number>(0);
     const [dailyViews, setDailyViews] = useState<{ date: string; views: number }[]>([]);
     const [metrics, setMetrics] = useState<DashboardMetrics>({
@@ -223,9 +225,9 @@ export default function AdminHome() {
 
     const fetchMetrics = async () => {
         try {
-            // Get today's date in PST and format as YYYY-MM-DD
+            // Get today's date in restaurant's timezone and format as YYYY-MM-DD
             const todayLocal = new Date().toLocaleDateString('en-CA', {
-                timeZone: 'America/Los_Angeles'
+                timeZone: timezone
             });
 
             const reservationsRef = collection(db, 'reservations');
@@ -247,12 +249,12 @@ export default function AdminHome() {
                 } else if (data.date instanceof Timestamp) {
                     // Firestore Timestamp
                     reservationDate = data.date.toDate().toLocaleDateString('en-CA', {
-                        timeZone: 'America/Los_Angeles'
+                        timeZone: timezone
                     });
                 } else {
                     // ISO string or other format
                     reservationDate = new Date(data.date).toLocaleDateString('en-CA', {
-                        timeZone: 'America/Los_Angeles'
+                        timeZone: timezone
                     });
                 }
 
@@ -359,7 +361,7 @@ export default function AdminHome() {
         }
 
         fetchData();
-    }, []);
+    }, [timezone]);
 
     // console.log(totalViews)
 

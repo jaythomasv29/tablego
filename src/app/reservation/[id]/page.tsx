@@ -29,15 +29,16 @@ interface PageProps {
 }
 
 const formatReservationDate = (date: Reservation['date']) => {
-    // If it's already a YYYY-MM-DD string, create a date at noon PST to avoid timezone shifts
+    // If it's already a YYYY-MM-DD string, parse it directly to avoid timezone shifts
     if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        const d = new Date(date + 'T12:00:00');
+        const [year, month, day] = date.split('-').map(Number);
+        const d = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
         return d.toLocaleDateString('en-US', {
             weekday: 'long',
             year: 'numeric',
             month: 'long',
             day: 'numeric',
-            timeZone: 'America/Los_Angeles'
+            timeZone: 'UTC'
         });
     }
 
@@ -46,16 +47,14 @@ const formatReservationDate = (date: Reservation['date']) => {
             weekday: 'long',
             year: 'numeric',
             month: 'long',
-            day: 'numeric',
-            timeZone: 'America/Los_Angeles'
+            day: 'numeric'
         });
     }
     return date.toDate().toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
-        day: 'numeric',
-        timeZone: 'America/Los_Angeles'
+        day: 'numeric'
     });
 };
 

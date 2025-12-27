@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { Analytics } from '@vercel/analytics/react';
 import FloatingContactButton from '@/components/FloatingContactButton';
+import { TimezoneProvider } from '@/contexts/TimezoneContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -33,7 +34,9 @@ export default function RootLayout({
         <meta name="format-detection" content="telephone=no" />
       </head>
       <body className={inter.className} suppressHydrationWarning>
-        {children}
+        <TimezoneProvider>
+          {children}
+        </TimezoneProvider>
         <Analytics />
         {/* <FloatingContactButton /> */}
 
