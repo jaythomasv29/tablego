@@ -2,7 +2,7 @@
 
 import AdminLayout from '@/components/AdminLayout';
 import { useEffect, useState } from 'react';
-import { collection, getDocs, getDoc, query, orderBy, limit, where, updateDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, getDoc, query, orderBy, limit, where, updateDoc, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/firebase';
 import {
     Chart as ChartJS,
@@ -190,6 +190,23 @@ const formatTimeAgo = (date: Date) => {
     return `${days} day${days !== 1 ? 's' : ''} ago`;
 };
 
+// Short format for reminder sent time
+const formatReminderTime = (date: Date) => {
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+
+    if (diffInHours < 1) {
+        const minutes = Math.floor(diffInHours * 60);
+        return `${minutes}m ago`;
+    }
+    if (diffInHours < 24) {
+        const hours = Math.floor(diffInHours);
+        return `${hours}h ago`;
+    }
+    const days = Math.floor(diffInHours / 24);
+    return `${days}d ago`;
+};
+
 const convertTimeToMinutes = (time: string): number => {
     const [rawTime, period] = time.split(' ');
     let [hours, minutes] = rawTime.split(':').map(Number);
@@ -217,6 +234,17 @@ const isReservationPassed = (reservationTime: string): boolean => {
     reservationDate.setHours(compareHours, minutes);
 
     return now > reservationDate;
+};
+
+// Check if reminder can be sent (not within 24 hours of last reminder)
+const canSendReminder = (reservation: Reservation) => {
+    if (!reservation.reminderSent) return true;
+    if (!reservation.reminderSentAt) return true;
+
+    const lastSent = reservation.reminderSentAt.toDate();
+    const hoursSinceLastReminder = (Date.now() - lastSent.getTime()) / (1000 * 60 * 60);
+
+    return hoursSinceLastReminder >= 24;
 };
 
 export default function AdminHome() {
@@ -477,17 +505,20 @@ export default function AdminHome() {
         }
     };
 
-    const fetchPendingReservations = async () => {
-        try {
-            const reservationsRef = collection(db, 'reservations');
-            // Fetch recent reservations and filter for unmarked ones
-            // This handles both marked: false AND missing marked field (legacy data)
-            const q = query(
-                reservationsRef,
-                orderBy('createdAt', 'desc'),
-                limit(50) // Check last 50 reservations
-            );
-            const snapshot = await getDocs(q);
+    // Real-time listener for new reservations (unacknowledged)
+    useEffect(() => {
+        const reservationsRef = collection(db, 'reservations');
+        const q = query(
+            reservationsRef,
+            orderBy('createdAt', 'desc'),
+            limit(50) // Check last 50 reservations
+        );
+
+        let isInitialLoad = true;
+        let previousIds: Set<string> = new Set();
+
+        // Set up real-time listener
+        const unsubscribe = onSnapshot(q, (snapshot) => {
             const reservations = snapshot.docs
                 .filter(doc => {
                     const data = doc.data();
@@ -507,11 +538,100 @@ export default function AdminHome() {
                             : data.createdAt
                     };
                 }) as Reservation[];
+
+            // Check for new reservations (not on initial load)
+            if (!isInitialLoad) {
+                const currentIds = new Set(reservations.map(r => r.id));
+                const newReservations = reservations.filter(r => !previousIds.has(r.id));
+
+                if (newReservations.length > 0) {
+                    // Show toast for new reservation
+                    toast.success(
+                        `🔔 New reservation from ${newReservations[0].name}!`,
+                        { duration: 5000 }
+                    );
+                }
+                previousIds = currentIds;
+            } else {
+                previousIds = new Set(reservations.map(r => r.id));
+                isInitialLoad = false;
+            }
+
             setPendingReservations(reservations);
-        } catch (error) {
-            console.error('Error fetching reservations:', error);
-        }
-    };
+        }, (error) => {
+            console.error('Error listening to reservations:', error);
+        });
+
+        // Cleanup listener on unmount
+        return () => unsubscribe();
+    }, []);
+
+    // Real-time listener for today's reservations (status updates, confirmations, etc.)
+    useEffect(() => {
+        if (!timezone) return;
+
+        const todayLocal = new Date().toLocaleDateString('en-CA', {
+            timeZone: timezone
+        });
+
+        const reservationsRef = collection(db, 'reservations');
+
+        // Set up real-time listener for all reservations
+        const unsubscribe = onSnapshot(reservationsRef, (snapshot) => {
+            const todaysList: Reservation[] = [];
+
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+
+                // Handle different date formats consistently
+                let reservationDate: string;
+                if (typeof data.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
+                    reservationDate = data.date;
+                } else if (data.date instanceof Timestamp) {
+                    reservationDate = data.date.toDate().toLocaleDateString('en-CA', {
+                        timeZone: timezone
+                    });
+                } else {
+                    reservationDate = new Date(data.date).toLocaleDateString('en-CA', {
+                        timeZone: timezone
+                    });
+                }
+
+                // Only include today's reservations
+                if (reservationDate === todayLocal) {
+                    todaysList.push({
+                        id: doc.id,
+                        date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date + 'T12:00:00'),
+                        time: data.time,
+                        name: data.name,
+                        guests: data.guests,
+                        phone: data.phone,
+                        email: data.email,
+                        status: data.status || 'pending',
+                        comments: data.comments || '',
+                        createdAt: data.createdAt,
+                        reminderSent: data.reminderSent,
+                        reminderSentAt: data.reminderSentAt,
+                        attendanceStatus: data.attendanceStatus
+                    });
+                }
+            });
+
+            // Sort by time
+            todaysList.sort((a, b) => {
+                const timeA = convertTimeToMinutes(a.time);
+                const timeB = convertTimeToMinutes(b.time);
+                return timeA - timeB;
+            });
+
+            setTodaysReservations(todaysList);
+        }, (error) => {
+            console.error('Error listening to today\'s reservations:', error);
+        });
+
+        // Cleanup listener on unmount
+        return () => unsubscribe();
+    }, [timezone]);
 
     const fetchMessages = async () => {
         try {
@@ -529,13 +649,76 @@ export default function AdminHome() {
         }
     };
 
+    // Send reminder email
+    const handleSendReminder = async (reservation: Reservation) => {
+        if (!canSendReminder(reservation)) {
+            toast.error('Reminder already sent recently');
+            return;
+        }
+
+        try {
+            toast.loading('Sending reminder...', { id: reservation.id });
+            const response = await fetch('/api/send-reminder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    reservationId: reservation.id,
+                    email: reservation.email,
+                    name: reservation.name,
+                    date: reservation.date,
+                    time: reservation.time,
+                    guests: reservation.guests
+                }),
+            });
+
+            if (!response.ok) throw new Error('Failed to send reminder');
+
+            // Update local state
+            setTodaysReservations(prev =>
+                prev.map(r =>
+                    r.id === reservation.id
+                        ? { ...r, reminderSent: true, reminderSentAt: Timestamp.now() }
+                        : r
+                )
+            );
+
+            toast.success('Reminder sent successfully', { id: reservation.id });
+        } catch (error) {
+            console.error('Error sending reminder:', error);
+            toast.error('Failed to send reminder', { id: reservation.id });
+        }
+    };
+
+    // Update attendance status (show/no-show)
+    const handleAttendanceUpdate = async (reservationId: string, status: 'show' | 'no-show' | 'default') => {
+        try {
+            const reservationRef = doc(db, 'reservations', reservationId);
+            await updateDoc(reservationRef, {
+                attendanceStatus: status === 'default' ? null : status
+            });
+
+            // Update local state
+            setTodaysReservations(prev =>
+                prev.map(res =>
+                    res.id === reservationId
+                        ? { ...res, attendanceStatus: status === 'default' ? undefined : status }
+                        : res
+                )
+            );
+
+            toast.success(status === 'show' ? 'Marked as showed' : status === 'no-show' ? 'Marked as no-show' : 'Status cleared');
+        } catch (error) {
+            console.error('Error updating attendance status:', error);
+            toast.error('Failed to update status');
+        }
+    };
+
     useEffect(() => {
         async function fetchData() {
             try {
                 setLoading(true);
                 await Promise.all([
                     fetchMetrics(),
-                    fetchPendingReservations(),
                     fetchMessages()
                 ]);
             } catch (error) {
@@ -772,65 +955,81 @@ export default function AdminHome() {
 
                 {activeTab === 'dashboard' ? (
                     <>
-                        {/* Business Status Card - Clean Design */}
+                        {/* Compact Status & Stats Bar */}
                         {(() => {
                             const status = getBusinessStatus();
                             return (
-                                <Card className="mb-8 overflow-hidden border border-gray-200 bg-white">
-                                    <CardContent className="p-6">
-                                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                                            {/* Status */}
+                                <Card className="mb-6 border border-gray-200 bg-white">
+                                    <CardContent className="p-4">
+                                        <div className="flex flex-wrap items-center justify-between gap-4">
+                                            {/* Status & Time */}
                                             <div className="flex items-center gap-4">
-                                                <div className="p-4 rounded-2xl bg-gray-100">
+                                                <div className="flex items-center gap-2">
                                                     {status.isOpen ? (
-                                                        <CheckCircle2 className="w-8 h-8 text-gray-700" />
+                                                        <CheckCircle2 className="w-5 h-5 text-green-600" />
                                                     ) : (
-                                                        <XCircle className="w-8 h-8 text-gray-500" />
+                                                        <XCircle className="w-5 h-5 text-gray-400" />
+                                                    )}
+                                                    <span className="font-semibold text-gray-900">
+                                                        {status.isOpen ? 'Open' : 'Closed'}
+                                                    </span>
+                                                    {status.isOpen && status.currentPeriod && (
+                                                        <Badge variant="outline" className="text-xs text-gray-500 border-gray-300">
+                                                            {status.currentPeriod}
+                                                        </Badge>
                                                     )}
                                                 </div>
-                                                <div>
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="text-2xl font-bold text-gray-900">
-                                                            {status.isOpen ? 'We\'re Open!' : 'Currently Closed'}
-                                                        </span>
-                                                        {status.isOpen && status.currentPeriod && (
-                                                            <Badge variant="outline" className="text-gray-600 border-gray-300">
-                                                                {status.currentPeriod} Service
-                                                            </Badge>
-                                                        )}
-                                                    </div>
-                                                    {status.isOpen && status.closingTime && (
-                                                        <p className="text-gray-500 mt-1">
-                                                            Open until {status.closingTime}
-                                                        </p>
-                                                    )}
+                                                <div className="hidden sm:flex items-center gap-1 text-sm text-gray-500 border-l border-gray-200 pl-4">
+                                                    <Clock className="w-4 h-4" />
+                                                    <span className="font-mono font-medium text-gray-700">{currentTimeDisplay}</span>
+                                                    <span className="text-gray-400">·</span>
+                                                    <span>{currentDateDisplay}</span>
                                                 </div>
                                             </div>
 
-                                            {/* Time Display */}
-                                            <div className="text-left lg:text-right">
-                                                <div className="inline-flex flex-col bg-gray-50 border border-gray-200 rounded-2xl px-6 py-4">
-                                                    <span className="text-gray-500 text-sm">{getTimezoneLabel(timezone)}</span>
-                                                    <span className="text-3xl font-bold text-gray-900 font-mono">{currentTimeDisplay}</span>
-                                                    <span className="text-gray-600 text-sm">{currentDateDisplay}</span>
+                                            {/* Stats Row */}
+                                            <div className="flex items-center gap-6 text-sm">
+                                                <Link href="/admin/reservation" className="flex items-center gap-2 hover:bg-gray-50 px-2 py-1 rounded transition-colors">
+                                                    <CalendarDays className="w-4 h-4 text-gray-400" />
+                                                    <span className="text-gray-500">Today</span>
+                                                    <span className="font-bold text-gray-900">{metrics.todayReservations}</span>
+                                                </Link>
+                                                <div className="flex items-center gap-2">
+                                                    <TrendingUp className="w-4 h-4 text-gray-400" />
+                                                    <span className="text-gray-500 hidden md:inline">Total</span>
+                                                    <span className="font-bold text-gray-900">{metrics.totalReservations}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Users className="w-4 h-4 text-gray-400" />
+                                                    <span className="text-gray-500 hidden md:inline">Customers</span>
+                                                    <span className="font-bold text-gray-900">{metrics.uniqueCustomers}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <ChefHat className="w-4 h-4 text-gray-400" />
+                                                    <span className="text-gray-500 hidden md:inline">Catering</span>
+                                                    <span className="font-bold text-gray-900">{metrics.newCatering}</span>
+                                                    {metrics.newCatering > 0 && (
+                                                        <button
+                                                            onClick={markAllCateringRead}
+                                                            disabled={markingAsRead}
+                                                            className="text-[10px] text-gray-400 hover:text-gray-600 underline"
+                                                        >
+                                                            clear
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
 
-                                        {/* Today's Hours */}
+                                        {/* Today's Hours - Inline */}
                                         {status.todayHours && (
-                                            <div className="mt-6 pt-6 border-t border-gray-200">
-                                                <div className="flex items-center gap-2 mb-3">
-                                                    <Clock className="w-4 h-4 text-gray-500" />
-                                                    <span className="text-gray-500 text-sm font-medium">Today's Hours</span>
-                                                </div>
-                                                <div className="flex flex-wrap gap-3">
-                                                    {formatHoursDisplay(status.todayHours).map((hourStr: string, idx: number) => (
-                                                        <span key={idx} className="bg-gray-100 border border-gray-200 px-4 py-2 rounded-xl text-gray-700 text-sm font-medium">
-                                                            {hourStr}
-                                                        </span>
-                                                    ))}
-                                                </div>
+                                            <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2 text-xs text-gray-500">
+                                                <span className="font-medium">Hours:</span>
+                                                {formatHoursDisplay(status.todayHours).map((hourStr: string, idx: number) => (
+                                                    <span key={idx} className="bg-gray-50 px-2 py-0.5 rounded text-gray-600">
+                                                        {hourStr}
+                                                    </span>
+                                                ))}
                                             </div>
                                         )}
                                     </CardContent>
@@ -838,81 +1037,167 @@ export default function AdminHome() {
                             );
                         })()}
 
-                        {/* Quick Stats Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                            {/* Today's Reservations */}
-                            <Card className="group hover:shadow-lg transition-all duration-300 border border-gray-200 bg-white overflow-hidden">
-                                <CardContent className="p-6">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div className="p-3 bg-gray-100 rounded-xl">
-                                            <CalendarDays className="w-6 h-6 text-gray-600" />
-                                        </div>
-                                        <Link href="/admin/reservation">
-                                            <Button size="sm" variant="ghost" className="text-gray-600 hover:bg-gray-100 gap-1">
-                                                View <ArrowRightCircle className="w-4 h-4" />
-                                            </Button>
-                                        </Link>
+                        {/* Today's Reservations - Enhanced Full Width List */}
+                        <Card className="mb-6 border border-gray-200 shadow-sm">
+                            <CardHeader className="py-3 px-4 border-b border-gray-100">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <CalendarDays className="w-4 h-4 text-gray-500" />
+                                        <CardTitle className="text-sm font-medium text-gray-700">
+                                            Today&apos;s Reservations
+                                        </CardTitle>
+                                        <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-600">
+                                            {todaysReservations.length} total
+                                        </Badge>
                                     </div>
-                                    <p className="text-gray-500 text-sm font-medium mb-1">Today's Reservations</p>
-                                    <p className="text-4xl font-bold text-gray-900">{metrics.todayReservations}</p>
-                                </CardContent>
-                            </Card>
-
-                            {/* Total Reservations */}
-                            <Card className="group hover:shadow-lg transition-all duration-300 border border-gray-200 bg-white overflow-hidden">
-                                <CardContent className="p-6">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div className="p-3 bg-gray-100 rounded-xl">
-                                            <TrendingUp className="w-6 h-6 text-gray-600" />
-                                        </div>
+                                    <Link href="/admin/reservation">
+                                        <Button size="sm" variant="ghost" className="text-xs text-gray-500 hover:text-gray-700 h-7 px-2 gap-1">
+                                            View All <ArrowRightCircle className="w-3 h-3" />
+                                        </Button>
+                                    </Link>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                {todaysReservations.length === 0 ? (
+                                    <div className="py-8 text-center text-gray-400 text-sm">
+                                        No reservations for today
                                     </div>
-                                    <p className="text-gray-500 text-sm font-medium mb-1">Total Reservations</p>
-                                    <p className="text-4xl font-bold text-gray-900">{metrics.totalReservations}</p>
-                                </CardContent>
-                            </Card>
-
-                            {/* Unique Customers */}
-                            <Card className="group hover:shadow-lg transition-all duration-300 border border-gray-200 bg-white overflow-hidden">
-                                <CardContent className="p-6">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div className="p-3 bg-gray-100 rounded-xl">
-                                            <Users className="w-6 h-6 text-gray-600" />
-                                        </div>
-                                    </div>
-                                    <p className="text-gray-500 text-sm font-medium mb-1">Unique Customers</p>
-                                    <p className="text-4xl font-bold text-gray-900">{metrics.uniqueCustomers}</p>
-                                </CardContent>
-                            </Card>
-
-                            {/* Catering Requests */}
-                            <Card className="group hover:shadow-lg transition-all duration-300 border border-gray-200 bg-white overflow-hidden">
-                                <CardContent className="p-6">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div className="p-3 bg-gray-100 rounded-xl">
-                                            <ChefHat className="w-6 h-6 text-gray-600" />
-                                        </div>
-                                        {metrics.newCatering > 0 && (
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                className="text-gray-600 hover:bg-gray-100"
-                                                onClick={markAllCateringRead}
-                                                disabled={markingAsRead}
+                                ) : (
+                                    <div className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
+                                        {todaysReservations.map((reservation) => (
+                                            <div
+                                                key={reservation.id}
+                                                className={`px-4 py-3 hover:bg-gray-50 transition-colors ${reservation.attendanceStatus === 'show' ? 'bg-green-50/50' :
+                                                    reservation.attendanceStatus === 'no-show' ? 'bg-orange-50/50' : ''
+                                                    }`}
                                             >
-                                                {markingAsRead ? 'Marking...' : 'Clear'}
-                                            </Button>
-                                        )}
+                                                {/* Main Row */}
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                        {/* Time */}
+                                                        <span className={`text-sm font-semibold w-20 flex-shrink-0 ${isReservationPassed(reservation.time) ? 'text-gray-400' : 'text-gray-900'
+                                                            }`}>
+                                                            {reservation.time}
+                                                        </span>
+                                                        {/* Name & Guests */}
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-sm font-medium text-gray-900 truncate">
+                                                                    {reservation.name}
+                                                                </span>
+                                                                <span className="text-xs text-gray-400">
+                                                                    · {reservation.guests} {reservation.guests === 1 ? 'guest' : 'guests'}
+                                                                </span>
+                                                            </div>
+                                                            {/* Contact Info */}
+                                                            <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400">
+                                                                <span className="flex items-center gap-1">
+                                                                    <Phone className="w-3 h-3" />
+                                                                    {reservation.phone}
+                                                                </span>
+                                                                {reservation.email && (
+                                                                    <span className="flex items-center gap-1 hidden sm:flex">
+                                                                        <Mail className="w-3 h-3" />
+                                                                        <span className="truncate max-w-[150px]">{reservation.email}</span>
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Status & Actions */}
+                                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                                        {/* Status Badges */}
+                                                        {!reservation.attendanceStatus && (
+                                                            <Badge
+                                                                variant="outline"
+                                                                className={`text-[10px] ${reservation.status === 'confirmed'
+                                                                        ? 'border-blue-300 text-blue-700 bg-blue-50'
+                                                                        : 'border-gray-300 text-gray-500 bg-gray-50'
+                                                                    }`}
+                                                            >
+                                                                {reservation.status === 'confirmed' ? 'Confirmed' : 'Pending'}
+                                                            </Badge>
+                                                        )}
+
+                                                        {/* Attendance Status Badge */}
+                                                        {reservation.attendanceStatus && (
+                                                            <Badge
+                                                                variant="outline"
+                                                                className={`text-[10px] ${reservation.attendanceStatus === 'show'
+                                                                    ? 'border-green-300 text-green-700 bg-green-100'
+                                                                    : 'border-orange-300 text-orange-700 bg-orange-100'
+                                                                    }`}
+                                                            >
+                                                                {reservation.attendanceStatus === 'show' ? 'Showed' : 'No-Show'}
+                                                            </Badge>
+                                                        )}
+
+                                                        {/* Actions */}
+                                                        <div className="flex items-center gap-2">
+                                                            {/* Send Reminder */}
+                                                            <button
+                                                                onClick={() => handleSendReminder(reservation)}
+                                                                disabled={!canSendReminder(reservation)}
+                                                                className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${canSendReminder(reservation)
+                                                                    ? 'text-gray-600 bg-gray-100 hover:bg-blue-100 hover:text-blue-700'
+                                                                    : 'text-blue-600 bg-blue-100 cursor-not-allowed'
+                                                                    }`}
+                                                            >
+                                                                <Mail className="w-3.5 h-3.5" />
+                                                                <span className="hidden sm:inline">
+                                                                    {reservation.reminderSent && reservation.reminderSentAt
+                                                                        ? `Sent ${formatReminderTime(reservation.reminderSentAt.toDate())}`
+                                                                        : 'Remind'
+                                                                    }
+                                                                </span>
+                                                            </button>
+
+                                                            {/* Show Button */}
+                                                            <button
+                                                                onClick={() => handleAttendanceUpdate(
+                                                                    reservation.id,
+                                                                    reservation.attendanceStatus === 'show' ? 'default' : 'show'
+                                                                )}
+                                                                className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${reservation.attendanceStatus === 'show'
+                                                                    ? 'text-green-700 bg-green-100 border border-green-300'
+                                                                    : 'text-gray-600 bg-gray-100 hover:bg-green-100 hover:text-green-700'
+                                                                    }`}
+                                                            >
+                                                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                                                <span>Show</span>
+                                                            </button>
+
+                                                            {/* No-Show Button */}
+                                                            <button
+                                                                onClick={() => handleAttendanceUpdate(
+                                                                    reservation.id,
+                                                                    reservation.attendanceStatus === 'no-show' ? 'default' : 'no-show'
+                                                                )}
+                                                                className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${reservation.attendanceStatus === 'no-show'
+                                                                    ? 'text-orange-700 bg-orange-100 border border-orange-300'
+                                                                    : 'text-gray-600 bg-gray-100 hover:bg-orange-100 hover:text-orange-700'
+                                                                    }`}
+                                                            >
+                                                                <XCircle className="w-3.5 h-3.5" />
+                                                                <span>No-Show</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Comments if any */}
+                                                {reservation.comments && (
+                                                    <p className="text-xs text-gray-500 italic mt-1.5 ml-[92px] truncate">
+                                                        &quot;{reservation.comments.slice(0, 80)}{reservation.comments.length > 80 ? '...' : ''}&quot;
+                                                    </p>
+                                                )}
+                                            </div>
+                                        ))}
                                     </div>
-                                    <p className="text-gray-500 text-sm font-medium mb-1">
-                                        New Catering
-                                        <span className="text-gray-400 ml-1">({metrics.totalCatering} total)</span>
-                                    </p>
-                                    <p className="text-4xl font-bold text-gray-900">
-                                        {markingAsRead ? '...' : metrics.newCatering}
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        </div>
+                                )}
+                            </CardContent>
+                        </Card>
 
                         {/* New Bookings Alert - Compact Rows */}
                         {pendingReservations.length > 0 && (
@@ -951,38 +1236,44 @@ export default function AdminHome() {
                                         {pendingReservations.map((reservation) => (
                                             <div
                                                 key={reservation.id}
-                                                className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 transition-colors group"
+                                                className="flex flex-col px-4 py-2.5 hover:bg-gray-50 transition-colors group"
                                             >
-                                                <div className="flex items-center gap-3 min-w-0 flex-1">
-                                                    <div className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0" />
-                                                    <span className="font-medium text-gray-900 text-sm truncate">
-                                                        {reservation.name}
-                                                    </span>
-                                                    <span className="text-gray-400 text-sm hidden sm:inline">·</span>
-                                                    <span className="text-gray-500 text-sm hidden sm:inline">
-                                                        {reservation.guests} guests
-                                                    </span>
-                                                    <span className="text-gray-400 text-sm hidden md:inline">·</span>
-                                                    <span className="text-gray-500 text-sm hidden md:inline">
-                                                        {reservation.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at {reservation.time}
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-2 flex-shrink-0">
-                                                    {reservation.createdAt && (
-                                                        <span className="text-xs text-gray-400 hidden lg:inline">
-                                                            {formatTimeAgo(new Date(reservation.createdAt))}
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                        <div className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0" />
+                                                        <span className="font-medium text-gray-900 text-sm truncate">
+                                                            {reservation.name}
                                                         </span>
-                                                    )}
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => handleMarkReservation(reservation.id)}
-                                                        className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                        title="Mark as seen"
-                                                    >
-                                                        <CheckCircle2 className="w-4 h-4" />
-                                                    </Button>
+                                                        <span className="text-gray-400 text-sm hidden sm:inline">·</span>
+                                                        <span className="text-gray-500 text-sm hidden sm:inline">
+                                                            {reservation.guests} guests
+                                                        </span>
+                                                        <span className="text-gray-400 text-sm hidden md:inline">·</span>
+                                                        <span className="text-gray-500 text-sm hidden md:inline">
+                                                            {reservation.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at {reservation.time}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-4 flex-shrink-0">
+                                                        {reservation.createdAt && (
+                                                            <span className="text-[10px] text-gray-400 hidden lg:inline">
+                                                                {formatTimeAgo(new Date(reservation.createdAt))}
+                                                            </span>
+                                                        )}
+                                                        <button
+                                                            onClick={() => handleMarkReservation(reservation.id)}
+                                                            className="flex items-center gap-1.5 text-gray-400 hover:text-gray-600 transition-colors"
+                                                            title="Mark as seen"
+                                                        >
+                                                            <CheckCircle2 className="w-4 h-4" />
+                                                            <span className="text-[10px]">acknowledge</span>
+                                                        </button>
+                                                    </div>
                                                 </div>
+                                                {reservation.comments && (
+                                                    <p className="text-xs text-gray-500 italic ml-5 mt-1 truncate">
+                                                        "{reservation.comments.slice(0, 50)}{reservation.comments.length > 50 ? '...' : ''}"
+                                                    </p>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
