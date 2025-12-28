@@ -2,7 +2,7 @@
 
 import AdminLayout from '@/components/AdminLayout';
 import { useEffect, useState } from 'react';
-import { collection, getDocs, query, orderBy, limit, where, updateDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, getDoc, query, orderBy, limit, where, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import {
     Chart as ChartJS,
@@ -16,15 +16,51 @@ import {
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import toast, { Toaster } from 'react-hot-toast';
-import { ArrowRightCircle, X } from 'lucide-react';
+import {
+    ArrowRightCircle,
+    X,
+    Calendar,
+    Users,
+    Clock,
+    CalendarDays,
+    TrendingUp,
+    Utensils,
+    Bell,
+    CheckCircle2,
+    XCircle,
+    Phone,
+    Mail,
+    User,
+    ChefHat
+} from 'lucide-react';
 import PageTransition from '@/components/PageTransition';
 import StaggeredList from '@/components/StaggeredList';
 import { Timestamp } from 'firebase/firestore';
-import { Calendar, Users, Clock } from 'lucide-react';
 import { formatReadableDatePST } from '@/utils/dateUtils';
 import { Reservation } from '../reservation/page';
 import Link from 'next/link';
-import { useTimezone } from '@/contexts/TimezoneContext';
+import { useTimezone, TIMEZONE_OPTIONS } from '@/contexts/TimezoneContext';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+
+// Business Hours interface
+interface DayHours {
+    lunch: {
+        open: string;
+        close: string;
+        isOpen: boolean;
+    };
+    dinner: {
+        open: string;
+        close: string;
+        isOpen: boolean;
+    };
+}
+
+interface BusinessHours {
+    [key: string]: DayHours;
+}
 
 // Register ChartJS components
 ChartJS.register(
@@ -203,6 +239,9 @@ export default function AdminHome() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [isMarkingRead, setIsMarkingRead] = useState<string>('');
     const [todayReservations, setTodayReservations] = useState<Reservation[]>([]);
+    const [businessHours, setBusinessHours] = useState<BusinessHours | null>(null);
+    const [currentTimeDisplay, setCurrentTimeDisplay] = useState<string>('');
+    const [currentDateDisplay, setCurrentDateDisplay] = useState<string>('');
 
     useEffect(() => {
         async function fetchAnalytics() {
@@ -222,6 +261,140 @@ export default function AdminHome() {
 
         fetchAnalytics();
     }, []);
+
+    // Fetch business hours
+    useEffect(() => {
+        const fetchBusinessHours = async () => {
+            try {
+                const hoursDoc = await getDoc(doc(db, 'settings', 'businessHours'));
+                if (hoursDoc.exists()) {
+                    setBusinessHours(hoursDoc.data() as BusinessHours);
+                }
+            } catch (error) {
+                console.error('Error fetching business hours:', error);
+            }
+        };
+
+        fetchBusinessHours();
+    }, []);
+
+    // Update current time display every second
+    useEffect(() => {
+        const updateTime = () => {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', {
+                timeZone: timezone,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true,
+            });
+            const dateString = now.toLocaleDateString('en-US', {
+                timeZone: timezone,
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+            });
+            setCurrentTimeDisplay(timeString);
+            setCurrentDateDisplay(dateString);
+        };
+
+        updateTime();
+        const interval = setInterval(updateTime, 1000);
+        return () => clearInterval(interval);
+    }, [timezone]);
+
+    // Helper function to get timezone label
+    const getTimezoneLabel = (value: string) => {
+        const option = TIMEZONE_OPTIONS.find(opt => opt.value === value);
+        return option ? option.label : value;
+    };
+
+    // Helper function to check if restaurant is currently open
+    const getBusinessStatus = () => {
+        if (!businessHours) return { isOpen: false, currentPeriod: null, closingTime: null, todayHours: null };
+
+        const now = new Date();
+        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+        // Get the current day in the restaurant's timezone
+        const restaurantNow = new Date(now.toLocaleString("en-US", { timeZone: timezone }));
+        const currentDay = days[restaurantNow.getDay()];
+        const todayHours = businessHours[currentDay];
+
+        if (!todayHours) return { isOpen: false, currentPeriod: null, closingTime: null, todayHours: null };
+
+        const currentMinutes = restaurantNow.getHours() * 60 + restaurantNow.getMinutes();
+
+        // Helper to convert time string to minutes
+        const timeToMinutes = (timeStr: string): number => {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours * 60 + minutes;
+        };
+
+        // Helper to format time for display
+        const formatTime = (timeStr: string): string => {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            const period = hours >= 12 ? 'PM' : 'AM';
+            const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+            return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+        };
+
+        // Check lunch hours
+        if (todayHours.lunch?.isOpen) {
+            const lunchOpen = timeToMinutes(todayHours.lunch.open);
+            const lunchClose = timeToMinutes(todayHours.lunch.close);
+
+            if (currentMinutes >= lunchOpen && currentMinutes < lunchClose) {
+                return {
+                    isOpen: true,
+                    currentPeriod: 'Lunch',
+                    closingTime: formatTime(todayHours.lunch.close),
+                    todayHours
+                };
+            }
+        }
+
+        // Check dinner hours
+        if (todayHours.dinner?.isOpen) {
+            const dinnerOpen = timeToMinutes(todayHours.dinner.open);
+            const dinnerClose = timeToMinutes(todayHours.dinner.close);
+
+            if (currentMinutes >= dinnerOpen && currentMinutes < dinnerClose) {
+                return {
+                    isOpen: true,
+                    currentPeriod: 'Dinner',
+                    closingTime: formatTime(todayHours.dinner.close),
+                    todayHours
+                };
+            }
+        }
+
+        return { isOpen: false, currentPeriod: null, closingTime: null, todayHours };
+    };
+
+    // Helper to format hours for display
+    const formatHoursDisplay = (hours: DayHours | null): string[] => {
+        if (!hours) return ['Closed'];
+
+        const formatTime = (timeStr: string): string => {
+            const [hoursNum, minutes] = timeStr.split(':').map(Number);
+            const period = hoursNum >= 12 ? 'PM' : 'AM';
+            const displayHours = hoursNum > 12 ? hoursNum - 12 : hoursNum === 0 ? 12 : hoursNum;
+            return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+        };
+
+        const parts: string[] = [];
+        if (hours.lunch?.isOpen) {
+            parts.push(`Lunch: ${formatTime(hours.lunch.open)} - ${formatTime(hours.lunch.close)}`);
+        }
+        if (hours.dinner?.isOpen) {
+            parts.push(`Dinner: ${formatTime(hours.dinner.open)} - ${formatTime(hours.dinner.close)}`);
+        }
+
+        return parts.length > 0 ? parts : ['Closed'];
+    };
 
     const fetchMetrics = async () => {
         try {
@@ -307,21 +480,33 @@ export default function AdminHome() {
     const fetchPendingReservations = async () => {
         try {
             const reservationsRef = collection(db, 'reservations');
+            // Fetch recent reservations and filter for unmarked ones
+            // This handles both marked: false AND missing marked field (legacy data)
             const q = query(
                 reservationsRef,
-                where('marked', '==', false),
-                orderBy('date', 'desc')
+                orderBy('createdAt', 'desc'),
+                limit(50) // Check last 50 reservations
             );
             const snapshot = await getDocs(q);
-            const reservations = snapshot.docs.map(doc => {
-                const data = doc.data();
-                return {
-                    id: doc.id,
-                    ...data,
-                    // Convert Firestore Timestamp to JavaScript Date
-                    date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date)
-                };
-            }) as Reservation[];
+            const reservations = snapshot.docs
+                .filter(doc => {
+                    const data = doc.data();
+                    // Include if marked is false OR if marked field doesn't exist
+                    return data.marked === false || data.marked === undefined;
+                })
+                .map(doc => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        ...data,
+                        // Convert Firestore Timestamp to JavaScript Date
+                        date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date + 'T12:00:00'),
+                        // Convert createdAt Timestamp to ISO string for proper parsing
+                        createdAt: data.createdAt instanceof Timestamp
+                            ? data.createdAt.toDate().toISOString()
+                            : data.createdAt
+                    };
+                }) as Reservation[];
             setPendingReservations(reservations);
         } catch (error) {
             console.error('Error fetching reservations:', error);
@@ -424,7 +609,7 @@ export default function AdminHome() {
         ]
     };
 
-    const handleMarkReservation = async (reservationId: string) => {
+    const handleMarkReservation = async (reservationId: string, showToast = true) => {
         try {
             const reservationRef = doc(db, 'reservations', reservationId);
             await updateDoc(reservationRef, {
@@ -436,10 +621,12 @@ export default function AdminHome() {
                 prev.filter(reservation => reservation.id !== reservationId)
             );
 
-            toast.success('Reservation marked');
+            if (showToast) {
+                toast.success('Reservation acknowledged');
+            }
         } catch (error) {
             console.error('Error marking reservation:', error);
-            toast.error('Failed to mark reservation');
+            toast.error('Failed to acknowledge reservation');
         }
     };
 
@@ -568,218 +755,310 @@ export default function AdminHome() {
                         right: 20,
                     }}
                 />
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-bold">Dashboard Overview</h1>
-
-
+                {/* Header */}
+                <div className="mb-8">
+                    <div className="p-7 relative bg-white">
+                        <h1 className="text-3xl font-bold">
+                            Thaiphoon Restaurant
+                        </h1>
+                        <p className="mt-1">
+                            Welcome back! Here's what's happening today.
+                        </p>
+                        <div className="absolute top-4 right-6 opacity-15 pointer-events-none flex">
+                            <Utensils className="w-20 h-20 text-gray-400" />
+                        </div>
+                    </div>
                 </div>
 
                 {activeTab === 'dashboard' ? (
                     <>
-                        {/* Metrics Cards Grid */}
-                        <StaggeredList>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                                {/* Total Page Views Card */}
-                                {/* <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-600">Total Page Views</p>
-                                            <p className="text-3xl font-bold text-gray-900">
-                                                {totalViews}
-                                            </p>
-                                        </div>
-                                        <div className="p-3 bg-blue-50 rounded-full">
-                                            <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                            </svg>
-                                        </div>
-                                    </div>
-                                </div> */}
-                                {/* Total Reservations Card */}
-                                <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-600">Total Reservations</p>
-                                            <p className="text-3xl font-bold text-gray-900">{metrics.totalReservations}</p>
-                                        </div>
-                                        <div className="p-3 bg-blue-50 rounded-full">
-                                            <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                            </svg>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Unique Customers Card */}
-                                <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-600">Unique Customers</p>
-                                            <p className="text-3xl font-bold text-gray-900">{metrics.uniqueCustomers}</p>
-                                        </div>
-                                        <div className="p-3 bg-green-50 rounded-full">
-                                            <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                            </svg>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Total Catering Deals Card */}
-                                <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-600">
-                                                New Catering Requests
-                                                <span className="text-xs text-gray-400 ml-2">
-                                                    (Total: {metrics.totalCatering})
-                                                </span>
-                                            </p>
-                                            <p className="text-3xl font-bold text-gray-900">
-                                                {markingAsRead ? (
-                                                    <span className="inline-block animate-spin">⌛</span>
-                                                ) : metrics.newCatering}
-                                            </p>
-                                            <button
-                                                onClick={markAllCateringRead}
-                                                className="mt-2 text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-2 py-1 rounded-md transition-colors"
-                                            >
-                                                Mark All Read
-                                            </button>
-                                        </div>
-                                        <div className="p-3 bg-yellow-50 rounded-full">
-                                            <svg className="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                            </svg>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </StaggeredList>
-
-                        {/* Today's Reservations Card - Full Width */}
-                        <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow mb-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">Today's Reservations</p>
-                                    <p className="text-3xl flex items-center gap-2 font-bold text-gray-900">{metrics.todayReservations}  <Link href="/admin/reservation" className="inline-flex w-fit items-center gap-2 text-sm bg-blue-500 text-white px-2 py-1 rounded-md transition-colors">View All <ArrowRightCircle className="w-4 h-4" /></Link></p>
-                                </div>
-                                <div className="p-3 bg-purple-50 rounded-full">
-                                    <Calendar className="w-6 h-6 text-purple-500" />
-                                </div>
-                            </div>
-
-                        </div>
-
-                        {/* New Reservations Card - Full Width */}
-                        <div id="pending-reservations" className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow mb-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">New Reservations</p>
-                                    <p className="text-3xl font-bold text-gray-900">{pendingReservations.length}</p>
-                                </div>
-                                <div className="p-3 bg-yellow-50 rounded-full">
-                                    <svg className="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                </div>
-                            </div>
-
-                            <StaggeredList>
-                                <div className="space-y-4 max-h-96 overflow-y-auto">
-                                    {pendingReservations.map((reservation) => (
-                                        <div
-                                            key={reservation.id}
-                                            className={`bg-white rounded-lg shadow p-3 flex flex-col min-h-[300px] relative ${isReservationPassed(reservation.time) ? 'opacity-60' : ''
-                                                }`}
-                                        >
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div>
-                                                    <p className="font-medium text-gray-900">{reservation.name}</p>
-                                                    <p className="text-sm text-gray-600">
-                                                        {reservation.date.toLocaleDateString()} at {reservation.time}
-                                                    </p>
-                                                    <p className="text-sm text-gray-600">
-                                                        {reservation.guests} guests
-                                                    </p>
-                                                    <p className="text-sm text-gray-600">
-                                                        {reservation.phone}
-                                                    </p>
+                        {/* Business Status Card - Clean Design */}
+                        {(() => {
+                            const status = getBusinessStatus();
+                            return (
+                                <Card className="mb-8 overflow-hidden border border-gray-200 bg-white">
+                                    <CardContent className="p-6">
+                                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                                            {/* Status */}
+                                            <div className="flex items-center gap-4">
+                                                <div className="p-4 rounded-2xl bg-gray-100">
+                                                    {status.isOpen ? (
+                                                        <CheckCircle2 className="w-8 h-8 text-gray-700" />
+                                                    ) : (
+                                                        <XCircle className="w-8 h-8 text-gray-500" />
+                                                    )}
                                                 </div>
-                                                <button
-                                                    onClick={() => handleMarkReservation(reservation.id)}
-                                                    className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                                                >
-                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                    </svg>
-                                                </button>
+                                                <div>
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-2xl font-bold text-gray-900">
+                                                            {status.isOpen ? 'We\'re Open!' : 'Currently Closed'}
+                                                        </span>
+                                                        {status.isOpen && status.currentPeriod && (
+                                                            <Badge variant="outline" className="text-gray-600 border-gray-300">
+                                                                {status.currentPeriod} Service
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                    {status.isOpen && status.closingTime && (
+                                                        <p className="text-gray-500 mt-1">
+                                                            Open until {status.closingTime}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Time Display */}
+                                            <div className="text-left lg:text-right">
+                                                <div className="inline-flex flex-col bg-gray-50 border border-gray-200 rounded-2xl px-6 py-4">
+                                                    <span className="text-gray-500 text-sm">{getTimezoneLabel(timezone)}</span>
+                                                    <span className="text-3xl font-bold text-gray-900 font-mono">{currentTimeDisplay}</span>
+                                                    <span className="text-gray-600 text-sm">{currentDateDisplay}</span>
+                                                </div>
                                             </div>
                                         </div>
-                                    ))}
 
-                                    {pendingReservations.length === 0 && (
-                                        <p className="text-center text-gray-500 py-4">
-                                            No new reservations
-                                        </p>
-                                    )}
-                                </div>
-                            </StaggeredList>
-                        </div>
+                                        {/* Today's Hours */}
+                                        {status.todayHours && (
+                                            <div className="mt-6 pt-6 border-t border-gray-200">
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <Clock className="w-4 h-4 text-gray-500" />
+                                                    <span className="text-gray-500 text-sm font-medium">Today's Hours</span>
+                                                </div>
+                                                <div className="flex flex-wrap gap-3">
+                                                    {formatHoursDisplay(status.todayHours).map((hourStr: string, idx: number) => (
+                                                        <span key={idx} className="bg-gray-100 border border-gray-200 px-4 py-2 rounded-xl text-gray-700 text-sm font-medium">
+                                                            {hourStr}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            );
+                        })()}
 
-                        {/* Analytics Chart */}
-                        {/* <div className="bg-white rounded-xl shadow-md p-6">
-                            <div className="h-[400px]">
-                                {loading ? (
-                                    <div className="flex justify-center items-center h-full">
-                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-                                    </div>
-                                ) : (
-                                    <Line options={options} data={chartData} />
-                                )}
-                            </div>
-                        </div> */}
-                    </>
-                ) : (
-                    <div className="bg-white rounded-xl shadow-md p-6">
-                        <div className="space-y-4">
-                            {messages.map((message) => (
-                                <div
-                                    key={message.id}
-                                    className={`border-b pb-4 last:border-0 last:pb-0 ${message.status === 'unread' ? 'bg-blue-50 p-4 rounded-lg' : ''
-                                        }`}
-                                >
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <p className="font-medium text-gray-900">{message.name}</p>
-                                            <p className="text-sm text-gray-600">{message.email}</p>
-                                            <p className="text-sm text-gray-500 mt-1">
-                                                {message.timestamp.toLocaleDateString()} at{' '}
-                                                {message.timestamp.toLocaleTimeString()}
-                                            </p>
-                                            <p className="mt-2 text-gray-700">{message.message}</p>
+                        {/* Quick Stats Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                            {/* Today's Reservations */}
+                            <Card className="group hover:shadow-lg transition-all duration-300 border border-gray-200 bg-white overflow-hidden">
+                                <CardContent className="p-6">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="p-3 bg-gray-100 rounded-xl">
+                                            <CalendarDays className="w-6 h-6 text-gray-600" />
                                         </div>
-                                        {message.status === 'unread' && (
-                                            <button
-                                                onClick={() => handleMarkAsRead(message.id)}
-                                                disabled={isMarkingRead === message.id}
-                                                className="px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-600 hover:bg-blue-100"
+                                        <Link href="/admin/reservation">
+                                            <Button size="sm" variant="ghost" className="text-gray-600 hover:bg-gray-100 gap-1">
+                                                View <ArrowRightCircle className="w-4 h-4" />
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                    <p className="text-gray-500 text-sm font-medium mb-1">Today's Reservations</p>
+                                    <p className="text-4xl font-bold text-gray-900">{metrics.todayReservations}</p>
+                                </CardContent>
+                            </Card>
+
+                            {/* Total Reservations */}
+                            <Card className="group hover:shadow-lg transition-all duration-300 border border-gray-200 bg-white overflow-hidden">
+                                <CardContent className="p-6">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="p-3 bg-gray-100 rounded-xl">
+                                            <TrendingUp className="w-6 h-6 text-gray-600" />
+                                        </div>
+                                    </div>
+                                    <p className="text-gray-500 text-sm font-medium mb-1">Total Reservations</p>
+                                    <p className="text-4xl font-bold text-gray-900">{metrics.totalReservations}</p>
+                                </CardContent>
+                            </Card>
+
+                            {/* Unique Customers */}
+                            <Card className="group hover:shadow-lg transition-all duration-300 border border-gray-200 bg-white overflow-hidden">
+                                <CardContent className="p-6">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="p-3 bg-gray-100 rounded-xl">
+                                            <Users className="w-6 h-6 text-gray-600" />
+                                        </div>
+                                    </div>
+                                    <p className="text-gray-500 text-sm font-medium mb-1">Unique Customers</p>
+                                    <p className="text-4xl font-bold text-gray-900">{metrics.uniqueCustomers}</p>
+                                </CardContent>
+                            </Card>
+
+                            {/* Catering Requests */}
+                            <Card className="group hover:shadow-lg transition-all duration-300 border border-gray-200 bg-white overflow-hidden">
+                                <CardContent className="p-6">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="p-3 bg-gray-100 rounded-xl">
+                                            <ChefHat className="w-6 h-6 text-gray-600" />
+                                        </div>
+                                        {metrics.newCatering > 0 && (
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="text-gray-600 hover:bg-gray-100"
+                                                onClick={markAllCateringRead}
+                                                disabled={markingAsRead}
                                             >
-                                                {isMarkingRead === message.id ? 'Marking...' : 'Mark as Read'}
-                                            </button>
+                                                {markingAsRead ? 'Marking...' : 'Clear'}
+                                            </Button>
                                         )}
                                     </div>
-                                </div>
-                            ))}
-
-                            {messages.length === 0 && (
-                                <p className="text-center text-gray-500 py-4">
-                                    No messages yet
-                                </p>
-                            )}
+                                    <p className="text-gray-500 text-sm font-medium mb-1">
+                                        New Catering
+                                        <span className="text-gray-400 ml-1">({metrics.totalCatering} total)</span>
+                                    </p>
+                                    <p className="text-4xl font-bold text-gray-900">
+                                        {markingAsRead ? '...' : metrics.newCatering}
+                                    </p>
+                                </CardContent>
+                            </Card>
                         </div>
-                    </div>
+
+                        {/* New Bookings Alert - Compact Rows */}
+                        {pendingReservations.length > 0 && (
+                            <Card id="pending-reservations" className="mb-8 border border-gray-200 shadow-sm">
+                                <CardHeader className="py-3 px-4 border-b border-gray-100">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Bell className="w-4 h-4 text-gray-500" />
+                                            <CardTitle className="text-sm font-medium text-gray-700">
+                                                New Bookings
+                                            </CardTitle>
+                                            <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-600">
+                                                {pendingReservations.length} unread
+                                            </Badge>
+                                        </div>
+                                        {pendingReservations.length > 1 && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={async () => {
+                                                    const count = pendingReservations.length;
+                                                    for (const res of pendingReservations) {
+                                                        await handleMarkReservation(res.id, false);
+                                                    }
+                                                    toast.success(`${count} reservations acknowledged`);
+                                                }}
+                                                className="text-xs text-gray-500 hover:text-gray-700 h-7 px-2"
+                                            >
+                                                Acknowledge all
+                                            </Button>
+                                        )}
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    <div className="divide-y divide-gray-100 max-h-[300px] overflow-y-auto">
+                                        {pendingReservations.map((reservation) => (
+                                            <div
+                                                key={reservation.id}
+                                                className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 transition-colors group"
+                                            >
+                                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                    <div className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0" />
+                                                    <span className="font-medium text-gray-900 text-sm truncate">
+                                                        {reservation.name}
+                                                    </span>
+                                                    <span className="text-gray-400 text-sm hidden sm:inline">·</span>
+                                                    <span className="text-gray-500 text-sm hidden sm:inline">
+                                                        {reservation.guests} guests
+                                                    </span>
+                                                    <span className="text-gray-400 text-sm hidden md:inline">·</span>
+                                                    <span className="text-gray-500 text-sm hidden md:inline">
+                                                        {reservation.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at {reservation.time}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                                    {reservation.createdAt && (
+                                                        <span className="text-xs text-gray-400 hidden lg:inline">
+                                                            {formatTimeAgo(new Date(reservation.createdAt))}
+                                                        </span>
+                                                    )}
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleMarkReservation(reservation.id)}
+                                                        className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        title="Mark as seen"
+                                                    >
+                                                        <CheckCircle2 className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </>
+                ) : (
+                    <Card className="border border-gray-200 shadow-sm">
+                        <CardHeader className="border-b border-gray-100">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-gray-100 rounded-xl">
+                                    <Mail className="w-5 h-5 text-gray-600" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-xl">Messages</CardTitle>
+                                    <CardDescription>Customer inquiries and feedback</CardDescription>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                {messages.map((message) => (
+                                    <div
+                                        key={message.id}
+                                        className={`group rounded-xl p-4 transition-all duration-200 ${message.status === 'unread'
+                                            ? 'bg-gray-100 border border-gray-300'
+                                            : 'bg-gray-50 border border-gray-200'
+                                            }`}
+                                    >
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex gap-4">
+                                                <div className={`p-3 rounded-xl ${message.status === 'unread' ? 'bg-white border border-gray-200' : 'bg-gray-200'}`}>
+                                                    <User className="w-5 h-5 text-gray-600" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-semibold text-gray-900">{message.name}</p>
+                                                    <p className="text-sm text-gray-600 flex items-center gap-1">
+                                                        <Mail className="w-3 h-3" />
+                                                        {message.email}
+                                                    </p>
+                                                    <p className="text-xs text-gray-400 mt-1">
+                                                        {message.timestamp.toLocaleDateString()} at {message.timestamp.toLocaleTimeString()}
+                                                    </p>
+                                                    <p className="mt-3 text-gray-700 bg-white rounded-lg p-3 border border-gray-200">
+                                                        {message.message}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            {message.status === 'unread' && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleMarkAsRead(message.id)}
+                                                    disabled={isMarkingRead === message.id}
+                                                    className="bg-white hover:bg-gray-50 text-gray-700 border-gray-300"
+                                                >
+                                                    {isMarkingRead === message.id ? 'Marking...' : 'Mark Read'}
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {messages.length === 0 && (
+                                    <div className="text-center py-12">
+                                        <div className="p-4 bg-gray-100 rounded-full w-fit mx-auto mb-4">
+                                            <Mail className="w-8 h-8 text-gray-400" />
+                                        </div>
+                                        <p className="text-gray-500 font-medium">No messages yet</p>
+                                        <p className="text-gray-400 text-sm">Customer messages will appear here</p>
+                                    </div>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
                 )}
 
                 {/* Add Mobile Notification */}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Utensils, Calendar, Users, Mail, MessageSquare } from 'lucide-react';
 import DatePicker from './components/DatePicker';
 import GuestInfo from './components/GuestInfo';
@@ -6,6 +6,8 @@ import AdditionalInfo from './components/AdditionalInfo';
 import Confirmation from './components/Confirmation';
 import ProgressBar from './components/ProgressBar';
 import { TimeSlot } from './types/TimeSlot';
+import { useTimezone } from './contexts/TimezoneContext';
+import { getDateInTimezone } from './utils/dateUtils';
 
 export interface ReservationData {
   date: Date;
@@ -38,10 +40,22 @@ interface SpecialDate {
 }
 
 function App() {
+  const { timezone, loading: timezoneLoading } = useTimezone();
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<ReservationData>(initialData);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [specialDates] = useState<SpecialDate[]>([]); // Initialize with empty array
+
+  // Update the initial date to use the restaurant's timezone once loaded
+  useEffect(() => {
+    if (!timezoneLoading && timezone) {
+      const restaurantToday = getDateInTimezone(new Date(), timezone);
+      setFormData(prev => ({
+        ...prev,
+        date: restaurantToday
+      }));
+    }
+  }, [timezone, timezoneLoading]);
 
   const steps = [
     { title: 'Date & Time', icon: Calendar },
@@ -64,7 +78,7 @@ function App() {
     setIsSubmitting(true);
     try {
       // In production, this would be a real API endpoint
-      console.log('Reservation submitted:', formData);
+
       // Simulate success
       alert('Reservation confirmed! Check your email for details.');
     } catch (error) {
@@ -75,8 +89,9 @@ function App() {
   };
 
   const handleDateChange = (date: Date) => {
-    // Implement your date change logic here
-    setFormData((prev) => ({ ...prev, date }));
+    // Convert the selected date to the restaurant's timezone
+    const dateInTimezone = getDateInTimezone(date, timezone);
+    setFormData((prev) => ({ ...prev, date: dateInTimezone }));
   };
 
   const availableTimeSlots = [

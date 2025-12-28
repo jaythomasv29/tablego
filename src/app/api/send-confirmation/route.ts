@@ -61,12 +61,8 @@ export async function POST(request: Request) {
             originalDate = formData.date;
             dateToStore = formData.date.toLocaleDateString('en-CA', { timeZone: timezone });
         }
-        
-        console.log('Date processing:', {
-            input: formData.date,
-            timezone,
-            dateToStore
-        });
+
+
 
         // Format the date before sending it back
         const formattedDate = formatDisplayDate(dateToStore);
@@ -76,7 +72,8 @@ export async function POST(request: Request) {
             ...formData,
             date: dateToStore, // Store as YYYY-MM-DD string in PST
             status: 'pending',
-            createdAt: new Date()
+            createdAt: new Date(),
+            marked: false // Track if admin has seen this reservation
         });
 
         // Improved date formatting for email - use the clean date string and restaurant's timezone
@@ -112,17 +109,17 @@ export async function POST(request: Request) {
             readableDate = formattedDate || 'Date not available';
         }
 
-        console.log('Date processing debug:', {
-            originalFormData: formData.date,
-            dateToStore,
-            readableDate,
-            formattedDate
-        });
+        // console.log('Date processing debug:', {
+        //     originalFormData: formData.date,
+        //     dateToStore,
+        //     readableDate,
+        //     formattedDate
+        // });
 
         // Test transporter connection
         try {
             await transporter.verify();
-            console.log('SMTP connection verified');
+
         } catch (error) {
             console.error('SMTP verification failed:', error);
             throw new Error('Email service unavailable');
@@ -326,9 +323,9 @@ export async function POST(request: Request) {
                 `,
             });
 
-            console.log('Emails sent successfully');
+            // console.log('Emails sent successfully');
         } catch (error) {
-            console.error('Failed to send email:', error);
+            // console.error('Failed to send email:', error);
             throw new Error('Failed to send confirmation email');
         }
 

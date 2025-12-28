@@ -218,7 +218,7 @@ const formatLADate = (date: Date | string) => {
             timeZone: 'UTC'
         });
     }
-    
+
     if (date instanceof Date) {
         return date.toLocaleDateString('en-US', {
             weekday: 'long',
@@ -227,7 +227,7 @@ const formatLADate = (date: Date | string) => {
             day: 'numeric'
         });
     }
-    
+
     return new Date(date as string).toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
@@ -365,13 +365,13 @@ export default function ReschedulePage({ params }: PageProps) {
                 day: '2-digit'
             });
 
-            console.log('Current LA Time:', new Date().toLocaleString('en-US', {
-                timeZone: 'America/Los_Angeles',
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true
-            }));
-            console.log('Current LA Date:', laDateTime);
+            // console.log('Current LA Time:', new Date().toLocaleString('en-US', {
+            //     timeZone: 'America/Los_Angeles',
+            //     hour: 'numeric',
+            //     minute: '2-digit',
+            //     hour12: true
+            // }));
+            // console.log('Current LA Date:', laDateTime);
 
             // Query all reservations
             const reservationsRef = collection(db, 'reservations');
@@ -388,7 +388,7 @@ export default function ReschedulePage({ params }: PageProps) {
                     });
 
                     // Log each reservation's date for debugging
-                    console.log('Reservation Date:', reservationDate, 'Time:', doc.data().time);
+                    // console.log('Reservation Date:', reservationDate, 'Time:', doc.data().time);
 
                     return (
                         reservationDate === laDateTime && // Same date in LA
@@ -399,7 +399,7 @@ export default function ReschedulePage({ params }: PageProps) {
                 .map(doc => doc.data().time);
 
             // Log filtered reservations
-            console.log('Today\'s Reservations:', existingReservations);
+            // console.log('Today\'s Reservations:', existingReservations);
 
             // Filter out booked times
             let availableSlots = allTimeSlots.filter(time => !existingReservations.includes(time));

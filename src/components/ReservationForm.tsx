@@ -1,22 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Users, Mail, MessageSquare, Clock } from 'lucide-react';
-// import DatePicker from './DatePicker';
-import GuestInfo from './GuestInfo';
-// import AdditionalInfo from './AdditionalInfo';
-// import Confirmation from './Confirmation';
-import ProgressBar from './ProgressBar';
+import { ChevronLeft, ChevronRight, Calendar, Users, Mail, MessageSquare, Clock, User, Phone, Check } from 'lucide-react';
 import Cookies from 'js-cookie';
 import { db } from '../firebase';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
-// import { CancelButton } from './CancelButton';
 import Navbar from './Navbar';
 import { TimeSlot } from '@/types/TimeSlot';
-// import { usePageTracking } from './usePageTracking';
-import dynamic from 'next/dynamic';
 import { toast } from 'react-hot-toast';
-import MenuCarousel from './MenuCarousel';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker as MuiDatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -24,13 +15,12 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import Banner from './Banner';
-import { TypeAnimation } from 'react-type-animation';
 import { useTimezone, TIMEZONE_OPTIONS } from '@/contexts/TimezoneContext';
-
-// Lazy load components that aren't needed immediately
-const AdditionalInfo = dynamic(() => import('./AdditionalInfo'));
-const Confirmation = dynamic(() => import('./Confirmation'));
-// const SuccessScreen = dynamic(() => import('./SuccessScreen'));
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 export type ReservationData = {
   date: Date;
@@ -42,9 +32,10 @@ export type ReservationData = {
   comments: string;
 };
 
+// Initial data - date will be set properly in useEffect based on restaurant timezone
 const initialData: ReservationData = {
-  date: new Date(),
-  time: '19:00',
+  date: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), 12, 0, 0, 0),
+  time: '',
   guests: 2,
   name: '',
   email: '',
@@ -166,7 +157,7 @@ const formatDisplayDate2 = (dateString: string) => {
 };
 export default function ReservationForm() {
   const { timezone, loading: timezoneLoading } = useTimezone();
-  
+
   // Get timezone label for display
   const getTimezoneLabel = (value: string) => {
     const option = TIMEZONE_OPTIONS.find(opt => opt.value === value);
@@ -184,7 +175,8 @@ export default function ReservationForm() {
   const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlot[]>([]);
   const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  
+  const [reservationCutoffMinutes, setReservationCutoffMinutes] = useState<number>(60); // Default 1 hour
+
   // Helper function to get current date in restaurant's timezone
   const getRestaurantDate = (date?: Date): Date => {
     const targetDate = date || new Date();
@@ -194,24 +186,59 @@ export default function ReservationForm() {
       })
     );
   };
-  
-  // Initialize selectedDate once timezone is loaded
-  useEffect(() => {
-    if (!timezoneLoading && !selectedDate) {
-      const restaurantToday = getRestaurantDate();
-      restaurantToday.setHours(12, 0, 0, 0);
-      setSelectedDate(restaurantToday);
-      setFormData(prev => ({ ...prev, date: restaurantToday }));
+
+  // Helper to check if restaurant is open on a given day
+  const isRestaurantOpenOnDay = (date: Date, hours: BusinessHours | null): boolean => {
+    if (!hours) return true; // Assume open if we don't have hours yet
+
+    // Use the local day from the Date object (what the user visually selected)
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayName = days[date.getDay()];
+    const dayHours = hours[dayName];
+
+    if (!dayHours) return false;
+
+    // Restaurant is open if either lunch or dinner is open
+    return dayHours.lunch?.isOpen || dayHours.dinner?.isOpen;
+  };
+
+  // Find the next open day starting from a given date
+  const findNextOpenDay = (startDate: Date, hours: BusinessHours | null): Date => {
+    const date = new Date(startDate);
+    // Check up to 7 days ahead
+    for (let i = 0; i < 7; i++) {
+      if (isRestaurantOpenOnDay(date, hours)) {
+        return date;
+      }
+      date.setDate(date.getDate() + 1);
     }
-  }, [timezoneLoading, timezone]);
-  
-  //  (businessHours)
-  //  ('Generating time slots for:', selectedDate);
-  // etc...
+    return startDate; // Fallback to start date if all days are closed
+  };
+
+  // Initialize selectedDate once timezone and business hours are loaded
+  useEffect(() => {
+    if (!timezoneLoading && timezone && businessHours) {
+      // Get today's date string in the restaurant's timezone (YYYY-MM-DD)
+      const now = new Date();
+      const restaurantDateStr = now.toLocaleDateString('en-CA', { timeZone: timezone });
+
+      // Parse the date string to get year, month, day in restaurant's timezone
+      const [year, month, day] = restaurantDateStr.split('-').map(Number);
+
+      // Create a date object representing that calendar date at noon
+      const restaurantToday = new Date(year, month - 1, day, 12, 0, 0, 0);
+
+      // Check if today is open, if not find the next open day
+      const nextOpenDay = findNextOpenDay(restaurantToday, businessHours);
+
+      setSelectedDate(nextOpenDay);
+      setFormData(prev => ({ ...prev, date: nextOpenDay }));
+    }
+  }, [timezoneLoading, timezone, businessHours]);
+
+  // Simplified 2-step flow
   const steps = [
     { title: 'Reservation Details', icon: Calendar },
-    { title: 'Guest Information', icon: Users },
-    { title: 'Additional Details', icon: MessageSquare },
     { title: 'Confirmation', icon: Mail },
   ];
 
@@ -267,6 +294,25 @@ export default function ReservationForm() {
     fetchBusinessHours();
   }, []); // Empty dependency array means this runs once on mount
 
+  // Fetch general settings (including reservation cutoff)
+  useEffect(() => {
+    const fetchGeneralSettings = async () => {
+      try {
+        const settingsDoc = await getDoc(doc(db, 'settings', 'general'));
+        if (settingsDoc.exists()) {
+          const data = settingsDoc.data();
+          if (data.reservationCutoffMinutes !== undefined) {
+            setReservationCutoffMinutes(data.reservationCutoffMinutes);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching general settings:', error);
+      }
+    };
+
+    fetchGeneralSettings();
+  }, []);
+
   // Add this useEffect to fetch special dates
   useEffect(() => {
     const loadSpecialDates = async () => {
@@ -293,15 +339,14 @@ export default function ReservationForm() {
         updateFormData({ time: '' });
       }
     }
-  }, [selectedDate, businessHours]);
+  }, [selectedDate, businessHours, reservationCutoffMinutes]);
 
   // 1. Add helper function to check if we should show next day
   const shouldShowNextDay = (hours: BusinessHours): boolean => {
     const restaurantNow = getRestaurantDate();
-    const currentDay = restaurantNow.toLocaleDateString('en-US', {
-      weekday: 'long',
-      timeZone: timezone
-    }).toLowerCase();
+    // Use the local day from the restaurant's current date
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const currentDay = days[restaurantNow.getDay()];
     const currentHours = hours[currentDay];
 
     if (!currentHours) return true;
@@ -349,10 +394,10 @@ export default function ReservationForm() {
 
   // 4. Update the generateTimeSlots function
   const generateTimeSlots = (date: Date, hours: BusinessHours): TimeSlot[] => {
-    const dayOfWeek = date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      timeZone: timezone
-    }).toLowerCase();
+    // Use the local day of the Date object (what the user visually selected)
+    // NOT converted to restaurant timezone, because the user picked this calendar date
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayOfWeek = days[date.getDay()];
 
     const dayHours = hours[dayOfWeek];
     if (!dayHours) return [];
@@ -385,15 +430,16 @@ export default function ReservationForm() {
           let start = timeToMinutes(range.start);
           const end = timeToMinutes(range.end);
 
-          // Skip if the entire range is in the past
-          if (isToday && end <= currentMinutes + 30) return;
+          // Skip if the entire range is in the past or within cutoff
+          if (isToday && end <= currentMinutes + reservationCutoffMinutes) return;
 
           // Adjust start time if it's today and in the past
           if (isToday && start < currentMinutes) {
             start = Math.ceil((currentMinutes + 30) / slotDuration) * slotDuration;
           }
 
-          for (let time = start; time <= end - slotDuration; time += slotDuration) {
+          // Last slot must be reservationCutoffMinutes before closing
+          for (let time = start; time <= end - reservationCutoffMinutes; time += slotDuration) {
             if (!isToday || time >= currentMinutes + 30) {
               slots.push({
                 time: minutesToTime(time),
@@ -411,7 +457,8 @@ export default function ReservationForm() {
           start = Math.ceil((currentMinutes + 30) / slotDuration) * slotDuration;
         }
 
-        for (let time = start; time <= end - slotDuration; time += slotDuration) {
+        // Last slot must be reservationCutoffMinutes before closing
+        for (let time = start; time <= end - reservationCutoffMinutes; time += slotDuration) {
           if (!isToday || time >= currentMinutes + 30) {
             slots.push({
               time: minutesToTime(time),
@@ -430,15 +477,16 @@ export default function ReservationForm() {
           let start = timeToMinutes(range.start);
           const end = timeToMinutes(range.end);
 
-          // Skip if the entire range is in the past
-          if (isToday && end <= currentMinutes + 30) return;
+          // Skip if the entire range is in the past or within cutoff
+          if (isToday && end <= currentMinutes + reservationCutoffMinutes) return;
 
           // Adjust start time if it's today and in the past
           if (isToday && start < currentMinutes) {
             start = Math.ceil((currentMinutes + 30) / slotDuration) * slotDuration;
           }
 
-          for (let time = start; time <= end - slotDuration; time += slotDuration) {
+          // Last slot must be reservationCutoffMinutes before closing
+          for (let time = start; time <= end - reservationCutoffMinutes; time += slotDuration) {
             if (!isToday || time >= currentMinutes + 30) {
               slots.push({
                 time: minutesToTime(time),
@@ -456,7 +504,8 @@ export default function ReservationForm() {
           start = Math.ceil((currentMinutes + 30) / slotDuration) * slotDuration;
         }
 
-        for (let time = start; time <= end - slotDuration; time += slotDuration) {
+        // Last slot must be reservationCutoffMinutes before closing
+        for (let time = start; time <= end - reservationCutoffMinutes; time += slotDuration) {
           if (!isToday || time >= currentMinutes + 30) {
             slots.push({
               time: minutesToTime(time),
@@ -578,12 +627,12 @@ export default function ReservationForm() {
       } else {
         dateToSend = formData.date;
       }
-      
+
       const submissionData = {
         ...formData,
         date: dateToSend // Send as YYYY-MM-DD string (the calendar date user selected)
       };
-      
+
       const response = await fetch('/api/send-confirmation', {
         method: 'POST',
         headers: {
@@ -693,264 +742,429 @@ export default function ReservationForm() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6 }}
-      className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100"
+      className="min-h-screen bg-gray-50"
     >
       <Navbar />
       <Banner />
-      <main className={step === 0 ? "w-full" : "max-w-3xl mx-auto px-4 py-8"}>
-        <div className={step === 0 ? "" : "bg-white rounded-2xl shadow-xl p-6 md:p-8"}>
-          {isSuccess ? (
-            <SuccessScreen />
-          ) : (
-            <>
-              {/* Only show progress bar and back button for steps >= 1 */}
-              {step >= 1 && (
-                <>
-                  <button
-                    onClick={prevStep}
-                    className="mb-6 flex items-center text-gray-600 hover:text-gray-900 transition-colors"
-                  >
-                    <ChevronLeft className="w-5 h-5 mr-1" />
-                    <span className="text-sm font-medium">Back to {steps[step - 1].title}</span>
-                  </button>
 
-                  <ProgressBar
-                    currentStep={step}
-                    steps={steps}
-                    onStepClick={handleStepClick}
+      {isSuccess ? (
+        <main className="max-w-2xl mx-auto px-4 py-10">
+          <SuccessScreen />
+        </main>
+      ) : (
+        <>
+          {/* Step 0: Landing Page with Hero + Signature Dishes */}
+          {step === 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6 }}
+            >
+              {/* Hero Section */}
+              <div className="relative h-[50vh] md:h-[55vh] w-full">
+                <div className="absolute inset-0">
+                  <div className="absolute inset-0 bg-black/50 z-10"></div>
+                  <img
+                    src="/images/thai_food_hero.jpeg"
+                    alt="Thai Food"
+                    className="w-full h-full object-cover"
                   />
-                </>
-              )}
+                </div>
 
-              <div className={step >= 1 ? "mt-8" : ""}>
-                {step === 0 && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.6 }}
-                    className="relative"
-                  >
-                    {/* Hero Section - Changed to 40vh */}
-                    <div className="relative h-[45vh] w-full">
-                      <div className="absolute inset-0">
-                        <div className="absolute inset-0 bg-black/50 z-10"></div>
-                        <img
-                          src="/images/thai_food_hero.jpeg"
-                          alt="Thai Food"
-                          className="w-full h-full object-cover"
-                        />
+                <div className="relative z-20 h-full flex flex-col items-center justify-center px-4">
+                  <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 text-center">
+                    Thaiphoon Restaurant
+                  </h1>
+                  <p className="text-white/80 text-lg mb-8 text-center">
+                    Book your table today
+                  </p>
+
+                  {/* Inline Reservation Picker */}
+                  <div className="w-full max-w-3xl px-2">
+                    {/* Mobile: Stacked layout */}
+                    <div className="flex flex-col sm:hidden gap-2">
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <ThemeProvider theme={theme}>
+                            <LocalizationProvider dateAdapter={AdapterDateFns}>
+                              <MuiDatePicker
+                                value={selectedDate}
+                                onChange={(newDate) => {
+                                  if (newDate) {
+                                    newDate.setHours(12, 0, 0, 0);
+                                    handleDateChange(newDate);
+                                  }
+                                }}
+                                sx={{
+                                  width: '100%',
+                                  '& .MuiOutlinedInput-root': {
+                                    height: '48px',
+                                    backgroundColor: 'white',
+                                    borderRadius: '8px',
+                                    '& .MuiOutlinedInput-input': {
+                                      padding: '12px 14px',
+                                      fontSize: '0.875rem',
+                                    },
+                                    '& fieldset': { borderColor: 'transparent' },
+                                    '&:hover fieldset': { borderColor: 'transparent' },
+                                    '&.Mui-focused fieldset': { borderColor: 'transparent' }
+                                  },
+                                }}
+                                disablePast
+                                shouldDisableDate={(date) => {
+                                  return specialDates.some(specialDate => {
+                                    const holidayDate = new Date(specialDate.date);
+                                    return isSameMonthAndDay(date, holidayDate);
+                                  });
+                                }}
+                              />
+                            </LocalizationProvider>
+                          </ThemeProvider>
+                        </div>
+                        <select
+                          value={formData.time}
+                          onChange={(e) => updateFormData({ time: e.target.value })}
+                          className="flex-1 h-[48px] px-3 rounded-lg bg-white text-sm focus:outline-none"
+                        >
+                          <option value="">Time</option>
+                          {availableTimeSlots.map((slot) => (
+                            <option key={slot.time} value={slot.time}>{slot.time}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={formData.guests || ""}
+                          onChange={(e) => updateFormData({ guests: Number(e.target.value) })}
+                          className="w-24 h-[48px] px-3 rounded-lg bg-white text-sm focus:outline-none"
+                        >
+                          <option value="">Guests</option>
+                          {[...Array(20)].map((_, i) => (
+                            <option key={i + 1} value={i + 1}>{i + 1}</option>
+                          ))}
+                        </select>
                       </div>
+                      <button
+                        onClick={() => {
+                          if (formData.date && formData.time && formData.guests) {
+                            setStep(1);
+                          } else {
+                            toast.error('Please select date, time, and number of guests');
+                          }
+                        }}
+                        className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group relative overflow-hidden"
+                      >
+                        <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-shimmer-slide" />
+                        <span className="relative flex items-center justify-center">
+                          Reserve Now
+                          <ChevronRight className="w-5 h-5 ml-1 group-hover:translate-x-1 transition-transform" />
+                        </span>
+                      </button>
+                    </div>
 
-                      {/* Content - Made more mobile friendly and centered */}
-                      <div className="relative z-20 h-full flex flex-col items-center px-4 sm:px-6" style={{ paddingTop: '8vh' }}>
-                        <TypeAnimation
-                          sequence={[
-                            'Welcome to Thaiphoon, Let\'s get you a table!'
-                          ]}
-                          wrapper="h3"
-                          speed={50}
-                          className="text-2xl md:text-3xl font-semibold text-white mb-6 md:mb-8 text-center px-2"
-                          cursor={false}
-                        />
-                        <div className="flex flex-col items-center space-y-3 w-full">
-                          <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 w-full justify-center">
-                            {/* Fields Container */}
-                            <div className="flex items-stretch border border-gray-200 rounded-lg overflow-hidden bg-white/95 w-full sm:w-auto">
-                              {/* Date Input */}
-                              <div className="w-[170px] min-h-[48px] relative">
-                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10">
-                                  <Calendar className="w-4 h-4" />
-                                </div>
-                                <ThemeProvider theme={theme}>
-                                  <LocalizationProvider dateAdapter={AdapterDateFns}>
-                                    <MuiDatePicker
-                                      value={selectedDate}
-                                      onChange={(newDate) => {
-                                        if (newDate) {
-                                          newDate.setHours(12, 0, 0, 0);
-                                          handleDateChange(newDate);
-                                        }
-                                      }}
-                                      sx={{
-                                        width: '100%',
-                                        '& .MuiOutlinedInput-root': {
-                                          height: '48px',
-                                          '& .MuiOutlinedInput-input': {
-                                            padding: '14px 12px 14px 32px',
-                                            fontSize: '0.875rem',
-                                          },
-                                          '& fieldset': { border: 'none' },
-                                          '&:hover fieldset': { border: 'none' },
-                                          '&.Mui-focused fieldset': { border: 'none' }
-                                        },
-                                      }}
-                                      disablePast
-                                      shouldDisableDate={(date) => {
-                                        return specialDates.some(specialDate => {
-                                          const holidayDate = new Date(specialDate.date);
-                                          return isSameMonthAndDay(date, holidayDate);
-                                        });
-                                      }}
-                                    />
-                                  </LocalizationProvider>
-                                </ThemeProvider>
-                              </div>
-
-                              {/* Time Dropdown */}
-                              <div className="w-[110px] border-l border-gray-200 relative min-h-[48px]">
-                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                                  <Clock className="w-4 h-4" />
-                                </div>
-                                <select
-                                  value={formData.time}
-                                  onChange={(e) => updateFormData({ time: e.target.value })}
-                                  className="w-full h-full pl-9 pr-2 appearance-none bg-white focus:outline-none text-sm"
-                                >
-                                  <option value="">Time</option>
-                                  {availableTimeSlots.map((slot) => (
-                                    <option key={slot.time} value={slot.time}>
-                                      {slot.time}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-
-                              {/* Party Size Dropdown */}
-                              <div className="w-[120px] border-l border-gray-200 relative min-h-[48px]">
-                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                                  <Users className="w-4 h-4" />
-                                </div>
-                                <select
-                                  value={formData.guests || ""}
-                                  onChange={(e) => updateFormData({ guests: Number(e.target.value) })}
-                                  className="w-full h-full pl-9 pr-2 appearance-none bg-white focus:outline-none text-sm"
-                                >
-                                  <option value="">Guests</option>
-                                  {[...Array(20)].map((_, i) => (
-                                    <option key={i + 1} value={i + 1}>
-                                      {i + 1} people
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            </div>
-
-                            {/* Continue Button */}
-                            <button
-                              onClick={() => {
-                                if (formData.date && formData.time && formData.guests) {
-                                  setStep(1);
-                                } else {
-                                  toast.error('Please fill in all fields');
+                    {/* Desktop: Inline layout */}
+                    <div className="hidden sm:flex items-center bg-white rounded-lg shadow-2xl overflow-hidden">
+                      {/* Date */}
+                      <div className="flex-1 min-w-0">
+                        <ThemeProvider theme={theme}>
+                          <LocalizationProvider dateAdapter={AdapterDateFns}>
+                            <MuiDatePicker
+                              value={selectedDate}
+                              onChange={(newDate) => {
+                                if (newDate) {
+                                  newDate.setHours(12, 0, 0, 0);
+                                  handleDateChange(newDate);
                                 }
                               }}
-                              disabled={!formData.date || !formData.time || !formData.guests}
-                              className={`h-[48px] w-full sm:w-auto sm:mx-3 px-4 text-white rounded-lg flex items-center justify-center whitespace-nowrap transition-colors ${formData.date && formData.time && formData.guests
-                                ? 'bg-indigo-600 hover:bg-indigo-500'
-                                : 'bg-gray-400 cursor-not-allowed'
-                                }`}
-                            >
-                              Continue
-                              <ChevronRight className="w-4 h-4 ml-1" />
-                            </button>
-                          </div>
-                        </div>
-                        {/* Timezone indicator */}
-                        <p className="text-white/70 text-xs mt-4">
-                          All times shown in {getTimezoneLabel(timezone)}
-                        </p>
-                        <Link href="/menu">
-                          <h3 className="text-white hover:text-gray-200 mt-4 no-underline transition-colors text-sm">
-                            Browse Full Menu
-                          </h3>
-                        </Link>
+                              sx={{
+                                width: '100%',
+                                '& .MuiOutlinedInput-root': {
+                                  height: '52px',
+                                  backgroundColor: 'white',
+                                  '& .MuiOutlinedInput-input': {
+                                    padding: '14px 16px',
+                                    fontSize: '0.9rem',
+                                  },
+                                  '& fieldset': { border: 'none' },
+                                  '&:hover fieldset': { border: 'none' },
+                                  '&.Mui-focused fieldset': { border: 'none' }
+                                },
+                              }}
+                              disablePast
+                              shouldDisableDate={(date) => {
+                                return specialDates.some(specialDate => {
+                                  const holidayDate = new Date(specialDate.date);
+                                  return isSameMonthAndDay(date, holidayDate);
+                                });
+                              }}
+                            />
+                          </LocalizationProvider>
+                        </ThemeProvider>
                       </div>
+
+                      {/* Divider */}
+                      <div className="w-px h-8 bg-gray-200 flex-shrink-0" />
+
+                      {/* Time */}
+                      <select
+                        value={formData.time}
+                        onChange={(e) => updateFormData({ time: e.target.value })}
+                        className="flex-1 min-w-0 h-[52px] px-4 bg-white text-sm focus:outline-none border-none text-center"
+                      >
+                        <option value="">Time</option>
+                        {availableTimeSlots.map((slot) => (
+                          <option key={slot.time} value={slot.time}>{slot.time}</option>
+                        ))}
+                      </select>
+
+                      {/* Divider */}
+                      <div className="w-px h-8 bg-gray-200 flex-shrink-0" />
+
+                      {/* Guests */}
+                      <select
+                        value={formData.guests || ""}
+                        onChange={(e) => updateFormData({ guests: Number(e.target.value) })}
+                        className="flex-1 min-w-0 h-[52px] px-4 bg-white text-sm focus:outline-none border-none text-center"
+                      >
+                        <option value="">Guests</option>
+                        {[...Array(20)].map((_, i) => (
+                          <option key={i + 1} value={i + 1}>{i + 1} {i === 0 ? 'guest' : 'guests'}</option>
+                        ))}
+                      </select>
+
+                      {/* Reserve Button */}
+                      <button
+                        onClick={() => {
+                          if (formData.date && formData.time && formData.guests) {
+                            setStep(1);
+                          } else {
+                            toast.error('Please select date, time, and number of guests');
+                          }
+                        }}
+                        className="flex-shrink-0 h-[52px] px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-r-lg transition-all duration-300 hover:scale-105 group relative overflow-hidden"
+                      >
+                        <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full animate-shimmer-slide" />
+                        <span className="relative flex items-center">
+                          Reserve Now
+                          <ChevronRight className="w-5 h-5 ml-1 group-hover:translate-x-1 transition-transform" />
+                        </span>
+                      </button>
                     </div>
 
-                    {/* Signature Dishes Section */}
-                    <div className="bg-white py-12">
-                      <div className="max-w-7xl mx-auto px-4">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-8 text-center">
-                          Our Signature Dishes
-                        </h2>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                          {menuItems
-                            .filter(item => item.category === 'Signature Dishes')
-                            .map((item) => (
-                              <div
-                                key={item.id}
-                                className="border rounded-lg hover:shadow-md transition-shadow bg-white overflow-hidden"
-                              >
-                                <div className="h-48 w-full">
-                                  <img
-                                    src={item.imageUrl || "https://placehold.co/400x300/e2e8f0/666666?text=Plate+of+Food"}
-                                    alt={item.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                                <div className="p-4">
-                                  <h3 className="text-lg font-semibold mb-2">
-                                    {item.name}
-                                  </h3>
-                                  <p className="text-gray-600 text-sm line-clamp-2">
-                                    {item.description}
-                                  </p>
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-                {step === 1 && (
-                  <GuestInfo
-                    formData={formData}
-                    onUpdate={updateFormData}
-                  />
-                )}
-                {step === 2 && (
-                  <AdditionalInfo
-                    comments={formData.comments}
-                    onUpdate={updateFormData}
-                  />
-                )}
-                {step === 3 && (
-                  <Confirmation
-                    formData={formData}
-                    onSubmit={handleSubmit}
-                    isSubmitting={isSubmitting}
-                    isValid={!!validateSteps().isValid}
-                  />
-                )}
+                    <p className="text-xs text-white/60 text-center mt-3">
+                      All times in {getTimezoneLabel(timezone)}
+                    </p>
+                  </div>
+
+                  <Link href="/menu" className="mt-6 text-white/80 hover:text-white text-sm transition-colors">
+                    Browse Our Full Menu →
+                  </Link>
+                </div>
               </div>
 
-              {/* Only show bottom navigation for steps > 0 */}
-              {step > 0 && step < steps.length - 1 && (
-                <div className="mt-8 flex justify-between">
-                  <button
-                    onClick={prevStep}
-                    disabled={isSubmitting}
-                    className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 disabled:opacity-50"
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-1" />
-                    Back
-                  </button>
-                  <button
-                    onClick={nextStep}
-                    disabled={isSubmitting}
-                    className="ml-auto flex items-center px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                  >
-                    Continue
-                    <ChevronRight className="w-4 h-4 ml-1" />
-                  </button>
+              {/* Signature Dishes Section */}
+              {menuItems.filter(item => item.category === 'Signature Dishes').length > 0 && (
+                <div className="bg-white py-12 md:py-16">
+                  <div className="max-w-6xl mx-auto px-4">
+                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 text-center">
+                      Our Signature Dishes
+                    </h2>
+                    <p className="text-gray-600 text-center mb-8">
+                      Explore our most popular Thai dishes
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {menuItems
+                        .filter(item => item.category === 'Signature Dishes')
+                        .map((item) => (
+                          <Card key={item.id} className="overflow-hidden border-0 shadow-md hover:shadow-lg transition-shadow">
+                            <div className="h-48 w-full">
+                              <img
+                                src={item.imageUrl || "https://placehold.co/400x300/e2e8f0/666666?text=Dish"}
+                                alt={item.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <CardContent className="p-4">
+                              <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                                {item.name}
+                              </h3>
+                              <p className="text-gray-600 text-sm line-clamp-2">
+                                {item.description}
+                              </p>
+                            </CardContent>
+                          </Card>
+                        ))}
+                    </div>
+                    <div className="text-center mt-8">
+                      <Link href="/menu">
+                        <Button variant="outline" className="border-gray-300">
+                          View Full Menu
+                          <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
                 </div>
               )}
-            </>
+            </motion.div>
           )}
-        </div>
 
-      </main>
+          {/* Step 1: Finalize Reservation */}
+          {step === 1 && (
+            <main className="max-w-xl mx-auto px-4 py-8 md:py-12">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                {/* Back Button */}
+                <Button
+                  variant="ghost"
+                  onClick={prevStep}
+                  className="mb-4 -ml-2 text-gray-600 hover:text-gray-900"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Back
+                </Button>
+
+                <Card className="border-0 shadow-lg">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-xl">Complete Your Reservation</CardTitle>
+                    <CardDescription>
+                      Enter your details to finalize the booking
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Reservation Summary */}
+                    <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-4 text-sm">
+                        <div className="flex items-center gap-1.5 text-gray-700">
+                          <Calendar className="w-4 h-4 text-gray-500" />
+                          {selectedDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-gray-700">
+                          <Clock className="w-4 h-4 text-gray-500" />
+                          {formData.time}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-gray-700">
+                          <Users className="w-4 h-4 text-gray-500" />
+                          {formData.guests} {formData.guests === 1 ? 'guest' : 'guests'}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={prevStep}
+                        className="text-gray-500 hover:text-gray-700 text-xs"
+                      >
+                        Edit
+                      </Button>
+                    </div>
+
+                    {/* Contact Information */}
+                    <div className="space-y-4">
+                      {/* Name */}
+                      <div className="space-y-2">
+                        <Label htmlFor="name" className="text-gray-700">Full Name *</Label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <Input
+                            id="name"
+                            type="text"
+                            placeholder="John Doe"
+                            value={formData.name}
+                            onChange={(e) => updateFormData({ name: e.target.value })}
+                            className="pl-10 h-11"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Email */}
+                      <div className="space-y-2">
+                        <Label htmlFor="email" className="text-gray-700">Email Address *</Label>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <Input
+                            id="email"
+                            type="email"
+                            placeholder="john@example.com"
+                            value={formData.email}
+                            onChange={(e) => updateFormData({ email: e.target.value })}
+                            className="pl-10 h-11"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500">We'll send your confirmation here</p>
+                      </div>
+
+                      {/* Phone */}
+                      <div className="space-y-2">
+                        <Label htmlFor="phone" className="text-gray-700">Phone Number *</Label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <Input
+                            id="phone"
+                            type="tel"
+                            placeholder="(555) 123-4567"
+                            value={formData.phone}
+                            onChange={(e) => updateFormData({ phone: e.target.value })}
+                            className="pl-10 h-11"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Special Requests */}
+                      <div className="space-y-2">
+                        <Label htmlFor="comments" className="text-gray-700">Special Requests (optional)</Label>
+                        <Textarea
+                          id="comments"
+                          placeholder="Any dietary restrictions, allergies, or special occasions?"
+                          value={formData.comments}
+                          onChange={(e) => updateFormData({ comments: e.target.value })}
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Submit Button */}
+                    <Button
+                      onClick={() => {
+                        const validation = validateSteps();
+                        if (validation.isValid) {
+                          handleSubmit();
+                        } else {
+                          if (!formData.name.trim()) {
+                            toast.error('Please enter your name');
+                          } else if (!formData.email.trim()) {
+                            toast.error('Please enter your email');
+                          } else if (!formData.phone.trim()) {
+                            toast.error('Please enter your phone number');
+                          }
+                        }
+                      }}
+                      disabled={isSubmitting}
+                      className="w-full h-12 bg-gray-900 hover:bg-gray-800 text-white font-medium"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                          Confirming...
+                        </>
+                      ) : (
+                        <>
+                          Confirm Reservation
+                          <Check className="w-5 h-5 ml-2" />
+                        </>
+                      )}
+                    </Button>
+
+                    <p className="text-center text-gray-500 text-xs">
+                      By confirming, you agree to our reservation policy
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </main>
+          )}
+        </>
+      )}
     </motion.div>
   );
 }

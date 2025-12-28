@@ -5,12 +5,13 @@ import { useEffect, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import toast, { Toaster } from 'react-hot-toast';
-import { Globe, Save, RefreshCw } from 'lucide-react';
+import { Globe, Save, RefreshCw, Clock } from 'lucide-react';
 import PageTransition from '@/components/PageTransition';
 import { TIMEZONE_OPTIONS, useTimezone } from '@/contexts/TimezoneContext';
 
 export default function AdminSettings() {
     const [selectedTimezone, setSelectedTimezone] = useState<string>('America/Los_Angeles');
+    const [reservationCutoffMinutes, setReservationCutoffMinutes] = useState<number>(60); // Default 1 hour
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const { refreshTimezone } = useTimezone();
@@ -26,6 +27,9 @@ export default function AdminSettings() {
                     const data = settingsDoc.data();
                     if (data.timezone) {
                         setSelectedTimezone(data.timezone);
+                    }
+                    if (data.reservationCutoffMinutes !== undefined) {
+                        setReservationCutoffMinutes(data.reservationCutoffMinutes);
                     }
                 }
             } catch (error) {
@@ -70,13 +74,14 @@ export default function AdminSettings() {
         try {
             await setDoc(doc(db, 'settings', 'general'), {
                 timezone: selectedTimezone,
+                reservationCutoffMinutes: reservationCutoffMinutes,
                 updatedAt: new Date(),
             }, { merge: true });
-            
+
             // Refresh the global timezone context
             await refreshTimezone();
-            
-            toast.success('Timezone settings saved successfully!');
+
+            toast.success('Settings saved successfully!');
         } catch (error) {
             console.error('Error saving settings:', error);
             toast.error('Failed to save settings');
@@ -169,7 +174,7 @@ export default function AdminSettings() {
                             </div>
                             <div className="ml-3">
                                 <p className="text-sm text-amber-700">
-                                    <strong>Important:</strong> Changing the timezone will affect how all times are displayed throughout the reservation system. 
+                                    <strong>Important:</strong> Changing the timezone will affect how all times are displayed throughout the reservation system.
                                     Customers will see available time slots based on this timezone, regardless of their browser's local time.
                                 </p>
                             </div>
@@ -190,10 +195,65 @@ export default function AdminSettings() {
                         ) : (
                             <>
                                 <Save className="w-5 h-5" />
-                                Save Timezone Settings
+                                Save Settings
                             </>
                         )}
                     </button>
+                </div>
+
+                {/* Reservation Cutoff Settings Card */}
+                <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-3 bg-orange-50 rounded-full">
+                            <Clock className="w-6 h-6 text-orange-500" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold">Reservation Cutoff Before Closing</h2>
+                            <p className="text-sm text-gray-500">
+                                Set how long before closing time customers can no longer make reservations.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Cutoff Time Selector */}
+                    <div className="mb-6">
+                        <label htmlFor="cutoff" className="block text-sm font-medium text-gray-700 mb-2">
+                            Cutoff Time (minutes before closing)
+                        </label>
+                        <select
+                            id="cutoff"
+                            value={reservationCutoffMinutes}
+                            onChange={(e) => setReservationCutoffMinutes(Number(e.target.value))}
+                            className="w-full md:w-96 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white text-gray-900"
+                        >
+                            <option value={30}>30 minutes</option>
+                            <option value={45}>45 minutes</option>
+                            <option value={60}>1 hour</option>
+                            <option value={90}>1.5 hours</option>
+                            <option value={120}>2 hours</option>
+                            <option value={150}>2.5 hours</option>
+                            <option value={180}>3 hours</option>
+                        </select>
+                    </div>
+
+                    {/* Current Setting Display */}
+                    <div className="mb-6 p-4 bg-orange-50 rounded-lg border border-orange-200">
+                        <p className="text-sm text-orange-800">
+                            <strong>Current Setting:</strong> Customers cannot book a reservation within{' '}
+                            <strong>{reservationCutoffMinutes >= 60
+                                ? `${reservationCutoffMinutes / 60} hour${reservationCutoffMinutes > 60 ? 's' : ''}`
+                                : `${reservationCutoffMinutes} minutes`}</strong>{' '}
+                            of closing time.
+                        </p>
+                    </div>
+
+                    {/* Example */}
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <p className="text-sm text-gray-600">
+                            <strong>Example:</strong> If dinner closes at 9:30 PM and cutoff is set to 1 hour,
+                            the last available reservation slot will be 8:30 PM.
+                        </p>
+                    </div>
                 </div>
 
                 {/* Additional Info */}
