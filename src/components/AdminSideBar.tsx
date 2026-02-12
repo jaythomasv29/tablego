@@ -6,13 +6,11 @@ import {
     Home,
     Calendar,
     Clock,
-    Menu as MenuIcon,
-    MessageCircle,
+    CalendarDays,
     Utensils,
     X,
     Menu,
     BookText,
-    CalendarDays,
     MessageSquare,
     Flag,
     Settings,
@@ -49,7 +47,7 @@ export default function AdminSidebar() {
 
     const links = [
         { href: '/admin/home', label: 'Dashboard', icon: Home },
-        { href: '/admin/reservation', label: 'Reservations', icon: Calendar },
+        { href: '/admin/reservation', label: 'Reservations', icon: CalendarDays },
         { href: '/admin/team', label: 'Team View', icon: Users },
         { href: '/admin/hours', label: 'Hours', icon: Clock },
         { href: '/admin/special-dates', label: 'Business Holidays', icon: Calendar },
@@ -58,7 +56,7 @@ export default function AdminSidebar() {
         {
             href: '/admin/messages',
             label: 'Messages',
-            icon: MessageCircle,
+            icon: MessageSquare,
             badge: unreadCount > 0 ? unreadCount : undefined
         },
         { href: '/admin/banner', label: 'Banner', icon: Flag },
