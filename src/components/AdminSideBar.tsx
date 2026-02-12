@@ -15,7 +15,8 @@ import {
     CalendarDays,
     MessageSquare,
     Flag,
-    Settings
+    Settings,
+    Users
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -49,6 +50,7 @@ export default function AdminSidebar() {
     const links = [
         { href: '/admin/home', label: 'Dashboard', icon: Home },
         { href: '/admin/reservation', label: 'Reservations', icon: Calendar },
+        { href: '/admin/team', label: 'Team View', icon: Users },
         { href: '/admin/hours', label: 'Hours', icon: Clock },
         { href: '/admin/special-dates', label: 'Business Holidays', icon: Calendar },
         { href: '/admin/cater', label: 'Catering', icon: Utensils },
@@ -124,7 +126,7 @@ export default function AdminSidebar() {
             )}
 
             {/* Desktop Sidebar */}
-            <div className="hidden lg:flex w-64 bg-white border-r h-screen flex-col">
+            <div className="hidden lg:flex w-64 bg-white border-r h-screen sticky top-0 flex-col overflow-y-auto">
                 <div className="p-4">
                     <h1 className="text-xl font-bold text-gray-800">Admin Panel</h1>
                 </div>

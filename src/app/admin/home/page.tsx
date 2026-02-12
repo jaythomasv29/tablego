@@ -1397,12 +1397,12 @@ export default function AdminHome() {
                                     <Badge
                                         variant="outline"
                                         className={`text-xs ${selectedReservation.attendanceStatus === 'show'
-                                                ? 'border-green-300 text-green-700 bg-green-100'
-                                                : selectedReservation.attendanceStatus === 'no-show'
-                                                    ? 'border-orange-300 text-orange-700 bg-orange-100'
-                                                    : selectedReservation.status === 'confirmed'
-                                                        ? 'border-blue-300 text-blue-700 bg-blue-50'
-                                                        : 'border-gray-300 text-gray-500 bg-gray-50'
+                                            ? 'border-green-300 text-green-700 bg-green-100'
+                                            : selectedReservation.attendanceStatus === 'no-show'
+                                                ? 'border-orange-300 text-orange-700 bg-orange-100'
+                                                : selectedReservation.status === 'confirmed'
+                                                    ? 'border-blue-300 text-blue-700 bg-blue-50'
+                                                    : 'border-gray-300 text-gray-500 bg-gray-50'
                                             }`}
                                     >
                                         {selectedReservation.attendanceStatus === 'show'
@@ -1501,8 +1501,8 @@ export default function AdminHome() {
                                     }}
                                     disabled={!canSendReminder(selectedReservation)}
                                     className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-colors ${canSendReminder(selectedReservation)
-                                            ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                            : 'bg-blue-100 text-blue-400 cursor-not-allowed'
+                                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                        : 'bg-blue-100 text-blue-400 cursor-not-allowed'
                                         }`}
                                 >
                                     <Mail className="w-5 h-5" />
@@ -1527,8 +1527,8 @@ export default function AdminHome() {
                                             } : null);
                                         }}
                                         className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-colors ${selectedReservation.attendanceStatus === 'show'
-                                                ? 'bg-green-600 text-white'
-                                                : 'bg-gray-100 text-gray-700 hover:bg-green-100 hover:text-green-700'
+                                            ? 'bg-green-600 text-white'
+                                            : 'bg-gray-100 text-gray-700 hover:bg-green-100 hover:text-green-700'
                                             }`}
                                     >
                                         <CheckCircle2 className="w-5 h-5" />
@@ -1548,8 +1548,8 @@ export default function AdminHome() {
                                             } : null);
                                         }}
                                         className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-colors ${selectedReservation.attendanceStatus === 'no-show'
-                                                ? 'bg-orange-600 text-white'
-                                                : 'bg-gray-100 text-gray-700 hover:bg-orange-100 hover:text-orange-700'
+                                            ? 'bg-orange-600 text-white'
+                                            : 'bg-gray-100 text-gray-700 hover:bg-orange-100 hover:text-orange-700'
                                             }`}
                                     >
                                         <XCircle className="w-5 h-5" />
