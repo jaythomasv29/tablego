@@ -1090,7 +1090,7 @@ export default function AdminHome() {
                                         No reservations for today
                                     </div>
                                 ) : (
-                                    <div className="space-y-2 max-h-[520px] overflow-y-auto p-2">
+                                    <div className="space-y-1.5 max-h-[520px] overflow-y-auto p-1.5">
                                         {todaysReservations.map((reservation) => (
                                             <div
                                                 key={reservation.id}
@@ -1108,9 +1108,9 @@ export default function AdminHome() {
                                                 }`}
                                             >
                                                 <div className="flex items-stretch">
-                                                    <div className="w-28 sm:w-32 border-r bg-gray-50 flex items-center justify-center px-2">
+                                                    <div className="w-20 sm:w-24 border-r bg-gray-50 flex items-center justify-center px-1.5">
                                                         <div className="text-center leading-none">
-                                                            <div className={`text-3xl sm:text-4xl font-black tracking-tight ${
+                                                            <div className={`text-2xl sm:text-3xl font-black tracking-tight ${
                                                                 isReservationPassed(reservation.time) ? 'text-gray-400' : 'text-gray-900'
                                                             }`}>
                                                                 {reservation.time.split(' ')[0]}
@@ -1123,18 +1123,19 @@ export default function AdminHome() {
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex-1 p-4">
-                                                        <div className="flex items-start justify-between gap-3 mb-2">
+                                                    <div className="flex-1 p-3">
+                                                        <div className="flex items-start justify-between gap-2 mb-1.5">
                                                             <div className="min-w-0">
-                                                                <h3 className="font-semibold text-gray-900 truncate">{reservation.name}</h3>
-                                                                <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-gray-600">
+                                                                <h3 className="font-semibold text-gray-900 truncate text-sm">{reservation.name}</h3>
+                                                                <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-gray-600">
                                                                     <span className="flex items-center">
                                                                         <Calendar className="w-3.5 h-3.5 mr-1 text-gray-400" />
                                                                         {formatReadableDatePST(reservation.date, timezone)}
                                                                     </span>
-                                                                    <span className="flex items-center">
-                                                                        <Users className="w-3.5 h-3.5 mr-1 text-gray-400" />
-                                                                        {reservation.guests} {reservation.guests === 1 ? 'guest' : 'guests'}
+                                                                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5">
+                                                                        <Users className="w-3.5 h-3.5 text-blue-500" />
+                                                                        <span className="text-base leading-none font-bold text-blue-700">{reservation.guests}</span>
+                                                                        <span className="text-[11px] font-medium text-blue-600">{reservation.guests === 1 ? 'guest' : 'guests'}</span>
                                                                     </span>
                                                                 </div>
                                                             </div>
@@ -1164,7 +1165,7 @@ export default function AdminHome() {
                                                             </div>
                                                         </div>
 
-                                                        <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-gray-600 mb-3">
+                                                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 mb-2">
                                                             <span className="flex items-center gap-1">
                                                                 <Phone className="w-3.5 h-3.5 text-gray-400" />
                                                                 {reservation.phone}
@@ -1172,12 +1173,12 @@ export default function AdminHome() {
                                                             {reservation.email && (
                                                                 <span className="flex items-center gap-1">
                                                                     <Mail className="w-3.5 h-3.5 text-gray-400" />
-                                                                    <span className="truncate max-w-[260px]">{reservation.email}</span>
+                                                                    <span className="truncate max-w-[220px]">{reservation.email}</span>
                                                                 </span>
                                                             )}
                                                         </div>
 
-                                                        <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-500 mb-3">
+                                                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500 mb-2">
                                                             <span className="flex items-center">
                                                                 <CalendarDays className="w-3.5 h-3.5 mr-1 text-gray-400" />
                                                                 Reservation made: {formatReservationCreatedAt((reservation as any).createdAt)}
@@ -1193,13 +1194,13 @@ export default function AdminHome() {
                                                         </div>
 
                                                         {reservation.comments && (
-                                                            <div className="text-sm text-gray-700 bg-yellow-50 border border-yellow-200 p-2.5 rounded-md mb-3">
+                                                            <div className="text-xs text-gray-700 bg-yellow-50 border border-yellow-200 p-2 rounded-md mb-2">
                                                                 <span className="font-medium text-xs text-yellow-800 mr-1">Notes:</span>
                                                                 {reservation.comments}
                                                             </div>
                                                         )}
 
-                                                        <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3" onClick={(e) => e.stopPropagation()}>
+                                                        <div className="flex flex-wrap items-center justify-between gap-1.5 border-t pt-2" onClick={(e) => e.stopPropagation()}>
                                                             <div className="flex items-center gap-2">
                                                                 <Button
                                                                     size="sm"
@@ -1207,7 +1208,7 @@ export default function AdminHome() {
                                                                     className={`text-xs ${reservation.attendanceStatus === 'show'
                                                                         ? 'text-green-700 bg-green-100 border-green-300'
                                                                         : 'text-gray-600 bg-white hover:bg-green-100 hover:text-green-700'
-                                                                        }`}
+                                                                        } h-7 px-2`}
                                                                     onClick={() => handleAttendanceUpdate(
                                                                         reservation.id,
                                                                         reservation.attendanceStatus === 'show' ? 'default' : 'show'
@@ -1222,7 +1223,7 @@ export default function AdminHome() {
                                                                     className={`text-xs ${reservation.attendanceStatus === 'no-show'
                                                                         ? 'text-orange-700 bg-orange-100 border-orange-300'
                                                                         : 'text-gray-600 bg-white hover:bg-orange-100 hover:text-orange-700'
-                                                                        }`}
+                                                                        } h-7 px-2`}
                                                                     onClick={() => handleAttendanceUpdate(
                                                                         reservation.id,
                                                                         reservation.attendanceStatus === 'no-show' ? 'default' : 'no-show'
@@ -1237,7 +1238,7 @@ export default function AdminHome() {
                                                                 variant="outline"
                                                                 onClick={() => handleSendReminder(reservation)}
                                                                 disabled={!canSendReminder(reservation)}
-                                                                className="text-xs"
+                                                                className="text-xs h-7 px-2"
                                                             >
                                                                 <Mail className="w-3.5 h-3.5 mr-1" />
                                                                 {canSendReminder(reservation) ? 'Send Reminder' : 'Reminder Sent'}

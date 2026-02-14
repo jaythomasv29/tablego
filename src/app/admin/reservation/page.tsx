@@ -687,6 +687,7 @@ export default function ReservationAdminPage() {
         const canSend = canSendReminder(reservation);
         const isSelected = selectedReservations.has(reservation.id);
         const [displayTime, displayPeriod] = reservation.time?.split(' ') ?? [reservation.time, ''];
+        const isTodayCompact = viewMode === 'today';
 
         return (
             <div
@@ -695,9 +696,9 @@ export default function ReservationAdminPage() {
             >
                 <div className="p-0">
                     <div className="flex items-stretch">
-                        <div className="w-28 sm:w-32 border-r bg-gray-50 flex items-center justify-center px-2">
+                        <div className={`${isTodayCompact ? 'w-20 sm:w-24 px-1.5' : 'w-28 sm:w-32 px-2'} border-r bg-gray-50 flex items-center justify-center`}>
                             <div className="text-center leading-none">
-                                <div className="text-3xl sm:text-4xl font-black tracking-tight text-gray-900">
+                                <div className={`${isTodayCompact ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl'} font-black tracking-tight text-gray-900`}>
                                     {displayTime}
                                 </div>
                                 {displayPeriod && (
@@ -708,18 +709,19 @@ export default function ReservationAdminPage() {
                             </div>
                         </div>
 
-                        <div className="flex-1 p-4">
-                            <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className={`flex-1 ${isTodayCompact ? 'p-3' : 'p-4'}`}>
+                            <div className={`flex items-start justify-between ${isTodayCompact ? 'gap-2 mb-1.5' : 'gap-3 mb-2'}`}>
                                 <div className="min-w-0">
-                                    <h3 className="font-semibold text-gray-900 truncate">{reservation.name}</h3>
-                                    <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-gray-600">
+                                    <h3 className={`font-semibold text-gray-900 truncate ${isTodayCompact ? 'text-sm' : ''}`}>{reservation.name}</h3>
+                                    <div className={`flex flex-wrap items-center gap-2 ${isTodayCompact ? 'mt-0.5 text-xs' : 'mt-1 text-sm'} text-gray-600`}>
                                         <span className="flex items-center">
                                             <Calendar className="w-3.5 h-3.5 mr-1 text-gray-400" />
                                             {formatReadableDatePST(reservation.date, timezone)}
                                         </span>
-                                        <span className="flex items-center">
-                                            <Users className="w-3.5 h-3.5 mr-1 text-gray-400" />
-                                            {reservation.guests} {reservation.guests === 1 ? 'guest' : 'guests'}
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5">
+                                            <Users className="w-3.5 h-3.5 text-blue-500" />
+                                            <span className="text-base leading-none font-bold text-blue-700">{reservation.guests}</span>
+                                            <span className="text-[11px] font-medium text-blue-600">{reservation.guests === 1 ? 'guest' : 'guests'}</span>
                                         </span>
                                     </div>
                                 </div>
@@ -745,7 +747,7 @@ export default function ReservationAdminPage() {
                                 </div>
                             </div>
 
-                            <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-gray-600 mb-3">
+                            <div className={`flex flex-wrap ${isTodayCompact ? 'gap-x-4 text-xs mb-2' : 'gap-x-5 text-sm mb-3'} gap-y-1 text-gray-600`}>
                                 <span className="flex items-center">
                                     <svg className="w-3.5 h-3.5 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -754,11 +756,11 @@ export default function ReservationAdminPage() {
                                 </span>
                                 <span className="flex items-center">
                                     <Mail className="w-3.5 h-3.5 mr-1 text-gray-400" />
-                                    {reservation.email}
+                                    <span className={`truncate ${isTodayCompact ? 'max-w-[220px]' : 'max-w-[320px]'}`}>{reservation.email}</span>
                                 </span>
                             </div>
 
-                            <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-500 mb-3">
+                            <div className={`flex flex-wrap ${isTodayCompact ? 'gap-x-4 text-[11px] mb-2' : 'gap-x-5 text-xs mb-3'} gap-y-1 text-gray-500`}>
                                 <span className="flex items-center">
                                     <CalendarIcon className="w-3.5 h-3.5 mr-1 text-gray-400" />
                                     Reservation made: {reservation.createdAt ? formatDateTime(reservation.createdAt) : 'N/A'}
@@ -770,19 +772,19 @@ export default function ReservationAdminPage() {
                             </div>
 
                             {reservation.comments && (
-                                <div className="text-sm text-gray-700 bg-yellow-50 border border-yellow-200 p-2.5 rounded-md mb-3">
+                                <div className={`${isTodayCompact ? 'text-xs p-2 mb-2' : 'text-sm p-2.5 mb-3'} text-gray-700 bg-yellow-50 border border-yellow-200 rounded-md`}>
                                     <span className="font-medium text-xs text-yellow-800 mr-1">Notes:</span>
                                     {reservation.comments}
                                 </div>
                             )}
 
-                            <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
+                            <div className={`flex flex-wrap items-center justify-between ${isTodayCompact ? 'gap-1.5 pt-2' : 'gap-2 pt-3'} border-t`}>
                                 <div className="flex items-center gap-2">
                                     <Button
                                         size="sm"
                                         variant="outline"
                                         className={cn(
-                                            "bg-white border-gray-200",
+                                            `bg-white border-gray-200 ${isTodayCompact ? 'h-7 px-2 text-xs' : ''}`,
                                             reservation.attendanceStatus === 'show'
                                                 ? "text-green-800 bg-green-50 border-green-200"
                                                 : "hover:bg-green-50 hover:text-green-800"
@@ -795,7 +797,7 @@ export default function ReservationAdminPage() {
                                         size="sm"
                                         variant="outline"
                                         className={cn(
-                                            "bg-white border-gray-200",
+                                            `bg-white border-gray-200 ${isTodayCompact ? 'h-7 px-2 text-xs' : ''}`,
                                             reservation.attendanceStatus === 'no-show'
                                                 ? "text-red-800 bg-red-50 border-red-200"
                                                 : "hover:bg-red-50 hover:text-red-800"
@@ -810,7 +812,7 @@ export default function ReservationAdminPage() {
                                     onClick={() => handleSendReminder(reservation)}
                                     disabled={!canSend}
                                     variant="outline"
-                                    className="bg-white hover:bg-gray-50"
+                                    className={`bg-white hover:bg-gray-50 ${isTodayCompact ? 'h-7 px-2 text-xs' : ''}`}
                                     title={canSend ? 'Send reservation reminder email' : 'Reminder already sent'}
                                 >
                                     <Mail className="w-4 h-4 mr-1" />
@@ -827,24 +829,8 @@ export default function ReservationAdminPage() {
     const renderReservationsContent = () => {
         if (viewMode === 'today') {
             return (
-                <div className="space-y-3">
-                    {timeSlots.map((timeSlot) => {
-                        const slotReservations = filteredReservations.filter(res => res.time === timeSlot);
-                        if (slotReservations.length === 0) return null;
-
-                        return (
-                            <div key={timeSlot} className="space-y-2">
-                                <div className="bg-gray-100 px-4 py-2 rounded-md font-medium text-gray-700 flex items-center">
-                                    <Clock className="w-4 h-4 mr-2" />
-                                    <span>{timeSlot}</span>
-                                    <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">
-                                        {slotReservations.length} {slotReservations.length === 1 ? 'reservation' : 'reservations'}
-                                    </span>
-                                </div>
-                                {slotReservations.map(renderReservationCard)}
-                            </div>
-                        );
-                    })}
+                <div className="space-y-1.5">
+                    {filteredReservations.map(renderReservationCard)}
                 </div>
             );
         }
