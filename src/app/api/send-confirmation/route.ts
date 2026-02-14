@@ -221,7 +221,7 @@ export async function POST(request: Request) {
                                                     style="color: #4F46E5; text-decoration: underline; margin-left: 5px;"
                                                     target="_blank"
                                                 >
-                                                    Click here to cancel your reservation
+                                                    Click here to edit orcancel your reservation
                                                 </a>
                                             </p>
                                         </div>

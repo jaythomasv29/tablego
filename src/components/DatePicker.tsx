@@ -20,6 +20,7 @@ interface DatePickerProps {
 interface SpecialDate {
   date: string;
   reason: string;
+  closureType?: 'full' | 'lunch' | 'dinner';
 }
 
 const theme = createTheme({
@@ -33,6 +34,11 @@ const theme = createTheme({
 const isSameMonthAndDay = (date1: Date, date2: Date): boolean => {
   return date1.getMonth() === date2.getMonth() &&
     date1.getDate() === date2.getDate();
+};
+
+const getClosureType = (specialDate?: SpecialDate): 'full' | 'lunch' | 'dinner' | null => {
+  if (!specialDate) return null;
+  return specialDate.closureType || 'full';
 };
 
 const DatePicker: React.FC<DatePickerProps> = ({
@@ -50,10 +56,10 @@ const DatePicker: React.FC<DatePickerProps> = ({
     // Check if date is in the past
     if (date < today) return true;
 
-    // Check if date is a holiday
+    // Disable only full-day closures. Half-day closures can still accept reservations.
     return specialDates.some(specialDate => {
       const holidayDate = new Date(specialDate.date);
-      return isSameMonthAndDay(date, holidayDate);
+      return isSameMonthAndDay(date, holidayDate) && getClosureType(specialDate) === 'full';
     });
   };
 
@@ -74,7 +80,16 @@ const DatePicker: React.FC<DatePickerProps> = ({
                     {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </span>
                   <span className="mx-1 text-gray-400">•</span>
-                  <span className="text-gray-600">{specialDate.reason}</span>
+                  <span className="text-gray-600">
+                    {specialDate.reason}
+                    {specialDate.closureType && (
+                      <span className="ml-1 text-xs text-indigo-600">
+                        ({specialDate.closureType === 'full'
+                          ? 'full day'
+                          : `${specialDate.closureType} closed`})
+                      </span>
+                    )}
+                  </span>
                 </div>
               );
             })}

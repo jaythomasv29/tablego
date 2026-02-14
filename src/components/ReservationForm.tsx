@@ -75,11 +75,18 @@ const slotDuration = 30; // If it's a fixed value
 interface SpecialDate {
   date: string;
   reason: string;
+  closureType?: 'full' | 'lunch' | 'dinner';
 }
 
 const isSameMonthAndDay = (date1: Date, date2: Date): boolean => {
   return date1.getMonth() === date2.getMonth() &&
     date1.getDate() === date2.getDate();
+};
+
+const getClosureType = (specialDate?: SpecialDate): 'full' | 'lunch' | 'dinner' | null => {
+  if (!specialDate) return null;
+  // Backward compatibility: existing records without closureType are treated as full-day closures.
+  return specialDate.closureType || 'full';
 };
 
 // Add theme for MUI components
@@ -402,6 +409,14 @@ export default function ReservationForm() {
     const dayHours = hours[dayOfWeek];
     if (!dayHours) return [];
 
+    const matchingSpecialDate = specialDates.find(specialDate => {
+      const holidayDate = new Date(specialDate.date);
+      return isSameMonthAndDay(date, holidayDate);
+    });
+    const closureType = getClosureType(matchingSpecialDate);
+    const lunchClosedBySpecialDate = closureType === 'full' || closureType === 'lunch';
+    const dinnerClosedBySpecialDate = closureType === 'full' || closureType === 'dinner';
+
     const slots: TimeSlot[] = [];
     const restaurantNow = getRestaurantDate();
     const isToday = date.toDateString() === restaurantNow.toDateString();
@@ -423,7 +438,7 @@ export default function ReservationForm() {
     };
 
     // Process lunch hours
-    if (dayHours.lunch.isOpen) {
+    if (dayHours.lunch.isOpen && !lunchClosedBySpecialDate) {
       if (dayHours.lunch.customRanges && dayHours.lunch.customRanges.length > 0) {
         // Use custom ranges for lunch
         dayHours.lunch.customRanges.forEach(range => {
@@ -470,7 +485,7 @@ export default function ReservationForm() {
     }
 
     // Process dinner hours
-    if (dayHours.dinner.isOpen) {
+    if (dayHours.dinner.isOpen && !dinnerClosedBySpecialDate) {
       if (dayHours.dinner.customRanges && dayHours.dinner.customRanges.length > 0) {
         // Use custom ranges for dinner
         dayHours.dinner.customRanges.forEach(range => {
@@ -548,7 +563,8 @@ export default function ReservationForm() {
       return isSameMonthAndDay(date, holidayDate);
     });
 
-    if (holiday) {
+    const closureType = getClosureType(holiday);
+    if (closureType === 'full') {
       alert(`Sorry, we're closed on this date (${holiday.reason})`);
       return;
     }
@@ -814,7 +830,7 @@ export default function ReservationForm() {
                                 shouldDisableDate={(date) => {
                                   return specialDates.some(specialDate => {
                                     const holidayDate = new Date(specialDate.date);
-                                    return isSameMonthAndDay(date, holidayDate);
+                                    return isSameMonthAndDay(date, holidayDate) && getClosureType(specialDate) === 'full';
                                   });
                                 }}
                               />
@@ -892,7 +908,7 @@ export default function ReservationForm() {
                               shouldDisableDate={(date) => {
                                 return specialDates.some(specialDate => {
                                   const holidayDate = new Date(specialDate.date);
-                                  return isSameMonthAndDay(date, holidayDate);
+                                  return isSameMonthAndDay(date, holidayDate) && getClosureType(specialDate) === 'full';
                                 });
                               }}
                             />

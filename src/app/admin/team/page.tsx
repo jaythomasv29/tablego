@@ -85,6 +85,7 @@ interface SpecialDate {
     id: string;
     date: string;
     reason: string;
+    closureType?: 'full' | 'lunch' | 'dinner';
 }
 
 /** A one-time shift for a specific date only (custom week mode). */
@@ -302,9 +303,11 @@ export default function TeamView() {
     const getDayStatus = (date: Date) => {
         const dayHours = businessHours?.[getDayName(date)] || null;
         const holiday = getHolidayForDate(date);
-        const lunchOpen = !holiday && (dayHours?.lunch?.isOpen ?? false);
-        const dinnerOpen = !holiday && (dayHours?.dinner?.isOpen ?? false);
-        return { dayHours, holiday, lunchOpen, dinnerOpen, isOpen: lunchOpen || dinnerOpen };
+        const closureType = holiday?.closureType || (holiday ? 'full' : null);
+        const lunchOpen = (dayHours?.lunch?.isOpen ?? false) && closureType !== 'full' && closureType !== 'lunch';
+        const dinnerOpen = (dayHours?.dinner?.isOpen ?? false) && closureType !== 'full' && closureType !== 'dinner';
+        const isFullDayClosure = closureType === 'full';
+        return { dayHours, holiday, closureType, isFullDayClosure, lunchOpen, dinnerOpen, isOpen: lunchOpen || dinnerOpen };
     };
 
     /** Get effective shifts for a calendar cell, after applying overrides */
@@ -696,7 +699,7 @@ export default function TeamView() {
         const isToday = formatDate(date) === formatDate(new Date());
 
         // Holiday cell
-        if (holiday) {
+        if (holiday && (holiday.closureType || 'full') === 'full') {
             return (
                 <div key={cellKey} className="border-r p-2 min-h-[72px] bg-red-50/60 flex items-center justify-center">
                     <span className="text-[9px] text-red-400 text-center leading-tight">{holiday.reason}</span>
@@ -1151,10 +1154,10 @@ export default function TeamView() {
                                     <div className="p-3 border-r" />
                                     {weekDates.map((date, i) => {
                                         const isToday = formatDate(date) === formatDate(new Date());
-                                        const { holiday, lunchOpen, dinnerOpen, dayHours } = getDayStatus(date);
+                                        const { holiday, closureType, isFullDayClosure, lunchOpen, dinnerOpen, dayHours } = getDayStatus(date);
 
                                         return (
-                                            <div key={i} className={`p-3 border-r text-center ${isToday ? 'bg-blue-50' : ''} ${holiday ? 'bg-red-50/60' : ''}`}>
+                                            <div key={i} className={`p-3 border-r text-center ${isToday ? 'bg-blue-50' : ''} ${isFullDayClosure ? 'bg-red-50/60' : ''}`}>
                                                 <div className={`text-sm font-semibold ${isToday ? 'text-blue-600' : 'text-gray-900'}`}>
                                                     {date.toLocaleDateString('en-US', { weekday: 'short' })}
                                                 </div>
@@ -1162,13 +1165,23 @@ export default function TeamView() {
                                                     {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                                 </div>
 
-                                                {holiday ? (
+                                                {holiday && isFullDayClosure ? (
                                                     <Badge variant="outline" className="text-[9px] mt-1 border-red-300 text-red-600 bg-red-50">
                                                         <CalendarOff className="w-3 h-3 mr-0.5" />
                                                         {holiday.reason}
                                                     </Badge>
                                                 ) : (
                                                     <div className="mt-1 space-y-0.5">
+                                                        {holiday && closureType === 'lunch' && (
+                                                            <Badge variant="outline" className="text-[9px] border-amber-300 text-amber-700 bg-amber-50">
+                                                                Lunch Closed
+                                                            </Badge>
+                                                        )}
+                                                        {holiday && closureType === 'dinner' && (
+                                                            <Badge variant="outline" className="text-[9px] border-indigo-300 text-indigo-700 bg-indigo-50">
+                                                                Dinner Closed
+                                                            </Badge>
+                                                        )}
                                                         {lunchOpen && dayHours && (
                                                             <div className="flex items-center justify-center gap-0.5 text-[9px] text-amber-600">
                                                                 <Sun className="w-3 h-3" />

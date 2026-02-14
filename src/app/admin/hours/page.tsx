@@ -40,6 +40,7 @@ interface SpecialDate {
     id: string;
     date: string;
     reason: string;
+    closureType?: 'full' | 'lunch' | 'dinner';
 }
 
 const defaultHours: BusinessHours = {
@@ -260,7 +261,16 @@ export default function BusinessHoursAdmin() {
                                             {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                         </span>
                                         <span className="mx-1 text-gray-400">•</span>
-                                        <span className="text-gray-600">{specialDate.reason}</span>
+                                        <span className="text-gray-600">
+                                            {specialDate.reason}
+                                            {specialDate.closureType && (
+                                                <span className="ml-1 text-xs text-indigo-600">
+                                                    ({specialDate.closureType === 'full'
+                                                        ? 'full day'
+                                                        : `${specialDate.closureType} closed`})
+                                                </span>
+                                            )}
+                                        </span>
                                     </div>
                                 );
                             })}
