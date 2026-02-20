@@ -31,6 +31,7 @@ import {
     Sparkles,
     PanelLeftClose,
     PanelLeftOpen,
+    DollarSign,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -100,6 +101,27 @@ interface OneTimeShift {
     endTime: string;
     actualTimeIn?: string;
     actualTimeOut?: string;
+}
+
+interface TipReport {
+    id: string;
+    date: string; // YYYY-MM-DD
+    period: 'lunch' | 'dinner';
+    creditCardTip: number;
+    gratuityCharges: number;
+    doorDashTip: number;
+    uberTip: number;
+    totalTips: number;
+    updatedAt?: string | Date;
+}
+
+interface TipModalStaffEntry {
+    key: string;
+    employeeName: string;
+    role: 'front' | 'kitchen';
+    source: 'recurring' | 'one-time';
+    scheduleId?: string;
+    oneTimeShiftId?: string;
 }
 
 /** What we actually display in a cell after applying overrides */
@@ -194,6 +216,7 @@ export default function TeamView() {
     const [schedules, setSchedules] = useState<Schedule[]>([]);
     const [overrides, setOverrides] = useState<ScheduleOverride[]>([]);
     const [oneTimeShifts, setOneTimeShifts] = useState<OneTimeShift[]>([]);
+    const [tipReports, setTipReports] = useState<TipReport[]>([]);
     const [businessHours, setBusinessHours] = useState<BusinessHours | null>(null);
     const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
     const [loading, setLoading] = useState(true);
@@ -223,6 +246,12 @@ export default function TeamView() {
     const [editEndTime, setEditEndTime] = useState('');
     const [editActualIn, setEditActualIn] = useState('');
     const [editActualOut, setEditActualOut] = useState('');
+    const [editingTipReport, setEditingTipReport] = useState<{ date: Date; period: 'lunch' | 'dinner'; report?: TipReport } | null>(null);
+    const [tipCreditCard, setTipCreditCard] = useState('');
+    const [tipGratuity, setTipGratuity] = useState('');
+    const [tipDoorDash, setTipDoorDash] = useState('');
+    const [tipUber, setTipUber] = useState('');
+    const [tipAddEmployeeId, setTipAddEmployeeId] = useState('');
 
     // Add employee modal
     const [isAddingEmployee, setIsAddingEmployee] = useState(false);
@@ -290,6 +319,12 @@ export default function TeamView() {
     useEffect(() => {
         return onSnapshot(collection(db, 'oneTimeShifts'), (snap) => {
             setOneTimeShifts(snap.docs.map(d => ({ id: d.id, ...d.data() } as OneTimeShift)));
+        });
+    }, []);
+
+    useEffect(() => {
+        return onSnapshot(collection(db, 'tipReports'), (snap) => {
+            setTipReports(snap.docs.map(d => ({ id: d.id, ...d.data() } as TipReport)));
         });
     }, []);
 
@@ -688,6 +723,116 @@ export default function TeamView() {
         return oneTimeShifts.filter(s => s.date === dateStr && s.period === period && s.role === role);
     };
 
+    const getTipReportForPeriod = (date: Date, period: 'lunch' | 'dinner'): TipReport | undefined => {
+        const dateStr = formatDate(date);
+        return tipReports.find(r => r.date === dateStr && r.period === period);
+    };
+
+    const parseTipValue = (v: string): number => {
+        const parsed = Number(v);
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const totalTipsFromInputs =
+        parseTipValue(tipCreditCard) +
+        parseTipValue(tipGratuity) +
+        parseTipValue(tipDoorDash) +
+        parseTipValue(tipUber);
+
+    const openTipReportModal = (date: Date, period: 'lunch' | 'dinner') => {
+        const report = getTipReportForPeriod(date, period);
+        setEditingTipReport({ date, period, report });
+        setTipCreditCard(report ? String(report.creditCardTip || 0) : '');
+        setTipGratuity(report ? String(report.gratuityCharges || 0) : '');
+        setTipDoorDash(report ? String(report.doorDashTip || 0) : '');
+        setTipUber(report ? String(report.uberTip || 0) : '');
+        setTipAddEmployeeId('');
+    };
+
+    const handleSaveTipReport = async () => {
+        if (!editingTipReport) return;
+        const dateStr = formatDate(editingTipReport.date);
+        const payload = {
+            date: dateStr,
+            period: editingTipReport.period,
+            creditCardTip: parseTipValue(tipCreditCard),
+            gratuityCharges: parseTipValue(tipGratuity),
+            doorDashTip: parseTipValue(tipDoorDash),
+            uberTip: parseTipValue(tipUber),
+            totalTips: totalTipsFromInputs,
+            updatedAt: new Date().toISOString(),
+        };
+
+        try {
+            const existing = editingTipReport.report || getTipReportForPeriod(editingTipReport.date, editingTipReport.period);
+            if (existing) {
+                await updateDoc(doc(db, 'tipReports', existing.id), payload);
+            } else {
+                await addDoc(collection(db, 'tipReports'), payload);
+            }
+            toast.success('Tip report saved');
+            setEditingTipReport(null);
+        } catch {
+            toast.error('Failed to save tip report');
+        }
+    };
+
+    const getTipModalStaffEntries = (date: Date, period: 'lunch' | 'dinner'): TipModalStaffEntry[] => {
+        const recurringFront = getEffectiveShifts(date, period, 'front').map(({ schedule }) => ({
+            key: `rec-${schedule.id}`,
+            employeeName: schedule.employeeName,
+            role: schedule.role,
+            source: 'recurring' as const,
+            scheduleId: schedule.id,
+        }));
+        const oneTimeFront = getOneTimeShiftsForCell(date, period, 'front').map((shift) => ({
+            key: `ot-${shift.id}`,
+            employeeName: shift.employeeName,
+            role: shift.role,
+            source: 'one-time' as const,
+            oneTimeShiftId: shift.id,
+        }));
+
+        return [...recurringFront, ...oneTimeFront]
+            .sort((a, b) => a.employeeName.localeCompare(b.employeeName));
+    };
+
+    const handleRemoveTipModalStaff = async (entry: TipModalStaffEntry) => {
+        if (!editingTipReport) return;
+        if (entry.source === 'one-time' && entry.oneTimeShiftId) {
+            try {
+                await deleteDoc(doc(db, 'oneTimeShifts', entry.oneTimeShiftId));
+                toast.success(`${entry.employeeName} removed from this shift`);
+            } catch {
+                toast.error('Failed to remove staff');
+            }
+            return;
+        }
+
+        if (entry.source === 'recurring' && entry.scheduleId) {
+            await handleSkipWeek(entry.scheduleId, editingTipReport.date);
+        }
+    };
+
+    const handleAddStaffFromTipModal = async () => {
+        if (!editingTipReport) return;
+        if (!tipAddEmployeeId) {
+            toast.error('Select a staff member');
+            return;
+        }
+        await handleAddOneTimeShift(
+            tipAddEmployeeId,
+            editingTipReport.date,
+            editingTipReport.period,
+            'front'
+        );
+        setTipAddEmployeeId('');
+    };
+
+    const tipModalStaffEntries = editingTipReport
+        ? getTipModalStaffEntries(editingTipReport.date, editingTipReport.period)
+        : [];
+
     /** Render a single schedule cell */
     const renderCell = (date: Date, period: 'lunch' | 'dinner', role: 'front' | 'kitchen') => {
         const dayOfWeek = getDayName(date);
@@ -714,6 +859,7 @@ export default function TeamView() {
 
         const effectiveShifts = getEffectiveShifts(date, period, role);
         const cellOneTimeShifts = getOneTimeShiftsForCell(date, period, role);
+        const tipReport = getTipReportForPeriod(date, period);
         const isFront = role === 'front';
 
         // Cell styles based on drag state
@@ -739,17 +885,39 @@ export default function TeamView() {
                 onDrop={(e) => handleCellDrop(e, dayOfWeek, period, role, date)}
             >
                 <div className="space-y-1">
+                    {isFront && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                openTipReportModal(date, period);
+                            }}
+                            className={`w-full flex items-center justify-between px-2 py-1 rounded-md border text-[10px] font-medium transition-colors ${
+                                tipReport
+                                    ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                    : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
+                            }`}
+                        >
+                            <span className="flex items-center gap-1">
+                                <DollarSign className="w-3 h-3" />
+                                Tip Report
+                            </span>
+                            <span>{tipReport ? `$${Number(tipReport.totalTips || 0).toFixed(2)}` : 'Add'}</span>
+                        </button>
+                    )}
+
                     {/* Recurring shifts */}
-                    {effectiveShifts.map(({ schedule, override, startTime, endTime, actualTimeIn, actualTimeOut }) => {
-                        const hasActuals = actualTimeIn || actualTimeOut;
+                    {effectiveShifts.map(({ schedule, override }) => {
+                        const effectiveStart = override?.startTime || schedule.startTime;
+                        const effectiveEnd = override?.endTime || schedule.endTime;
                         return (
                             <div
                                 key={schedule.id}
                                 onClick={() => {
                                     setEditingOneTimeShift(null);
-                                    setEditingShift({ schedule, date, override, effectiveStart: startTime, effectiveEnd: endTime });
-                                    setEditStartTime(startTime);
-                                    setEditEndTime(endTime);
+                                    setEditingShift({ schedule, date, override, effectiveStart, effectiveEnd });
+                                    setEditStartTime(effectiveStart);
+                                    setEditEndTime(effectiveEnd);
                                     setEditActualIn(override?.actualTimeIn || schedule.actualTimeIn || '');
                                     setEditActualOut(override?.actualTimeOut || schedule.actualTimeOut || '');
                                 }}
@@ -757,7 +925,7 @@ export default function TeamView() {
                                     isFront
                                         ? 'bg-blue-100 hover:bg-blue-200/80 text-blue-900'
                                         : 'bg-orange-100 hover:bg-orange-200/80 text-orange-900'
-                                } ${override ? 'ring-1 ring-amber-400' : ''} ${hasActuals ? 'ring-1 ring-green-400' : ''}`}
+                                } ${override ? 'ring-1 ring-amber-400' : ''}`}
                             >
                                 <div className="flex items-center justify-between gap-1">
                                     <div className="font-semibold truncate text-[11px]">{schedule.employeeName}</div>
@@ -774,18 +942,7 @@ export default function TeamView() {
                                         <X className="w-3 h-3" />
                                     </button>
                                 </div>
-                                <div className="flex items-center gap-1 mt-0.5 opacity-75">
-                                    <span className="text-[10px]">
-                                        {formatTimeShort(startTime)} - {formatTimeShort(endTime)}
-                                    </span>
-                                </div>
-                                {hasActuals && (
-                                    <div className="text-[9px] text-green-700 font-medium mt-0.5 flex items-center gap-0.5">
-                                        <Clock className="w-2.5 h-2.5" />
-                                        {actualTimeIn ? formatTimeShort(actualTimeIn) : '?'} – {actualTimeOut ? formatTimeShort(actualTimeOut) : '?'}
-                                    </div>
-                                )}
-                                {override && !hasActuals && (
+                                {override && (
                                     <div className="text-[9px] text-amber-600 font-medium mt-0.5">Modified</div>
                                 )}
                             </div>
@@ -794,7 +951,6 @@ export default function TeamView() {
 
                     {/* One-time shifts (custom week) */}
                     {cellOneTimeShifts.map(shift => {
-                        const hasActuals = shift.actualTimeIn || shift.actualTimeOut;
                         return (
                             <div
                                 key={`ot-${shift.id}`}
@@ -810,7 +966,7 @@ export default function TeamView() {
                                     isFront
                                         ? 'bg-violet-100 hover:bg-violet-200/80 text-violet-900'
                                         : 'bg-violet-100 hover:bg-violet-200/80 text-violet-900'
-                                } ${hasActuals ? 'ring-2 ring-green-400' : ''}`}
+                                }`}
                             >
                                 <div className="flex items-center justify-between gap-1">
                                     <div className="flex items-center gap-1">
@@ -828,18 +984,7 @@ export default function TeamView() {
                                         <X className="w-3 h-3" />
                                     </button>
                                 </div>
-                                <div className="flex items-center gap-1 mt-0.5 opacity-75">
-                                    <span className="text-[10px]">
-                                        {formatTimeShort(shift.startTime)} - {formatTimeShort(shift.endTime)}
-                                    </span>
-                                    <span className="text-[8px] bg-violet-200 text-violet-700 px-1 rounded font-semibold">1x</span>
-                                </div>
-                                {hasActuals && (
-                                    <div className="text-[9px] text-green-700 font-medium mt-0.5 flex items-center gap-0.5">
-                                        <Clock className="w-2.5 h-2.5" />
-                                        {shift.actualTimeIn ? formatTimeShort(shift.actualTimeIn) : '?'} – {shift.actualTimeOut ? formatTimeShort(shift.actualTimeOut) : '?'}
-                                    </div>
-                                )}
+                                <div className="text-[8px] bg-violet-200 text-violet-700 px-1 rounded font-semibold inline-block mt-0.5">1x</div>
                             </div>
                         );
                     })}
@@ -970,7 +1115,6 @@ export default function TeamView() {
                                     <p className="text-xs text-gray-400 text-center py-3">No staff yet</p>
                                 )}
                                 {frontEmployees.map(emp => {
-                                    const stats = getEmployeeStats(emp.id);
                                     return (
                                         <div
                                             key={emp.id}
@@ -992,9 +1136,6 @@ export default function TeamView() {
                                                         <span className="text-[9px] px-1 py-0.5 bg-purple-100 text-purple-600 rounded font-medium flex-shrink-0">Both</span>
                                                     )}
                                                 </div>
-                                                {stats.shiftCount > 0 && (
-                                                    <span className="text-[10px] text-gray-400">{formatHours(stats.totalWeeklyHours)}/wk</span>
-                                                )}
                                             </div>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleDeleteEmployee(emp); }}
@@ -1231,6 +1372,178 @@ export default function TeamView() {
                         </Card>
                     </div>
                 </div>
+
+                {/* ─── Tip Report Modal ───────────────────────────────────── */}
+                {editingTipReport && (
+                    <div
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+                        onClick={() => setEditingTipReport(null)}
+                    >
+                        <div
+                            className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between p-5 border-b">
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900">Tip Report</h3>
+                                    <p className="text-sm text-gray-500 mt-0.5">
+                                        {capitalize(editingTipReport.period)} · {editingTipReport.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setEditingTipReport(null)}
+                                    className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="p-5 space-y-3">
+                                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Worked Staff</h4>
+                                        <span className="text-[11px] text-gray-500">{tipModalStaffEntries.length} assigned</span>
+                                    </div>
+
+                                    {tipModalStaffEntries.length === 0 ? (
+                                        <div className="text-xs text-gray-500">No staff assigned yet for this shift.</div>
+                                    ) : (
+                                        <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                                            {tipModalStaffEntries.map((entry) => (
+                                                <div key={entry.key} className="flex items-center justify-between gap-2 rounded-md bg-white border border-gray-200 px-2.5 py-1.5">
+                                                    <div className="min-w-0">
+                                                        <div className="text-xs font-medium text-gray-800 truncate">{entry.employeeName}</div>
+                                                        <div className="flex items-center gap-1 mt-0.5">
+                                                            <Badge
+                                                                variant="outline"
+                                                                className={`text-[9px] ${
+                                                                    entry.role === 'front'
+                                                                        ? 'border-blue-200 text-blue-700 bg-blue-50'
+                                                                        : 'border-orange-200 text-orange-700 bg-orange-50'
+                                                                }`}
+                                                            >
+                                                                {entry.role === 'front' ? 'FOH' : 'Kitchen'}
+                                                            </Badge>
+                                                            <Badge variant="secondary" className="text-[9px]">
+                                                                {entry.source === 'one-time' ? 'This week' : 'Recurring'}
+                                                            </Badge>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveTipModalStaff(entry)}
+                                                        className="p-1 rounded hover:bg-red-50 text-red-500 hover:text-red-600 transition-colors"
+                                                        title="Remove from this shift"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-12 gap-2 pt-1">
+                                        <div className="col-span-7">
+                                            <select
+                                                value={tipAddEmployeeId}
+                                                onChange={(e) => setTipAddEmployeeId(e.target.value)}
+                                                className="w-full px-2.5 py-2 border border-gray-300 rounded-md text-xs bg-white"
+                                            >
+                                                <option value="">Add staff to this shift</option>
+                                                {employees
+                                                    .filter((emp) => emp.role === 'front' || emp.role === 'both')
+                                                    .map((emp) => (
+                                                        <option key={emp.id} value={emp.id}>
+                                                            {emp.name}
+                                                        </option>
+                                                    ))}
+                                            </select>
+                                        </div>
+                                        <div className="col-span-5">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className="w-full h-[34px] px-0"
+                                                onClick={handleAddStaffFromTipModal}
+                                            >
+                                                Add
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-xs font-medium text-gray-500 mb-1 block">Credit Card Tip</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={tipCreditCard}
+                                            onChange={(e) => setTipCreditCard(e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                            placeholder="0.00"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-medium text-gray-500 mb-1 block">Gratuity Charges</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={tipGratuity}
+                                            onChange={(e) => setTipGratuity(e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                            placeholder="0.00"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-xs font-medium text-gray-500 mb-1 block">DoorDash Tip</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={tipDoorDash}
+                                            onChange={(e) => setTipDoorDash(e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                            placeholder="0.00"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-medium text-gray-500 mb-1 block">Uber Tip</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={tipUber}
+                                            onChange={(e) => setTipUber(e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                            placeholder="0.00"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2.5 flex items-center justify-between">
+                                    <span className="text-sm font-medium text-emerald-700">Total Tips</span>
+                                    <span className="text-lg font-bold text-emerald-800">${totalTipsFromInputs.toFixed(2)}</span>
+                                </div>
+                            </div>
+
+                            <div className="px-5 py-4 border-t flex items-center justify-end gap-2">
+                                <Button variant="outline" onClick={() => setEditingTipReport(null)}>
+                                    Cancel
+                                </Button>
+                                <Button onClick={handleSaveTipReport} className="gap-1.5">
+                                    <DollarSign className="w-4 h-4" />
+                                    Save Tip Report
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* ─── Edit Shift Modal ───────────────────────────────────── */}
                 {editingShift && (
