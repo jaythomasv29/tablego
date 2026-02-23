@@ -40,12 +40,12 @@ export default function Navbar() {
                             >
                                 <span className="text-sm font-medium">Menu</span>
                             </Link>
-                            <Link
+                            {/* <Link
                                 href="/cater"
                                 className="flex items-center space-x-2 text-gray-600 hover:text-indigo-600 transition-colors"
                             >
                                 <span className="text-sm font-medium">Cater</span>
-                            </Link>
+                            </Link> */}
                             <Link
                                 href="https://order.online/business/Thaiphoon-450?utm_source=sdk&visitorId=193be2bc7cf1d9e9c"
                                 className="flex items-center space-x-2 text-gray-600 hover:text-indigo-600 transition-colors"
