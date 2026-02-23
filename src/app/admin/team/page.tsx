@@ -56,32 +56,6 @@ interface Employee {
     role: EmployeeRole;
 }
 
-/** A recurring weekly assignment. "Mike works every Monday Lunch" */
-interface Schedule {
-    id: string;
-    employeeId: string;
-    employeeName: string;
-    role: 'front' | 'kitchen';
-    dayOfWeek: string; // 'monday', 'tuesday', etc.
-    period: 'lunch' | 'dinner';
-    startTime: string;
-    endTime: string;
-    actualTimeIn?: string;  // recurring modified time-in
-    actualTimeOut?: string; // recurring modified time-out
-}
-
-/** A date-specific override for a single week. */
-interface ScheduleOverride {
-    id: string;
-    scheduleId: string;
-    date: string; // YYYY-MM-DD
-    action: 'cancel' | 'modify';
-    startTime?: string;
-    endTime?: string;
-    actualTimeIn?: string;  // real clock-in (e.g. came early for prep)
-    actualTimeOut?: string; // real clock-out (e.g. stayed late for cleanup)
-}
-
 interface SpecialDate {
     id: string;
     date: string;
@@ -89,8 +63,8 @@ interface SpecialDate {
     closureType?: 'full' | 'lunch' | 'dinner';
 }
 
-/** A one-time shift for a specific date only (custom week mode). */
-interface OneTimeShift {
+/** A manual shift assignment for a specific date. */
+interface ScheduleShift {
     id: string;
     employeeId: string;
     employeeName: string;
@@ -119,30 +93,8 @@ interface TipModalStaffEntry {
     key: string;
     employeeName: string;
     role: 'front' | 'kitchen';
-    source: 'recurring' | 'one-time';
+    source: 'manual';
     scheduleId?: string;
-    oneTimeShiftId?: string;
-}
-
-/** What we actually display in a cell after applying overrides */
-interface EffectiveShift {
-    schedule: Schedule;
-    override?: ScheduleOverride;
-    startTime: string;
-    endTime: string;
-    actualTimeIn?: string;
-    actualTimeOut?: string;
-    isOneTime?: false;
-}
-
-/** A displayed one-time shift in a cell */
-interface EffectiveOneTimeShift {
-    oneTimeShift: OneTimeShift;
-    startTime: string;
-    endTime: string;
-    actualTimeIn?: string;
-    actualTimeOut?: string;
-    isOneTime: true;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -186,6 +138,14 @@ function capitalize(s: string): string {
     return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+function formatDisplayName(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length <= 1) return name;
+    const firstPart = parts.slice(0, -1).join(' ');
+    const lastInitial = parts[parts.length - 1].charAt(0).toUpperCase();
+    return `${firstPart} ${lastInitial}.`;
+}
+
 function timeToMinutes(time: string): number {
     const [h, m] = time.split(':').map(Number);
     return h * 60 + m;
@@ -213,16 +173,12 @@ export default function TeamView() {
     // Data state
     const [currentWeekStart, setCurrentWeekStart] = useState<Date>(getMonday(new Date()));
     const [employees, setEmployees] = useState<Employee[]>([]);
-    const [schedules, setSchedules] = useState<Schedule[]>([]);
-    const [overrides, setOverrides] = useState<ScheduleOverride[]>([]);
-    const [oneTimeShifts, setOneTimeShifts] = useState<OneTimeShift[]>([]);
+    const [schedules, setSchedules] = useState<ScheduleShift[]>([]);
     const [tipReports, setTipReports] = useState<TipReport[]>([]);
     const [businessHours, setBusinessHours] = useState<BusinessHours | null>(null);
     const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Custom week mode
-    const [customWeekMode, setCustomWeekMode] = useState(false);
     const [showSidebar, setShowSidebar] = useState(true);
 
     // Drag & drop state
@@ -231,15 +187,8 @@ export default function TeamView() {
     const draggedRef = useRef<Employee | null>(null);
 
     // Edit modal state
-    const [editingShift, setEditingShift] = useState<{
-        schedule: Schedule;
-        date: Date;
-        override?: ScheduleOverride;
-        effectiveStart: string;
-        effectiveEnd: string;
-    } | null>(null);
-    const [editingOneTimeShift, setEditingOneTimeShift] = useState<{
-        shift: OneTimeShift;
+    const [editingScheduleShift, setEditingScheduleShift] = useState<{
+        shift: ScheduleShift;
         date: Date;
     } | null>(null);
     const [editStartTime, setEditStartTime] = useState('');
@@ -305,20 +254,8 @@ export default function TeamView() {
 
     useEffect(() => {
         return onSnapshot(collection(db, 'schedules'), (snap) => {
-            setSchedules(snap.docs.map(d => ({ id: d.id, ...d.data() } as Schedule)));
+            setSchedules(snap.docs.map(d => ({ id: d.id, ...d.data() } as ScheduleShift)));
             setLoading(false);
-        });
-    }, []);
-
-    useEffect(() => {
-        return onSnapshot(collection(db, 'scheduleOverrides'), (snap) => {
-            setOverrides(snap.docs.map(d => ({ id: d.id, ...d.data() } as ScheduleOverride)));
-        });
-    }, []);
-
-    useEffect(() => {
-        return onSnapshot(collection(db, 'oneTimeShifts'), (snap) => {
-            setOneTimeShifts(snap.docs.map(d => ({ id: d.id, ...d.data() } as OneTimeShift)));
         });
     }, []);
 
@@ -345,46 +282,22 @@ export default function TeamView() {
         return { dayHours, holiday, closureType, isFullDayClosure, lunchOpen, dinnerOpen, isOpen: lunchOpen || dinnerOpen };
     };
 
-    /** Get effective shifts for a calendar cell, after applying overrides */
-    const getEffectiveShifts = (date: Date, period: 'lunch' | 'dinner', role: 'front' | 'kitchen'): EffectiveShift[] => {
-        const dayOfWeek = getDayName(date);
-        const dateStr = formatDate(date);
-
-        const recurring = schedules.filter(
-            s => s.dayOfWeek === dayOfWeek && s.period === period && s.role === role
-        );
-
-        return recurring
-            .map(schedule => {
-                const override = overrides.find(o => o.scheduleId === schedule.id && o.date === dateStr);
-                if (override?.action === 'cancel') return null;
-                const hasOverride = override?.action === 'modify';
-                return {
-                    schedule,
-                    override: hasOverride ? override : undefined,
-                    startTime: (hasOverride && override.startTime) ? override.startTime : schedule.startTime,
-                    endTime: (hasOverride && override.endTime) ? override.endTime : schedule.endTime,
-                    // Per-date override takes priority, then recurring schedule value
-                    actualTimeIn: override?.actualTimeIn || schedule.actualTimeIn,
-                    actualTimeOut: override?.actualTimeOut || schedule.actualTimeOut,
-                };
-            })
-            .filter(Boolean) as EffectiveShift[];
-    };
-
-    /** Get all schedules + stats for an employee */
+    /** Get all manual shifts + stats for selected week */
     const getEmployeeStats = (employeeId: string) => {
-        const empSchedules = schedules.filter(s => s.employeeId === employeeId);
+        const weekDateStrings = weekDates.map(formatDate);
+        const empSchedules = schedules.filter(s => s.employeeId === employeeId && weekDateStrings.includes(s.date));
+
         const totalWeeklyHours = empSchedules.reduce((sum, s) => {
             return sum + getShiftDurationHours(s.startTime, s.endTime);
         }, 0);
         const shiftCount = empSchedules.length;
 
-        // Group schedules by day for display
-        const byDay = DISPLAY_DAY_ORDER
-            .map(day => ({
-                day,
-                shifts: empSchedules.filter(s => s.dayOfWeek === day),
+        // Group shifts by actual week dates for display
+        const byDay = weekDates
+            .map(date => ({
+                day: getDayName(date),
+                dateLabel: formatDate(date),
+                shifts: empSchedules.filter(s => s.date === formatDate(date)),
             }))
             .filter(g => g.shifts.length > 0);
 
@@ -416,15 +329,11 @@ export default function TeamView() {
 
     const handleCellDragLeave = () => setDragOverCell(null);
 
-    const handleCellDrop = (e: React.DragEvent, dayOfWeek: string, period: 'lunch' | 'dinner', role: 'front' | 'kitchen', date: Date) => {
+    const handleCellDrop = (e: React.DragEvent, period: 'lunch' | 'dinner', role: 'front' | 'kitchen', date: Date) => {
         e.preventDefault();
         try {
             const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-            if (customWeekMode) {
-                handleAddOneTimeShift(data.id, date, period, role);
-            } else {
-                handleAddSchedule(data.id, dayOfWeek, period, role);
-            }
+            handleAddScheduleShift(data.id, date, period, role);
         } catch (err) {
             console.error(err);
         }
@@ -433,174 +342,20 @@ export default function TeamView() {
         draggedRef.current = null;
     };
 
-    // ─── Schedule CRUD ──────────────────────────────────────────────────────
+    // ─── Manual Shift CRUD ──────────────────────────────────────────────────
 
-    const handleAddSchedule = async (employeeId: string, dayOfWeek: string, period: 'lunch' | 'dinner', targetRole?: 'front' | 'kitchen') => {
-        const employee = employees.find(e => e.id === employeeId);
-        if (!employee) return;
-
-        // Use the target cell's role if provided, otherwise fall back to employee's primary role
-        const role = targetRole || employee.role;
-
-        // Prevent duplicate (same employee, day, period, AND role)
-        const dup = schedules.find(s =>
-            s.employeeId === employeeId && s.dayOfWeek === dayOfWeek && s.period === period && s.role === role
-        );
-        if (dup) {
-            toast.error(`${employee.name} is already on ${capitalize(dayOfWeek)} ${capitalize(period)} (${role === 'front' ? 'FOH' : 'Kitchen'})`);
-            return;
-        }
-
-        // Default times from business hours
-        const dayHours = businessHours?.[dayOfWeek];
-        const periodHours = dayHours?.[period];
-        const startTime = periodHours?.open || (period === 'lunch' ? '11:00' : '17:00');
-        const endTime = periodHours?.close || (period === 'lunch' ? '15:00' : '22:00');
-
-        try {
-            await addDoc(collection(db, 'schedules'), {
-                employeeId,
-                employeeName: employee.name,
-                role,
-                dayOfWeek,
-                period,
-                startTime,
-                endTime,
-            });
-            const section = role === 'front' ? 'FOH' : 'Kitchen';
-            toast.success(`${employee.name} → Every ${capitalize(dayOfWeek)} ${capitalize(period)} (${section})`);
-        } catch {
-            toast.error('Failed to assign shift');
-        }
-    };
-
-    const handleDeleteSchedule = async (scheduleId: string) => {
-        try {
-            await deleteDoc(doc(db, 'schedules', scheduleId));
-            // Clean up any overrides for this schedule
-            const related = overrides.filter(o => o.scheduleId === scheduleId);
-            await Promise.all(related.map(o => deleteDoc(doc(db, 'scheduleOverrides', o.id))));
-            toast.success('Recurring shift removed');
-        } catch {
-            toast.error('Failed to remove shift');
-        }
-        setEditingShift(null);
-    };
-
-    const handleSkipWeek = async (scheduleId: string, date: Date) => {
-        const dateStr = formatDate(date);
-        const existing = overrides.find(o => o.scheduleId === scheduleId && o.date === dateStr);
-        try {
-            if (existing) {
-                await updateDoc(doc(db, 'scheduleOverrides', existing.id), { action: 'cancel' });
-            } else {
-                await addDoc(collection(db, 'scheduleOverrides'), {
-                    scheduleId,
-                    date: dateStr,
-                    action: 'cancel',
-                });
-            }
-            toast.success('Shift skipped for this week');
-        } catch {
-            toast.error('Failed to skip shift');
-        }
-        setEditingShift(null);
-    };
-
-    const handleEditRecurring = async (scheduleId: string, startTime: string, endTime: string) => {
-        try {
-            await updateDoc(doc(db, 'schedules', scheduleId), { startTime, endTime });
-            toast.success('Recurring times updated');
-        } catch {
-            toast.error('Failed to update');
-        }
-        setEditingShift(null);
-    };
-
-    const handleEditThisWeek = async (scheduleId: string, date: Date, startTime: string, endTime: string) => {
-        const dateStr = formatDate(date);
-        const existing = overrides.find(o => o.scheduleId === scheduleId && o.date === dateStr);
-        try {
-            if (existing) {
-                await updateDoc(doc(db, 'scheduleOverrides', existing.id), {
-                    action: 'modify',
-                    startTime,
-                    endTime,
-                });
-            } else {
-                await addDoc(collection(db, 'scheduleOverrides'), {
-                    scheduleId,
-                    date: dateStr,
-                    action: 'modify',
-                    startTime,
-                    endTime,
-                });
-            }
-            toast.success('Times updated for this week');
-        } catch {
-            toast.error('Failed to update');
-        }
-        setEditingShift(null);
-    };
-
-    const handleSaveModifiedTimeRecurring = async (scheduleId: string, actualTimeIn: string, actualTimeOut: string) => {
-        try {
-            const updates: Record<string, string | null> = {};
-            if (actualTimeIn) updates.actualTimeIn = actualTimeIn;
-            else updates.actualTimeIn = null;
-            if (actualTimeOut) updates.actualTimeOut = actualTimeOut;
-            else updates.actualTimeOut = null;
-
-            await updateDoc(doc(db, 'schedules', scheduleId), updates);
-            toast.success('Modified time saved for every shift');
-        } catch {
-            toast.error('Failed to save');
-        }
-        setEditingShift(null);
-    };
-
-    const handleSaveActualTimes = async (scheduleId: string, date: Date, actualTimeIn: string, actualTimeOut: string) => {
-        const dateStr = formatDate(date);
-        const existing = overrides.find(o => o.scheduleId === scheduleId && o.date === dateStr);
-        try {
-            if (existing) {
-                await updateDoc(doc(db, 'scheduleOverrides', existing.id), {
-                    actualTimeIn: actualTimeIn || null,
-                    actualTimeOut: actualTimeOut || null,
-                });
-            } else {
-                // Create a new override just for actual times (not modifying the scheduled time)
-                await addDoc(collection(db, 'scheduleOverrides'), {
-                    scheduleId,
-                    date: dateStr,
-                    action: 'modify',
-                    startTime: null,
-                    endTime: null,
-                    actualTimeIn: actualTimeIn || null,
-                    actualTimeOut: actualTimeOut || null,
-                });
-            }
-            toast.success('Actual times saved');
-        } catch {
-            toast.error('Failed to save actual times');
-        }
-        setEditingShift(null);
-    };
-
-    // ─── One-Time Shift CRUD (custom week mode) ────────────────────────────
-
-    const handleAddOneTimeShift = async (employeeId: string, date: Date, period: 'lunch' | 'dinner', targetRole: 'front' | 'kitchen') => {
+    const handleAddScheduleShift = async (employeeId: string, date: Date, period: 'lunch' | 'dinner', targetRole: 'front' | 'kitchen') => {
         const employee = employees.find(e => e.id === employeeId);
         if (!employee) return;
 
         const dateStr = formatDate(date);
 
         // Prevent duplicate
-        const dup = oneTimeShifts.find(s =>
+        const dup = schedules.find(s =>
             s.employeeId === employeeId && s.date === dateStr && s.period === period && s.role === targetRole
         );
         if (dup) {
-            toast.error(`${employee.name} already has a one-time shift here`);
+            toast.error(`${employee.name} is already assigned to this shift`);
             return;
         }
 
@@ -611,7 +366,7 @@ export default function TeamView() {
         const endTime = periodHours?.close || (period === 'lunch' ? '15:00' : '22:00');
 
         try {
-            await addDoc(collection(db, 'oneTimeShifts'), {
+            await addDoc(collection(db, 'schedules'), {
                 employeeId,
                 employeeName: employee.name,
                 role: targetRole,
@@ -622,35 +377,35 @@ export default function TeamView() {
             });
             const dayLabel = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
             const section = targetRole === 'front' ? 'FOH' : 'Kitchen';
-            toast.success(`${employee.name} → ${dayLabel} ${capitalize(period)} (${section}) — this week only`);
+            toast.success(`${employee.name} → ${dayLabel} ${capitalize(period)} (${section})`);
         } catch {
-            toast.error('Failed to add one-time shift');
+            toast.error('Failed to add shift');
         }
     };
 
-    const handleDeleteOneTimeShift = async (shiftId: string) => {
+    const handleDeleteScheduleShift = async (shiftId: string) => {
         try {
-            await deleteDoc(doc(db, 'oneTimeShifts', shiftId));
-            toast.success('One-time shift removed');
+            await deleteDoc(doc(db, 'schedules', shiftId));
+            toast.success('Shift removed');
         } catch {
             toast.error('Failed to remove shift');
         }
-        setEditingOneTimeShift(null);
+        setEditingScheduleShift(null);
     };
 
-    const handleEditOneTimeShift = async (shiftId: string, startTime: string, endTime: string) => {
+    const handleEditScheduleShift = async (shiftId: string, startTime: string, endTime: string) => {
         try {
-            await updateDoc(doc(db, 'oneTimeShifts', shiftId), { startTime, endTime });
+            await updateDoc(doc(db, 'schedules', shiftId), { startTime, endTime });
             toast.success('Shift times updated');
         } catch {
             toast.error('Failed to update');
         }
-        setEditingOneTimeShift(null);
+        setEditingScheduleShift(null);
     };
 
-    const handleSaveOneTimeModifiedTime = async (shiftId: string, actualTimeIn: string, actualTimeOut: string) => {
+    const handleSaveScheduleModifiedTime = async (shiftId: string, actualTimeIn: string, actualTimeOut: string) => {
         try {
-            await updateDoc(doc(db, 'oneTimeShifts', shiftId), {
+            await updateDoc(doc(db, 'schedules', shiftId), {
                 actualTimeIn: actualTimeIn || null,
                 actualTimeOut: actualTimeOut || null,
             });
@@ -658,7 +413,7 @@ export default function TeamView() {
         } catch {
             toast.error('Failed to save');
         }
-        setEditingOneTimeShift(null);
+        setEditingScheduleShift(null);
     };
 
     // ─── Employee CRUD ──────────────────────────────────────────────────────
@@ -679,13 +434,11 @@ export default function TeamView() {
     };
 
     const handleDeleteEmployee = async (emp: Employee) => {
-        if (!confirm(`Remove ${emp.name} and all their recurring shifts?`)) return;
+        if (!confirm(`Remove ${emp.name} and all their shifts?`)) return;
         try {
             await deleteDoc(doc(db, 'employees', emp.id));
-            const empSchedules = schedules.filter(s => s.employeeId === emp.id);
-            for (const s of empSchedules) {
-                const related = overrides.filter(o => o.scheduleId === s.id);
-                await Promise.all(related.map(o => deleteDoc(doc(db, 'scheduleOverrides', o.id))));
+            const empShifts = schedules.filter(s => s.employeeId === emp.id);
+            for (const s of empShifts) {
                 await deleteDoc(doc(db, 'schedules', s.id));
             }
             toast.success(`${emp.name} removed`);
@@ -717,10 +470,10 @@ export default function TeamView() {
     const kitchenEmployees = employees.filter(e => e.role === 'kitchen' || e.role === 'both');
     const unassignedEmployees = employees.filter(e => e.role === 'unassigned');
 
-    /** Get one-time shifts for a cell */
-    const getOneTimeShiftsForCell = (date: Date, period: 'lunch' | 'dinner', role: 'front' | 'kitchen'): OneTimeShift[] => {
+    /** Get manual shifts for a cell */
+    const getShiftsForCell = (date: Date, period: 'lunch' | 'dinner', role: 'front' | 'kitchen'): ScheduleShift[] => {
         const dateStr = formatDate(date);
-        return oneTimeShifts.filter(s => s.date === dateStr && s.period === period && s.role === role);
+        return schedules.filter(s => s.date === dateStr && s.period === period && s.role === role);
     };
 
     const getTipReportForPeriod = (date: Date, period: 'lunch' | 'dinner'): TipReport | undefined => {
@@ -778,39 +531,26 @@ export default function TeamView() {
     };
 
     const getTipModalStaffEntries = (date: Date, period: 'lunch' | 'dinner'): TipModalStaffEntry[] => {
-        const recurringFront = getEffectiveShifts(date, period, 'front').map(({ schedule }) => ({
-            key: `rec-${schedule.id}`,
-            employeeName: schedule.employeeName,
-            role: schedule.role,
-            source: 'recurring' as const,
-            scheduleId: schedule.id,
-        }));
-        const oneTimeFront = getOneTimeShiftsForCell(date, period, 'front').map((shift) => ({
+        const frontShifts = getShiftsForCell(date, period, 'front').map((shift) => ({
             key: `ot-${shift.id}`,
             employeeName: shift.employeeName,
             role: shift.role,
-            source: 'one-time' as const,
-            oneTimeShiftId: shift.id,
+            source: 'manual' as const,
+            scheduleId: shift.id,
         }));
 
-        return [...recurringFront, ...oneTimeFront]
+        return [...frontShifts]
             .sort((a, b) => a.employeeName.localeCompare(b.employeeName));
     };
 
     const handleRemoveTipModalStaff = async (entry: TipModalStaffEntry) => {
-        if (!editingTipReport) return;
-        if (entry.source === 'one-time' && entry.oneTimeShiftId) {
+        if (entry.scheduleId) {
             try {
-                await deleteDoc(doc(db, 'oneTimeShifts', entry.oneTimeShiftId));
+                await deleteDoc(doc(db, 'schedules', entry.scheduleId));
                 toast.success(`${entry.employeeName} removed from this shift`);
             } catch {
                 toast.error('Failed to remove staff');
             }
-            return;
-        }
-
-        if (entry.source === 'recurring' && entry.scheduleId) {
-            await handleSkipWeek(entry.scheduleId, editingTipReport.date);
         }
     };
 
@@ -820,7 +560,7 @@ export default function TeamView() {
             toast.error('Select a staff member');
             return;
         }
-        await handleAddOneTimeShift(
+        await handleAddScheduleShift(
             tipAddEmployeeId,
             editingTipReport.date,
             editingTipReport.period,
@@ -857,23 +597,19 @@ export default function TeamView() {
             return <div key={cellKey} className="border-r p-2 min-h-[72px] bg-gray-50" />;
         }
 
-        const effectiveShifts = getEffectiveShifts(date, period, role);
-        const cellOneTimeShifts = getOneTimeShiftsForCell(date, period, role);
+        const cellShifts = getShiftsForCell(date, period, role);
         const tipReport = getTipReportForPeriod(date, period);
         const isFront = role === 'front';
 
         // Cell styles based on drag state
         let cellClasses = 'border-r p-1.5 min-h-[72px] transition-all duration-150';
         if (isToday) cellClasses += ' bg-blue-50/20';
-        if (customWeekMode) cellClasses += ' bg-violet-50/20';
         if (isOver) {
-            cellClasses += customWeekMode
-                ? ' bg-violet-100/80 ring-2 ring-inset ring-violet-400 ring-dashed'
-                : isFront
-                    ? ' bg-blue-100/80 ring-2 ring-inset ring-blue-400 ring-dashed'
-                    : ' bg-orange-100/80 ring-2 ring-inset ring-orange-400 ring-dashed';
+            cellClasses += isFront
+                ? ' bg-blue-100/80 ring-2 ring-inset ring-blue-400 ring-dashed'
+                : ' bg-orange-100/80 ring-2 ring-inset ring-orange-400 ring-dashed';
         } else if (isDragging) {
-            cellClasses += customWeekMode ? ' bg-violet-50/40' : isFront ? ' bg-blue-50/30' : ' bg-orange-50/30';
+            cellClasses += isFront ? ' bg-blue-50/30' : ' bg-orange-50/30';
         }
 
         return (
@@ -882,7 +618,7 @@ export default function TeamView() {
                 className={cellClasses}
                 onDragOver={(e) => handleCellDragOver(e, cellKey, role)}
                 onDragLeave={handleCellDragLeave}
-                onDrop={(e) => handleCellDrop(e, dayOfWeek, period, role, date)}
+                onDrop={(e) => handleCellDrop(e, period, role, date)}
             >
                 <div className="space-y-1">
                     {isFront && (
@@ -906,57 +642,13 @@ export default function TeamView() {
                         </button>
                     )}
 
-                    {/* Recurring shifts */}
-                    {effectiveShifts.map(({ schedule, override }) => {
-                        const effectiveStart = override?.startTime || schedule.startTime;
-                        const effectiveEnd = override?.endTime || schedule.endTime;
-                        return (
-                            <div
-                                key={schedule.id}
-                                onClick={() => {
-                                    setEditingOneTimeShift(null);
-                                    setEditingShift({ schedule, date, override, effectiveStart, effectiveEnd });
-                                    setEditStartTime(effectiveStart);
-                                    setEditEndTime(effectiveEnd);
-                                    setEditActualIn(override?.actualTimeIn || schedule.actualTimeIn || '');
-                                    setEditActualOut(override?.actualTimeOut || schedule.actualTimeOut || '');
-                                }}
-                                className={`px-2 py-1.5 rounded-md text-xs cursor-pointer group relative transition-colors ${
-                                    isFront
-                                        ? 'bg-blue-100 hover:bg-blue-200/80 text-blue-900'
-                                        : 'bg-orange-100 hover:bg-orange-200/80 text-orange-900'
-                                } ${override ? 'ring-1 ring-amber-400' : ''}`}
-                            >
-                                <div className="flex items-center justify-between gap-1">
-                                    <div className="font-semibold truncate text-[11px]">{schedule.employeeName}</div>
-                                    <button
-                                        onClick={(ev) => {
-                                            ev.stopPropagation();
-                                            handleSkipWeek(schedule.id, date);
-                                        }}
-                                        className={`opacity-0 group-hover:opacity-100 p-0.5 rounded transition-opacity flex-shrink-0 ${
-                                            isFront ? 'hover:bg-blue-200/80' : 'hover:bg-orange-200/80'
-                                        }`}
-                                        title="Remove from this week"
-                                    >
-                                        <X className="w-3 h-3" />
-                                    </button>
-                                </div>
-                                {override && (
-                                    <div className="text-[9px] text-amber-600 font-medium mt-0.5">Modified</div>
-                                )}
-                            </div>
-                        );
-                    })}
-
-                    {/* One-time shifts (custom week) */}
-                    {cellOneTimeShifts.map(shift => {
+                    {/* Manual shifts */}
+                    {cellShifts.map(shift => {
                         return (
                             <div
                                 key={`ot-${shift.id}`}
                                 onClick={() => {
-                                    setEditingShift(null);
-                                    setEditingOneTimeShift({ shift, date });
+                                    setEditingScheduleShift({ shift, date });
                                     setEditStartTime(shift.startTime);
                                     setEditEndTime(shift.endTime);
                                     setEditActualIn(shift.actualTimeIn || '');
@@ -971,20 +663,19 @@ export default function TeamView() {
                                 <div className="flex items-center justify-between gap-1">
                                     <div className="flex items-center gap-1">
                                         <Sparkles className="w-2.5 h-2.5 text-violet-500 flex-shrink-0" />
-                                        <div className="font-semibold truncate text-[11px]">{shift.employeeName}</div>
+                                        <div className="font-semibold truncate text-[11px]">{formatDisplayName(shift.employeeName)}</div>
                                     </div>
                                     <button
                                         onClick={(ev) => {
                                             ev.stopPropagation();
-                                            handleDeleteOneTimeShift(shift.id);
+                                            handleDeleteScheduleShift(shift.id);
                                         }}
                                         className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-violet-200/80 transition-opacity flex-shrink-0"
-                                        title="Remove one-time shift"
+                                        title="Remove shift"
                                     >
                                         <X className="w-3 h-3" />
                                     </button>
                                 </div>
-                                <div className="text-[8px] bg-violet-200 text-violet-700 px-1 rounded font-semibold inline-block mt-0.5">1x</div>
                             </div>
                         );
                     })}
@@ -992,14 +683,12 @@ export default function TeamView() {
                     {/* Drop hint when dragging any employee */}
                     {isDragging && (
                         <div className={`p-2 border-2 border-dashed rounded-md text-center text-[10px] transition-colors ${
-                            customWeekMode
-                                ? 'border-violet-300 text-violet-400'
-                                : isFront
-                                    ? 'border-blue-300 text-blue-400'
-                                    : 'border-orange-300 text-orange-400'
+                            isFront
+                                ? 'border-blue-300 text-blue-400'
+                                : 'border-orange-300 text-orange-400'
                         }`}>
                             <Plus className="w-3 h-3 mx-auto mb-0.5" />
-                            {customWeekMode ? 'This week only' : 'Drop to assign'}
+                            Drop to assign
                         </div>
                     )}
                 </div>
@@ -1032,14 +721,12 @@ export default function TeamView() {
                     <div className="flex items-center justify-between mb-4">
                         <div>
                             <h1 className="text-3xl font-bold text-gray-900">Team Schedule</h1>
-                            <p className="text-gray-500 mt-1">Drag employees to assign recurring weekly shifts — any employee can work FOH or Kitchen</p>
+                            <p className="text-gray-500 mt-1">Drag employees to assign shifts for each day — any employee can work FOH or Kitchen</p>
                         </div>
                     </div>
 
                     {/* Week Navigation */}
-                    <div className={`flex items-center justify-between p-4 rounded-lg shadow-sm transition-colors ${
-                        customWeekMode ? 'bg-violet-50 ring-2 ring-violet-300' : 'bg-white'
-                    }`}>
+                    <div className="flex items-center justify-between p-4 rounded-lg shadow-sm transition-colors bg-white">
                         <div className="flex items-center gap-4">
                             <Button variant="outline" size="sm" onClick={previousWeek}>
                                 <ChevronLeft className="w-4 h-4" />
@@ -1065,36 +752,6 @@ export default function TeamView() {
                                 {showSidebar ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
                                 {showSidebar ? 'Hide Staff' : 'Show Staff'}
                             </Button>
-                            {/* Custom Week Toggle */}
-                            <button
-                                onClick={() => setCustomWeekMode(!customWeekMode)}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border-2 transition-all ${
-                                    customWeekMode
-                                        ? 'border-violet-500 bg-violet-100 text-violet-700 shadow-sm'
-                                        : 'border-gray-200 bg-white text-gray-500 hover:border-violet-300 hover:text-violet-600'
-                                }`}
-                            >
-                                <div className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${
-                                    customWeekMode ? 'bg-violet-500' : 'bg-gray-200'
-                                }`}>
-                                    {customWeekMode && <Check className="w-3.5 h-3.5 text-white" />}
-                                </div>
-                                <Sparkles className={`w-4 h-4 ${customWeekMode ? 'text-violet-500' : 'text-gray-400'}`} />
-                                Custom Week
-                            </button>
-                            <div className="flex items-center gap-2 text-xs text-gray-400">
-                                {customWeekMode ? (
-                                    <>
-                                        <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-                                        <span className="text-violet-500 font-medium">Drops create one-time shifts for this week only</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Repeat className="w-3.5 h-3.5" />
-                                        <span>Shifts repeat weekly unless modified</span>
-                                    </>
-                                )}
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -1131,7 +788,7 @@ export default function TeamView() {
                                             <GripVertical className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-1">
-                                                    <span className="text-sm font-medium text-gray-800 truncate">{emp.name}</span>
+                                                    <span className="text-sm font-medium text-gray-800 truncate">{formatDisplayName(emp.name)}</span>
                                                     {emp.role === 'both' && (
                                                         <span className="text-[9px] px-1 py-0.5 bg-purple-100 text-purple-600 rounded font-medium flex-shrink-0">Both</span>
                                                     )}
@@ -1177,7 +834,7 @@ export default function TeamView() {
                                             <GripVertical className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-1">
-                                                    <span className="text-sm font-medium text-gray-800 truncate">{emp.name}</span>
+                                                    <span className="text-sm font-medium text-gray-800 truncate">{formatDisplayName(emp.name)}</span>
                                                     {emp.role === 'both' && (
                                                         <span className="text-[9px] px-1 py-0.5 bg-purple-100 text-purple-600 rounded font-medium flex-shrink-0">Both</span>
                                                     )}
@@ -1217,7 +874,7 @@ export default function TeamView() {
                                         >
                                             <UserCog className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                                             <div className="flex-1 min-w-0">
-                                                <span className="text-sm font-medium text-gray-800 truncate block">{emp.name}</span>
+                                                <span className="text-sm font-medium text-gray-800 truncate block">{formatDisplayName(emp.name)}</span>
                                                 <span className="text-[10px] text-amber-500">Needs role assignment</span>
                                             </div>
                                             {/* Quick role buttons */}
@@ -1412,7 +1069,7 @@ export default function TeamView() {
                                             {tipModalStaffEntries.map((entry) => (
                                                 <div key={entry.key} className="flex items-center justify-between gap-2 rounded-md bg-white border border-gray-200 px-2.5 py-1.5">
                                                     <div className="min-w-0">
-                                                        <div className="text-xs font-medium text-gray-800 truncate">{entry.employeeName}</div>
+                                                        <div className="text-xs font-medium text-gray-800 truncate">{formatDisplayName(entry.employeeName)}</div>
                                                         <div className="flex items-center gap-1 mt-0.5">
                                                             <Badge
                                                                 variant="outline"
@@ -1425,7 +1082,7 @@ export default function TeamView() {
                                                                 {entry.role === 'front' ? 'FOH' : 'Kitchen'}
                                                             </Badge>
                                                             <Badge variant="secondary" className="text-[9px]">
-                                                                {entry.source === 'one-time' ? 'This week' : 'Recurring'}
+                                                                Manual
                                                             </Badge>
                                                         </div>
                                                     </div>
@@ -1454,7 +1111,7 @@ export default function TeamView() {
                                                     .filter((emp) => emp.role === 'front' || emp.role === 'both')
                                                     .map((emp) => (
                                                         <option key={emp.id} value={emp.id}>
-                                                            {emp.name}
+                                                            {formatDisplayName(emp.name)}
                                                         </option>
                                                     ))}
                                             </select>
@@ -1545,222 +1202,11 @@ export default function TeamView() {
                     </div>
                 )}
 
-                {/* ─── Edit Shift Modal ───────────────────────────────────── */}
-                {editingShift && (
-                    <div
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-                        onClick={() => setEditingShift(null)}
-                    >
-                        <div
-                            className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 max-h-[90vh] flex flex-col"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            {/* Header */}
-                            <div className="flex items-center justify-between p-5 border-b flex-shrink-0">
-                                <div>
-                                    <h3 className="text-lg font-bold text-gray-900">
-                                        {editingShift.schedule.employeeName}
-                                    </h3>
-                                    <p className="text-sm text-gray-500 flex items-center gap-1.5 mt-0.5">
-                                        <Repeat className="w-3.5 h-3.5" />
-                                        Every {capitalize(editingShift.schedule.dayOfWeek)} · {capitalize(editingShift.schedule.period)}
-                                        <Badge variant="outline" className={`text-[9px] ml-1 ${
-                                            editingShift.schedule.role === 'front'
-                                                ? 'border-blue-200 text-blue-600 bg-blue-50'
-                                                : 'border-orange-200 text-orange-600 bg-orange-50'
-                                        }`}>
-                                            {editingShift.schedule.role === 'front' ? 'FOH' : 'Kitchen'}
-                                        </Badge>
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={() => setEditingShift(null)}
-                                    className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
-                                >
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
-
-                            {/* Body */}
-                            <div className="p-5 space-y-4 overflow-y-auto flex-1">
-                                {/* Viewing week indicator */}
-                                <div className="text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded-lg">
-                                    Viewing week of{' '}
-                                    <span className="font-medium text-gray-700">
-                                        {editingShift.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                    </span>
-                                </div>
-
-                                {/* Override indicator */}
-                                {editingShift.override && (
-                                    <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 flex items-center gap-1.5">
-                                        <Pencil className="w-3.5 h-3.5" />
-                                        This week has custom times (different from recurring)
-                                    </div>
-                                )}
-
-                                {/* Scheduled time inputs */}
-                                <div>
-                                    <div className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-                                        <Repeat className="w-3.5 h-3.5 text-gray-400" />
-                                        Scheduled Shift
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="text-xs font-medium text-gray-500 mb-1 block">Start</label>
-                                            <input
-                                                type="time"
-                                                value={editStartTime}
-                                                onChange={e => setEditStartTime(e.target.value)}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-medium text-gray-500 mb-1 block">End</label>
-                                            <input
-                                                type="time"
-                                                value={editEndTime}
-                                                onChange={e => setEditEndTime(e.target.value)}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Save scheduled time actions */}
-                                <div className="space-y-2">
-                                    <Button
-                                        className="w-full justify-start gap-2"
-                                        variant="outline"
-                                        onClick={() => handleEditRecurring(editingShift.schedule.id, editStartTime, editEndTime)}
-                                    >
-                                        <RotateCcw className="w-4 h-4" />
-                                        Save for all weeks
-                                    </Button>
-                                    <Button
-                                        className="w-full justify-start gap-2"
-                                        variant="outline"
-                                        onClick={() => handleEditThisWeek(editingShift.schedule.id, editingShift.date, editStartTime, editEndTime)}
-                                    >
-                                        <Pencil className="w-4 h-4" />
-                                        Save for this week only
-                                    </Button>
-                                </div>
-
-                                <hr />
-
-                                {/* Modified Time */}
-                                <div>
-                                    <div className="text-xs font-semibold text-gray-700 mb-1 flex items-center gap-1.5">
-                                        <Clock className="w-3.5 h-3.5 text-green-600" />
-                                        Modified Time
-                                    </div>
-                                    <p className="text-[11px] text-gray-400 mb-3">
-                                        Adjust for early prep, late cleanup, or any schedule change.
-                                    </p>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="text-xs font-medium text-gray-500 mb-1 block">Time In</label>
-                                            <input
-                                                type="time"
-                                                value={editActualIn}
-                                                onChange={e => setEditActualIn(e.target.value)}
-                                                placeholder="--:--"
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-medium text-gray-500 mb-1 block">Time Out</label>
-                                            <input
-                                                type="time"
-                                                value={editActualOut}
-                                                onChange={e => setEditActualOut(e.target.value)}
-                                                placeholder="--:--"
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                            />
-                                        </div>
-                                    </div>
-                                    {(editActualIn || editActualOut) && (
-                                        <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700">
-                                            {editActualIn && editActualOut ? (
-                                                <span>Modified: {formatTimeShort(editActualIn)} – {formatTimeShort(editActualOut)} ({formatHours(getShiftDurationHours(editActualIn, editActualOut))})</span>
-                                            ) : editActualIn ? (
-                                                <span>Time in: {formatTimeShort(editActualIn)}</span>
-                                            ) : (
-                                                <span>Time out: {formatTimeShort(editActualOut!)}</span>
-                                            )}
-                                        </div>
-                                    )}
-                                    <div className="mt-2 space-y-2">
-                                        <Button
-                                            className="w-full justify-start gap-2"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleSaveModifiedTimeRecurring(editingShift.schedule.id, editActualIn, editActualOut)}
-                                            disabled={!editActualIn && !editActualOut}
-                                        >
-                                            <RotateCcw className="w-3.5 h-3.5" />
-                                            Save for every shift
-                                        </Button>
-                                        <Button
-                                            className="w-full justify-start gap-2"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleSaveActualTimes(editingShift.schedule.id, editingShift.date, editActualIn, editActualOut)}
-                                            disabled={!editActualIn && !editActualOut}
-                                        >
-                                            <Pencil className="w-3.5 h-3.5" />
-                                            Save for this week only
-                                        </Button>
-                                        {(editActualIn || editActualOut) && (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="w-full justify-start gap-2 text-gray-500 hover:text-red-600"
-                                                onClick={() => {
-                                                    setEditActualIn('');
-                                                    setEditActualOut('');
-                                                    handleSaveActualTimes(editingShift.schedule.id, editingShift.date, '', '');
-                                                }}
-                                            >
-                                                <X className="w-3.5 h-3.5" />
-                                                Clear modified time
-                                            </Button>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <hr />
-
-                                {/* Destructive actions */}
-                                <div className="space-y-2">
-                                    <Button
-                                        className="w-full justify-start gap-2 text-amber-700 hover:text-amber-800 hover:bg-amber-50"
-                                        variant="ghost"
-                                        onClick={() => handleSkipWeek(editingShift.schedule.id, editingShift.date)}
-                                    >
-                                        <CalendarX2 className="w-4 h-4" />
-                                        Skip this week only
-                                    </Button>
-                                    <Button
-                                        className="w-full justify-start gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                        variant="ghost"
-                                        onClick={() => handleDeleteSchedule(editingShift.schedule.id)}
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                        Remove permanently
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
                 {/* ─── Edit One-Time Shift Modal ─────────────────────────────── */}
-                {editingOneTimeShift && (
+                {editingScheduleShift && (
                     <div
                         className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-                        onClick={() => setEditingOneTimeShift(null)}
+                        onClick={() => setEditingScheduleShift(null)}
                     >
                         <div
                             className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 max-h-[90vh] flex flex-col"
@@ -1770,22 +1216,22 @@ export default function TeamView() {
                             <div className="flex items-center justify-between p-5 border-b flex-shrink-0">
                                 <div>
                                     <h3 className="text-lg font-bold text-gray-900">
-                                        {editingOneTimeShift.shift.employeeName}
+                                        {formatDisplayName(editingScheduleShift.shift.employeeName)}
                                     </h3>
                                     <p className="text-sm text-gray-500 flex items-center gap-1.5 mt-0.5">
                                         <Sparkles className="w-3.5 h-3.5 text-violet-500" />
-                                        One-time · {capitalize(editingOneTimeShift.shift.period)}
+                                        Shift · {capitalize(editingScheduleShift.shift.period)}
                                         <Badge variant="outline" className={`text-[9px] ml-1 ${
-                                            editingOneTimeShift.shift.role === 'front'
+                                            editingScheduleShift.shift.role === 'front'
                                                 ? 'border-blue-200 text-blue-600 bg-blue-50'
                                                 : 'border-orange-200 text-orange-600 bg-orange-50'
                                         }`}>
-                                            {editingOneTimeShift.shift.role === 'front' ? 'FOH' : 'Kitchen'}
+                                            {editingScheduleShift.shift.role === 'front' ? 'FOH' : 'Kitchen'}
                                         </Badge>
                                     </p>
                                 </div>
                                 <button
-                                    onClick={() => setEditingOneTimeShift(null)}
+                                    onClick={() => setEditingScheduleShift(null)}
                                     className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
                                 >
                                     <X className="w-5 h-5" />
@@ -1797,11 +1243,10 @@ export default function TeamView() {
                                 {/* Date indicator */}
                                 <div className="text-xs text-violet-600 bg-violet-50 px-3 py-2 rounded-lg flex items-center gap-1.5 font-medium">
                                     <Sparkles className="w-3.5 h-3.5" />
-                                    This shift is for{' '}
+                                    Shift date:{' '}
                                     <span className="font-bold">
-                                        {editingOneTimeShift.date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
+                                        {editingScheduleShift.date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
                                     </span>
-                                    {' '}only
                                 </div>
 
                                 {/* Time inputs */}
@@ -1835,7 +1280,7 @@ export default function TeamView() {
                                 <Button
                                     className="w-full justify-start gap-2"
                                     variant="outline"
-                                    onClick={() => handleEditOneTimeShift(editingOneTimeShift.shift.id, editStartTime, editEndTime)}
+                                    onClick={() => handleEditScheduleShift(editingScheduleShift.shift.id, editStartTime, editEndTime)}
                                 >
                                     <Pencil className="w-4 h-4" />
                                     Save times
@@ -1878,7 +1323,7 @@ export default function TeamView() {
                                                 className="w-full justify-start gap-2"
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => handleSaveOneTimeModifiedTime(editingOneTimeShift.shift.id, editActualIn, editActualOut)}
+                                                onClick={() => handleSaveScheduleModifiedTime(editingScheduleShift.shift.id, editActualIn, editActualOut)}
                                             >
                                                 <Clock className="w-3.5 h-3.5" />
                                                 Save modified time
@@ -1893,7 +1338,7 @@ export default function TeamView() {
                                 <Button
                                     className="w-full justify-start gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
                                     variant="ghost"
-                                    onClick={() => handleDeleteOneTimeShift(editingOneTimeShift.shift.id)}
+                                    onClick={() => handleDeleteScheduleShift(editingScheduleShift.shift.id)}
                                 >
                                     <Trash2 className="w-4 h-4" />
                                     Remove this shift
@@ -1933,7 +1378,7 @@ export default function TeamView() {
                                             }
                                         </div>
                                         <div>
-                                            <h3 className="text-lg font-bold text-gray-900">{selectedEmployee.name}</h3>
+                                            <h3 className="text-lg font-bold text-gray-900">{formatDisplayName(selectedEmployee.name)}</h3>
                                             <div className="flex items-center gap-1 flex-wrap">
                                                 {isUnassigned ? (
                                                     <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-700 bg-amber-50">
