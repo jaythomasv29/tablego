@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Users, Mail, MessageSquare, Clock, User, Phone, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Users, Mail, MessageSquare, Clock, User, Phone, Check, X } from 'lucide-react';
 import Cookies from 'js-cookie';
 import { db } from '../firebase';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
@@ -182,6 +182,7 @@ export default function ReservationForm() {
   const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlot[]>([]);
   const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [selectedSignatureDish, setSelectedSignatureDish] = useState<MenuItem | null>(null);
   const [reservationCutoffMinutes, setReservationCutoffMinutes] = useState<number>(60); // Default 1 hour
 
   // Helper function to get current date in restaurant's timezone
@@ -990,12 +991,16 @@ export default function ReservationForm() {
                       {menuItems
                         .filter(item => item.category === 'Signature Dishes')
                         .map((item) => (
-                          <Card key={item.id} className="overflow-hidden border-0 shadow-md hover:shadow-lg transition-shadow">
-                            <div className="h-48 w-full">
+                          <Card
+                            key={item.id}
+                            onClick={() => setSelectedSignatureDish(item)}
+                            className="overflow-hidden border-0 shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer"
+                          >
+                            <div className="h-48 w-full overflow-hidden">
                               <img
                                 src={item.imageUrl || "https://placehold.co/400x300/e2e8f0/666666?text=Dish"}
                                 alt={item.name}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                               />
                             </div>
                             <CardContent className="p-4">
@@ -1018,6 +1023,44 @@ export default function ReservationForm() {
                       </Link>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Signature Dish Image Modal */}
+              {selectedSignatureDish && (
+                <div
+                  className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+                  onClick={() => setSelectedSignatureDish(null)}
+                >
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.96 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.96 }}
+                    transition={{ duration: 0.2 }}
+                    className="relative w-full max-w-4xl bg-white rounded-xl overflow-hidden shadow-2xl"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSignatureDish(null)}
+                      className="absolute top-3 right-3 z-10 bg-black/60 hover:bg-black/75 text-white w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+                      aria-label="Close image"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+
+                    <div className="max-h-[80vh] overflow-hidden">
+                      <img
+                        src={selectedSignatureDish.imageUrl || "https://placehold.co/1200x800/e2e8f0/666666?text=Dish"}
+                        alt={selectedSignatureDish.name}
+                        className="w-full h-auto object-cover"
+                      />
+                    </div>
+                    <div className="p-4 border-t">
+                      <h3 className="text-lg font-semibold text-gray-900">{selectedSignatureDish.name}</h3>
+                      <p className="text-sm text-gray-600 mt-1">{selectedSignatureDish.description}</p>
+                    </div>
+                  </motion.div>
                 </div>
               )}
             </motion.div>

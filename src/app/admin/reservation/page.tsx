@@ -546,9 +546,9 @@ export default function ReservationAdminPage() {
             // Update UI optimistically
             setReservations(prev =>
                 prev.map(r =>
-                    r.id === reservation.id
-                        ? { ...r, reminderSent: true, reminderSentAt: Timestamp.now() }
-                        : r
+                r.id === reservation.id
+                    ? { ...r, reminderSent: true, reminderSentAt: Timestamp.now() }
+                    : r
                 )
             );
 

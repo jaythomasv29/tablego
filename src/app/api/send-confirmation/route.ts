@@ -146,7 +146,7 @@ export async function POST(request: Request) {
                             <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="100%" style="max-width: 600px; margin: 40px auto;">
                                 <!-- Logo and Header -->
                                 <tr>
-                                    <td style="padding: 40px 30px; text-align: center; background: #4f46e5; border-radius: 8px 8px 0 0;">
+                                    <td style="padding: 40px 30px; text-align: center; background: #A3B13A; border-radius: 8px 8px 0 0;">
                                         <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">Thaiphoon Restaurant</h1>
                                     </td>
                                 </tr>
@@ -165,44 +165,44 @@ export async function POST(request: Request) {
                                         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 30px 0; background: #f8fafc; border-radius: 8px; padding: 24px;">
                                             <tr>
                                                 <td style="padding: 12px 0;">
-                                                    <strong style="color: #4f46e5; display: inline-block; width: 140px;">Name:</strong>
+                                                    <strong style="color: #374151; display: inline-block; width: 140px;">Name:</strong>
                                                     <span style="color: #374151;">${formData.name}</span>
                                                 </td>
                                             </tr>
                                             <tr>
                                                 <td style="padding: 12px 0;">
-                                                    <strong style="color: #4f46e5; display: inline-block; width: 140px;">Email:</strong>
+                                                    <strong style="color: #374151; display: inline-block; width: 140px;">Email:</strong>
                                                     <span style="color: #374151;">${formData.email}</span>
                                                 </td>
                                             </tr>
                                             <tr>
                                                 <td style="padding: 12px 0;">
-                                                    <strong style="color: #4f46e5; display: inline-block; width: 140px;">Date:</strong>
+                                                    <strong style="color: #374151; display: inline-block; width: 140px;">Date:</strong>
                                                     <span style="color: #374151;">${readableDate}</span>
                                                 </td>
                                             </tr>
                                             <tr>
                                                 <td style="padding: 12px 0;">
-                                                    <strong style="color: #4f46e5; display: inline-block; width: 140px;">Time:</strong>
+                                                    <strong style="color: #374151; display: inline-block; width: 140px;">Time:</strong>
                                                     <span style="color: #374151;">${formData.time}</span>
                                                 </td>
                                             </tr>
                                             <tr>
                                                 <td style="padding: 12px 0;">
-                                                    <strong style="color: #4f46e5; display: inline-block; width: 140px;">Party Size:</strong>
+                                                    <strong style="color: #374151; display: inline-block; width: 140px;">Party Size:</strong>
                                                     <span style="color: #374151;">${formData.guests} guests</span>
                                                 </td>
                                             </tr>
                                             <tr>
                                                 <td style="padding: 12px 0;">
-                                                    <strong style="color: #4f46e5; display: inline-block; width: 140px;">Phone:</strong>
+                                                    <strong style="color: #374151; display: inline-block; width: 140px;">Phone:</strong>
                                                     <span style="color: #374151;">${formData.phone}</span>
                                                 </td>
                                             </tr>
                                             ${formData.comments ? `
                                                 <tr>
                                                     <td style="padding: 12px 0;">
-                                                        <strong style="color: #4f46e5; display: inline-block; width: 140px;">Special Requests:</strong>
+                                                        <strong style="color: #374151; display: inline-block; width: 140px;">Special Requests:</strong>
                                                         <span style="color: #374151;">${formData.comments}</span>
                                                     </td>
                                                 </tr>
@@ -210,7 +210,7 @@ export async function POST(request: Request) {
                                         </table>
 
                                         <!-- Important Information -->
-                                        <div style="margin: 30px 0; padding: 20px; border-left: 4px solid #4f46e5; background: #eef2ff;">
+                                        <div style="margin: 30px 0; padding: 20px; border-left: 4px solid #374151; background: #eef2ff;">
                                             <p style="margin: 0 0 12px 0; color: #374151; font-size: 14px;">
                                                 For assistance or modifications, please call us at (650) 323-7700
                                             </p>
@@ -218,10 +218,10 @@ export async function POST(request: Request) {
                                                 Need to cancel? 
                                                 <a 
                                                     href="${cancelUrl}" 
-                                                    style="color: #4F46E5; text-decoration: underline; margin-left: 5px;"
+                                                    style="color: #374151; text-decoration: underline; margin-left: 5px;"
                                                     target="_blank"
                                                 >
-                                                    Click here to edit orcancel your reservation
+                                                    Click here to edit or cancel your reservation
                                                 </a>
                                             </p>
                                         </div>
@@ -258,7 +258,7 @@ export async function POST(request: Request) {
                         <body style="margin: 0; padding: 0; background-color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
                             <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="100%" style="max-width: 600px; margin: 40px auto;">
                                 <tr>
-                                    <td style="padding: 40px 30px; text-align: center; background: #4f46e5; border-radius: 8px 8px 0 0;">
+                                    <td style="padding: 40px 30px; text-align: center; background: #374151; border-radius: 8px 8px 0 0;">
                                         <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">New Reservation Request</h1>
                                     </td>
                                 </tr>
@@ -268,49 +268,49 @@ export async function POST(request: Request) {
                                         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 30px 0; background: #f8fafc; border-radius: 8px; padding: 24px;">
                                             <tr>
                                                 <td style="padding: 12px 0;">
-                                                    <strong style="color: #4f46e5; display: inline-block; width: 140px;">Customer:</strong>
+                                                    <strong style="color: #374151; display: inline-block; width: 140px;">Customer:</strong>
                                                     <span style="color: #374151;">${formData.name}</span>
                                                 </td>
                                             </tr>
                                             <tr>
                                                 <td style="padding: 12px 0;">
-                                                    <strong style="color: #4f46e5; display: inline-block; width: 140px;">Email:</strong>
+                                                    <strong style="color: #374151; display: inline-block; width: 140px;">Email:</strong>
                                                     <span style="color: #374151;">${formData.email}</span>
                                                 </td>
                                             </tr>
                                             <tr>
                                                 <td style="padding: 12px 0;">
-                                                    <strong style="color: #4f46e5; display: inline-block; width: 140px;">Date:</strong>
+                                                    <strong style="color: #374151; display: inline-block; width: 140px;">Date:</strong>
                                                     <span style="color: #374151;">${readableDate}</span>
                                                 </td>
                                             </tr>
                                             <tr>
                                                 <td style="padding: 12px 0;">
-                                                    <strong style="color: #4f46e5; display: inline-block; width: 140px;">Time:</strong>
+                                                    <strong style="color: #374151; display: inline-block; width: 140px;">Time:</strong>
                                                     <span style="color: #374151;">${formData.time}</span>
                                                 </td>
                                             </tr>
                                             <tr>
                                                 <td style="padding: 12px 0;">
-                                                    <strong style="color: #4f46e5; display: inline-block; width: 140px;">Party Size:</strong>
+                                                    <strong style="color: #374151; display: inline-block; width: 140px;">Party Size:</strong>
                                                     <span style="color: #374151;">${formData.guests} guests</span>
                                                 </td>
                                             </tr>
                                             <tr>
                                                 <td style="padding: 12px 0;">
-                                                    <strong style="color: #4f46e5; display: inline-block; width: 140px;">Phone:</strong>
+                                                    <strong style="color: #374151; display: inline-block; width: 140px;">Phone:</strong>
                                                     <span style="color: #374151;">${formData.phone}</span>
                                                 </td>
                                             </tr>
                                             <tr>
                                                 <td style="padding: 12px 0;">
-                                                    <strong style="color: #4f46e5; display: inline-block; width: 140px;">Status:</strong>
+                                                    <strong style="color: #374151; display: inline-block; width: 140px;">Status:</strong>
                                                     <span style="color: #374151;">Pending Confirmation</span>
                                                 </td>
                                             </tr>
                                         </table>
 
-                                        <div style="margin: 30px 0; padding: 20px; border-left: 4px solid #4f46e5; background: #eef2ff;">
+                                        <div style="margin: 30px 0; padding: 20px; border-left: 4px solid #374151; background: #eef2ff;">
                                             <p style="margin: 0; color: #374151; font-size: 14px;">
                                                 Please review and confirm this reservation in the admin panel.
                                             </p>
