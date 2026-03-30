@@ -42,6 +42,16 @@ export default function RootLayout({
 
         {/* Add version info for debugging */}
         <div style={{ display: 'none' }} data-version={buildVersion}></div>
+
+        {/* AI Chat Widget */}
+        {/* <script src="http://localhost:3000/widget.js?v=1.0.0&id=tmjjAJlygKTkg7BmEDAI" defer></script> */}
+        {/* <script src="https://ai-chat-widget.vercel.app/widget.js?v=1.0.0&id=tmjjAJlygKTkg7BmEDAI" defer></script>
+        <script src="http://localhost:3000/widget.js?v=1.0.0&id=tmjjAJlygKTkg7BmEDAI" defer></script> */}
+        {/* <script src="http://localhost:3000/widget.js?v=1.0.0&id=IJYo7saRD4gdmhkfRvL6" defer></script>
+         */}
+        {/* AI Chat */}
+        <script src="https://ai-chat-q2k1.vercel.app/widget.js?v=1.0.0&id=IJYo7saRD4gdmhkfRvL6" defer></script>
+
       </body>
     </html>
   );
