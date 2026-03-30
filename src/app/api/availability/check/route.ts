@@ -4,18 +4,47 @@ import { doc, getDoc, getDocs, collection } from 'firebase/firestore';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Parse "7:00 PM" or "17:00" → minutes since midnight */
+/** Parse many time formats → minutes since midnight.
+ *  Handles: "7:00 PM", "7:00PM", "700pm", "1030pm", "19:00", "7pm", "7am"
+ */
 function timeToMinutes(time: string): number {
-  const ampm = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (ampm) {
-    let h = parseInt(ampm[1], 10);
-    const m = parseInt(ampm[2], 10);
-    const period = ampm[3].toUpperCase();
-    if (period === 'AM' && h === 12) h = 0;
-    if (period === 'PM' && h !== 12) h += 12;
+  const t = time.trim();
+
+  // "H:MM AM/PM" or "HH:MM AM/PM" (with or without space)
+  const withColon = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (withColon) {
+    let h = parseInt(withColon[1], 10);
+    const m = parseInt(withColon[2], 10);
+    const p = withColon[3].toUpperCase();
+    if (p === 'AM' && h === 12) h = 0;
+    if (p === 'PM' && h !== 12) h += 12;
     return h * 60 + m;
   }
-  const [h, m] = time.split(':').map(Number);
+
+  // "HHMM AM/PM" or "HMM AM/PM" — no colon (e.g. "1030pm", "700pm")
+  const noColon = t.match(/^(\d{3,4})\s*(AM|PM)$/i);
+  if (noColon) {
+    const raw = noColon[1];
+    const m = parseInt(raw.slice(-2), 10);
+    let h = parseInt(raw.slice(0, -2), 10);
+    const p = noColon[2].toUpperCase();
+    if (p === 'AM' && h === 12) h = 0;
+    if (p === 'PM' && h !== 12) h += 12;
+    return h * 60 + m;
+  }
+
+  // "Ham" / "Hpm" — hour only, no minutes (e.g. "7pm")
+  const hourOnly = t.match(/^(\d{1,2})\s*(AM|PM)$/i);
+  if (hourOnly) {
+    let h = parseInt(hourOnly[1], 10);
+    const p = hourOnly[2].toUpperCase();
+    if (p === 'AM' && h === 12) h = 0;
+    if (p === 'PM' && h !== 12) h += 12;
+    return h * 60;
+  }
+
+  // 24-hour "HH:MM"
+  const [h, m] = t.split(':').map(Number);
   return (h || 0) * 60 + (m || 0);
 }
 
