@@ -574,11 +574,25 @@ function App() {
                 Order Online
               </a>
             </div>
+
+            {/* Mobile-only: inline pill chips */}
+            <div className="mt-6 flex flex-wrap gap-2 md:hidden">
+              {PILLARS.map((pillar) => (
+                <span
+                  key={pillar}
+                  className="rounded-full border border-white/30 bg-white/10 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-white/90 tracking-wide"
+                  style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '0.85rem' }}
+                >
+                  {pillar}
+                </span>
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-1 gap-3 md:justify-self-end w-full md:max-w-md">
+
+          {/* Desktop-only: stacked glass cards */}
+          <div className="hidden md:grid grid-cols-1 gap-3 md:justify-self-end w-full md:max-w-md">
             {PILLARS.map((pillar) => (
               <div key={pillar} className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md px-4 py-3 text-white">
-                {/* <div className="text-xs uppercase tracking-[0.12em] text-white/70">Experience Pillar</div> */}
                 <div className="mt-1 text-lg" style={{ fontFamily: 'Cormorant Garamond, serif' }}>{pillar}</div>
               </div>
             ))}
