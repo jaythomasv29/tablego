@@ -34,6 +34,9 @@ export interface Reservation {
     reminderSent?: boolean;
     reminderSentAt?: Timestamp;
     attendanceStatus?: 'show' | 'no-show' | 'default';
+    smsSent?: boolean;
+    smsSentAt?: Timestamp;
+    phoneVerified?: boolean;
 }
 
 // Add new helper functions
@@ -641,30 +644,44 @@ export default function ReservationAdminPage() {
     };
 
     const handleSendSMS = async (reservation: Reservation) => {
+        if (reservation.smsSent) {
+            toast.error('SMS reminder already sent');
+            return;
+        }
+
+        const toastId = `sms-${reservation.id}`;
         try {
+            toast.loading('Sending SMS…', { id: toastId });
+            const dateToSend = typeof reservation.date === 'string'
+                ? reservation.date
+                : reservation.date?.toDate?.()?.toISOString() ?? '';
+
             const response = await fetch('/api/send-sms', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     reservationId: reservation.id,
                     phone: reservation.phone,
                     name: reservation.name,
-                    date: reservation.date,
+                    date: dateToSend,
                     time: reservation.time,
                     guests: reservation.guests,
                 }),
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to send SMS');
-            }
+            if (!response.ok) throw new Error('Failed to send SMS');
 
-            toast.success('SMS sent successfully');
+            setReservations(prev =>
+                prev.map(r =>
+                    r.id === reservation.id
+                        ? { ...r, smsSent: true, smsSentAt: Timestamp.now() }
+                        : r
+                )
+            );
+            toast.success('SMS sent successfully', { id: toastId });
         } catch (error) {
             console.error('Error sending SMS:', error);
-            toast.error('Failed to send SMS');
+            toast.error('Failed to send SMS', { id: toastId });
         }
     };
 
@@ -696,12 +713,16 @@ export default function ReservationAdminPage() {
             >
                 <div className="p-0">
                     <div className="flex items-stretch">
-                        <div className={`${isTodayCompact ? 'w-20 sm:w-24 px-1.5' : 'w-28 sm:w-32 px-2'} border-r bg-gray-50 flex items-center justify-center`}>
+                        <div className={`${isTodayCompact ? 'w-20 sm:w-24 px-1.5' : 'w-28 sm:w-32 px-2'} border-r flex items-center justify-center ${isCancelled ? 'bg-red-50' : 'bg-gray-50'}`}>
                             <div className="text-center leading-none">
-                                <div className={`${isTodayCompact ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl'} font-black tracking-tight text-gray-900`}>
+                                <div className={`${isTodayCompact ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl'} font-black tracking-tight ${isCancelled ? 'text-red-300 line-through' : 'text-gray-900'}`}>
                                     {displayTime}
                                 </div>
-                                {displayPeriod && (
+                                {isCancelled ? (
+                                    <div className="text-[10px] font-bold text-red-500 mt-1 tracking-wide uppercase">
+                                        Cancelled
+                                    </div>
+                                ) : displayPeriod && (
                                     <div className="text-[11px] sm:text-xs font-semibold text-gray-500 mt-1 tracking-wide">
                                         {displayPeriod}
                                     </div>
@@ -748,11 +769,16 @@ export default function ReservationAdminPage() {
                             </div>
 
                             <div className={`flex flex-wrap ${isTodayCompact ? 'gap-x-4 text-xs mb-2' : 'gap-x-5 text-sm mb-3'} gap-y-1 text-gray-600`}>
-                                <span className="flex items-center">
+                                <span className="flex items-center gap-1.5">
                                     <svg className="w-3.5 h-3.5 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                     </svg>
                                     {reservation.phone}
+                                    {reservation.phoneVerified && (
+                                        <span className="inline-flex items-center text-[10px] font-medium text-green-700 bg-green-50 border border-green-200 rounded px-1 py-0.5">
+                                            ✓ Verified
+                                        </span>
+                                    )}
                                 </span>
                                 <span className="flex items-center">
                                     <Mail className="w-3.5 h-3.5 mr-1 text-gray-400" />
@@ -768,6 +794,12 @@ export default function ReservationAdminPage() {
                                 <span className={`flex items-center ${reservation.reminderSent ? 'text-green-600' : 'text-amber-600'}`}>
                                     <Mail className="w-3.5 h-3.5 mr-1" />
                                     Reminder: {getReminderLabel(reservation)}
+                                </span>
+                                <span className={`flex items-center ${reservation.smsSent ? 'text-green-600' : 'text-gray-400'}`}>
+                                    <MessageSquare className="w-3.5 h-3.5 mr-1" />
+                                    SMS: {reservation.smsSent
+                                        ? (reservation.smsSentAt ? `Sent ${formatTimeAgo(reservation.smsSentAt.toDate())}` : 'Sent')
+                                        : 'Not sent'}
                                 </span>
                             </div>
 
@@ -807,17 +839,30 @@ export default function ReservationAdminPage() {
                                         No-show
                                     </Button>
                                 </div>
-                                <Button
-                                    size="sm"
-                                    onClick={() => handleSendReminder(reservation)}
-                                    disabled={!canSend}
-                                    variant="outline"
-                                    className={`bg-white hover:bg-gray-50 ${isTodayCompact ? 'h-7 px-2 text-xs' : ''}`}
-                                    title={canSend ? 'Send reservation reminder email' : 'Reminder already sent'}
-                                >
-                                    <Mail className="w-4 h-4 mr-1" />
-                                    {canSend ? 'Send Reminder' : 'Reminder Sent'}
-                                </Button>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        size="sm"
+                                        onClick={() => handleSendReminder(reservation)}
+                                        disabled={!canSend}
+                                        variant="outline"
+                                        className={`bg-white hover:bg-gray-50 ${isTodayCompact ? 'h-7 px-2 text-xs' : ''}`}
+                                        title={canSend ? 'Send reservation reminder email' : 'Reminder already sent'}
+                                    >
+                                        <Mail className="w-4 h-4 mr-1" />
+                                        {canSend ? 'Send Reminder' : 'Reminder Sent'}
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        onClick={() => handleSendSMS(reservation)}
+                                        disabled={!!reservation.smsSent}
+                                        variant="outline"
+                                        className={`bg-white hover:bg-gray-50 ${isTodayCompact ? 'h-7 px-2 text-xs' : ''}`}
+                                        title={reservation.smsSent ? 'SMS already sent' : 'Send SMS reminder'}
+                                    >
+                                        <MessageSquare className="w-4 h-4 mr-1" />
+                                        {reservation.smsSent ? 'SMS Sent' : 'Send SMS'}
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </div>

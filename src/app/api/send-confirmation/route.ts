@@ -37,7 +37,7 @@ const formatDisplayDate = (dateString: string) => {
 
 export async function POST(request: Request) {
     try {
-        const { formData, timezone = 'America/Los_Angeles' } = await request.json();
+        const { formData, timezone = 'America/Los_Angeles', phoneVerified = false, smsOptIn = false } = await request.json();
 
         // Improved date handling - extract just the date part using the restaurant's timezone
         let dateToStore = '';
@@ -73,7 +73,9 @@ export async function POST(request: Request) {
             date: dateToStore, // Store as YYYY-MM-DD string in PST
             status: 'pending',
             createdAt: new Date(),
-            marked: false // Track if admin has seen this reservation
+            marked: false, // Track if admin has seen this reservation
+            phoneVerified: phoneVerified === true,
+            smsOptIn: smsOptIn === true,
         });
 
         // Improved date formatting for email - use the clean date string and restaurant's timezone

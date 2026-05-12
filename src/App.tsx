@@ -145,6 +145,8 @@ function App() {
   const [isReserveOpen, setIsReserveOpen] = useState(false);
   const [showReservationSuccess, setShowReservationSuccess] = useState(false);
   const [modalValidationError, setModalValidationError] = useState<string | null>(null);
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [smsOptIn, setSmsOptIn] = useState(false);
   const [bannerData, setBannerData] = useState<BannerData | null>(null);
   const [isEditingGuests, setIsEditingGuests] = useState(false);
   const [guestDraft, setGuestDraft] = useState('2');
@@ -358,16 +360,21 @@ function App() {
     setIsReserveOpen(false);
     setShowReservationSuccess(false);
     setModalValidationError(null);
+    setPhoneVerified(false);
+    setSmsOptIn(false);
     setStep(0);
   };
 
-  const isStepOneValid = () => Boolean(formData.date && formData.time && formData.guests > 0);
+  const isStepOneValid = () => Boolean(formData.date && formData.time && formData.guests > 0 && smsOptIn);
+  const otpEnabled = process.env.NEXT_PUBLIC_OTP_ENABLED === 'true';
+
   const isStepTwoValid = () => {
     const phoneDigits = formData.phone.replace(/\D/g, '');
     return Boolean(
       formData.name.trim() &&
       formData.email.trim() &&
-      phoneDigits.length === 10
+      phoneDigits.length === 10 &&
+      (!otpEnabled || phoneVerified)
     );
   };
 
@@ -398,6 +405,8 @@ function App() {
             date: formData.date instanceof Date ? formData.date.toISOString() : formData.date,
           },
           timezone: timezone || 'America/Los_Angeles',
+          phoneVerified: true,
+          smsOptIn: true,
         }),
       });
 
@@ -709,13 +718,28 @@ function App() {
                       </button>
                     </div>
                   </div>
-                  <p className="text-sm text-zinc-500">
-                    Late cancellations and no-shows greatly impact our small team. We reserve the right to decline future bookings for accounts with multiple missed reservations.
-                  </p>
+                  <label className="flex items-start gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={smsOptIn}
+                      onChange={(e) => setSmsOptIn(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    />
+                    <span className="text-xs text-zinc-500 leading-relaxed">
+                      Late cancellations and no-shows greatly impact our small team. We reserve the right to decline future bookings for accounts with multiple missed reservations. By checking this box, I agree to receive SMS messages from Thaiphoon Restaurant for reservation verification and reminders. Message &amp; data rates may apply. Reply STOP to opt out at any time.
+                    </span>
+                  </label>
                 </div>
               ) : (
                 <div className="space-y-8">
-                  <GuestInfo formData={formData} onUpdate={(data: Partial<ReservationData>) => updateFormData(data)} />
+                  <GuestInfo
+                    formData={formData}
+                    onUpdate={(data: Partial<ReservationData>) => updateFormData(data)}
+                    phoneVerified={phoneVerified}
+                    onPhoneVerified={setPhoneVerified}
+                    smsOptIn={smsOptIn}
+                    otpEnabled={otpEnabled}
+                  />
                   <AdditionalInfo comments={formData.comments} onUpdate={updateFormData} />
                 </div>
               )}

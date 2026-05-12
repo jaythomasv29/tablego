@@ -1108,14 +1108,22 @@ export default function AdminHome() {
                                                 }`}
                                             >
                                                 <div className="flex items-stretch">
-                                                    <div className="w-20 sm:w-24 border-r bg-gray-50 flex items-center justify-center px-1.5">
+                                                    <div className={`w-20 sm:w-24 border-r flex items-center justify-center px-1.5 ${
+                                                        reservation.status?.toLowerCase() === 'cancelled' ? 'bg-red-50' : 'bg-gray-50'
+                                                    }`}>
                                                         <div className="text-center leading-none">
                                                             <div className={`text-2xl sm:text-3xl font-black tracking-tight ${
-                                                                isReservationPassed(reservation.time) ? 'text-gray-400' : 'text-gray-900'
+                                                                reservation.status?.toLowerCase() === 'cancelled'
+                                                                    ? 'text-red-300 line-through'
+                                                                    : isReservationPassed(reservation.time) ? 'text-gray-400' : 'text-gray-900'
                                                             }`}>
                                                                 {reservation.time.split(' ')[0]}
                                                             </div>
-                                                            {reservation.time.split(' ')[1] && (
+                                                            {reservation.status?.toLowerCase() === 'cancelled' ? (
+                                                                <div className="text-[10px] font-bold text-red-500 mt-1 tracking-wide uppercase">
+                                                                    Cancelled
+                                                                </div>
+                                                            ) : reservation.time.split(' ')[1] && (
                                                                 <div className="text-[11px] sm:text-xs font-semibold text-gray-500 mt-1 tracking-wide">
                                                                     {reservation.time.split(' ')[1]}
                                                                 </div>
@@ -1145,10 +1153,12 @@ export default function AdminHome() {
                                                                         variant="outline"
                                                                         className={`text-[10px] ${reservation.status === 'confirmed'
                                                                             ? 'border-blue-300 text-blue-700 bg-blue-50'
+                                                                            : reservation.status === 'cancelled'
+                                                                            ? 'border-red-300 text-red-700 bg-red-50'
                                                                             : 'border-gray-300 text-gray-500 bg-gray-50'
                                                                             }`}
                                                                     >
-                                                                        {reservation.status === 'confirmed' ? 'Confirmed' : 'Pending'}
+                                                                        {reservation.status === 'confirmed' ? 'Confirmed' : reservation.status === 'cancelled' ? 'Cancelled' : 'Pending'}
                                                                     </Badge>
                                                                 )}
                                                                 {reservation.attendanceStatus && (
