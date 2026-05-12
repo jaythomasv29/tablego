@@ -8,12 +8,13 @@ type Props = {
   phoneVerified: boolean;
   onPhoneVerified: (verified: boolean) => void;
   smsOptIn: boolean;
+  onSmsOptIn: (v: boolean) => void;
   otpEnabled: boolean;
 };
 
 const OTP_LENGTH = 4;
 
-const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhoneVerified, smsOptIn, otpEnabled }) => {
+const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhoneVerified, smsOptIn, onSmsOptIn, otpEnabled }) => {
   const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [otpSent, setOtpSent] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -180,6 +181,20 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
             placeholder="john@example.com"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
           />
+        </div>
+
+        <div>
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={smsOptIn}
+              onChange={(e) => onSmsOptIn(e.target.checked)}
+              className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+            />
+            <span className="text-xs text-gray-500 leading-relaxed">
+              I agree to receive SMS messages from Thaiphoon Restaurant for reservation verification and reminders. Message frequency varies. Message &amp; data rates may apply. Reply <strong className="font-semibold text-gray-600">STOP</strong> to cancel, <strong className="font-semibold text-gray-600">HELP</strong> for help.
+            </span>
+          </label>
         </div>
 
         <div>

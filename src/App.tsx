@@ -365,7 +365,7 @@ function App() {
     setStep(0);
   };
 
-  const isStepOneValid = () => Boolean(formData.date && formData.time && formData.guests > 0 && smsOptIn);
+  const isStepOneValid = () => Boolean(formData.date && formData.time && formData.guests > 0);
   const otpEnabled = process.env.NEXT_PUBLIC_OTP_ENABLED === 'true';
 
   const isStepTwoValid = () => {
@@ -374,6 +374,7 @@ function App() {
       formData.name.trim() &&
       formData.email.trim() &&
       phoneDigits.length === 10 &&
+      smsOptIn &&
       (!otpEnabled || phoneVerified)
     );
   };
@@ -718,17 +719,9 @@ function App() {
                       </button>
                     </div>
                   </div>
-                  <label className="flex items-start gap-3 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={smsOptIn}
-                      onChange={(e) => setSmsOptIn(e.target.checked)}
-                      className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                    />
-                    <span className="text-xs text-zinc-500 leading-relaxed">
-                      Late cancellations and no-shows greatly impact our small team. We reserve the right to decline future bookings for accounts with multiple missed reservations. By checking this box, I agree to receive SMS messages from Thaiphoon Restaurant for reservation verification and reminders. Message &amp; data rates may apply. Reply STOP to opt out at any time.
-                    </span>
-                  </label>
+                  <p className="text-xs text-zinc-500 leading-relaxed">
+                    Late cancellations and no-shows greatly impact our small team. We reserve the right to decline future bookings for accounts with multiple missed reservations.
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-8">
@@ -738,6 +731,7 @@ function App() {
                     phoneVerified={phoneVerified}
                     onPhoneVerified={setPhoneVerified}
                     smsOptIn={smsOptIn}
+                    onSmsOptIn={setSmsOptIn}
                     otpEnabled={otpEnabled}
                   />
                   <AdditionalInfo comments={formData.comments} onUpdate={updateFormData} />
