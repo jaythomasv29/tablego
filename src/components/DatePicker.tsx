@@ -1,10 +1,14 @@
+'use client';
+
 import React from 'react';
-import { Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
 import { TimeSlot } from '@/types/TimeSlot';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { DatePicker as MuiDatePicker } from '@mui/x-date-pickers/DatePicker';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+
+interface SpecialDate {
+  date: string;
+  reason: string;
+  closureType?: 'full' | 'lunch' | 'dinner';
+}
 
 interface DatePickerProps {
   date: Date;
@@ -15,149 +19,136 @@ interface DatePickerProps {
   specialDates: SpecialDate[];
 }
 
-interface SpecialDate {
-  date: string;
-  reason: string;
-  closureType?: 'full' | 'lunch' | 'dinner';
-}
+const isSameMonthAndDay = (d1: Date, d2: Date) =>
+  d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
 
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#A3B18A',
-    },
-  },
-});
-
-const isSameMonthAndDay = (date1: Date, date2: Date): boolean => {
-  return date1.getMonth() === date2.getMonth() &&
-    date1.getDate() === date2.getDate();
-};
-
-const getClosureType = (specialDate?: SpecialDate): 'full' | 'lunch' | 'dinner' | null => {
-  if (!specialDate) return null;
-  return specialDate.closureType || 'full';
-};
-
-const DatePicker: React.FC<DatePickerProps> = ({
+const DatePickerComponent: React.FC<DatePickerProps> = ({
   date,
   time,
   onUpdate,
   onDateChange,
   availableTimeSlots = [],
-  specialDates = []
+  specialDates = [],
 }) => {
-  const isDateDisabled = (date: Date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-    // Check if date is in the past
-    if (date < today) return true;
-
-    // Disable only full-day closures. Half-day closures can still accept reservations.
-    return specialDates.some(specialDate => {
-      const holidayDate = new Date(specialDate.date);
-      return isSameMonthAndDay(date, holidayDate) && getClosureType(specialDate) === 'full';
-    });
+  const isDateDisabled = (d: Date) => {
+    if (d < today) return true;
+    return specialDates.some(
+      (sd) =>
+        isSameMonthAndDay(d, new Date(sd.date)) &&
+        (sd.closureType ?? 'full') === 'full'
+    );
   };
 
+  const handleDaySelect = (selected: Date | undefined) => {
+    if (!selected) return;
+    selected.setHours(12, 0, 0, 0);
+    onUpdate(selected, time);
+    onDateChange(selected);
+  };
+
+  const lunchSlots = availableTimeSlots.filter((s) => s.period === 'lunch');
+  const dinnerSlots = availableTimeSlots.filter((s) => s.period === 'dinner');
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold text-gray-900 mb-6">
-          Select Date & Time
+        <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+          Select Date &amp; Time
         </h2>
-        <div className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <div className="flex items-center space-x-2">
-                <CalendarIcon className="w-4 h-4" />
-                <span>Date</span>
-              </div>
-            </label>
-            <ThemeProvider theme={theme}>
-              <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <MuiDatePicker
-                  value={date}
-                  onChange={(newDate) => {
-                    if (newDate) {
-                      newDate.setHours(12, 0, 0, 0);
-                      onUpdate(newDate, time);
-                      onDateChange(newDate);
-                    }
-                  }}
-                  shouldDisableDate={isDateDisabled}
-                  sx={{
-                    width: '100%',
-                    '& .MuiOutlinedInput-root': {
-                      '&:hover fieldset': {
-                        borderColor: '#A3B18A',
-                      },
-                      '& fieldset': {
-                        borderColor: 'rgba(0, 0, 0, 0.23)',
-                      },
-                      '&.Mui-error fieldset': {
-                        borderColor: 'rgba(0, 0, 0, 0.23)',
-                      }
-                    },
-                  }}
-                />
-              </LocalizationProvider>
-            </ThemeProvider>
-          </div>
 
-          <div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Available Time Slots</h3>
-
-            <div className="mb-6">
-              <h4 className="text-lg font-medium text-gray-800 mb-3">Lunch Hours</h4>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                {availableTimeSlots
-                  .filter(slot => slot.period === 'lunch')
-                  .map((slot) => (
-                    <button
-                      key={slot.time}
-                      onClick={() => onUpdate(date, slot.time)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium ${time === slot.time
-                        ? 'bg-[#A3B18A] text-zinc-900'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                    >
-                      {slot.time}
-                    </button>
-                  ))}
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-lg font-medium text-gray-800 mb-3">Dinner Hours</h4>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                {availableTimeSlots
-                  .filter(slot => slot.period === 'dinner')
-                  .map((slot) => (
-                    <button
-                      key={slot.time}
-                      onClick={() => onUpdate(date, slot.time)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium ${time === slot.time
-                        ? 'bg-[#A3B18A] text-zinc-900'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                    >
-                      {slot.time}
-                    </button>
-                  ))}
-              </div>
-            </div>
-          </div>
+        {/* Calendar */}
+        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden w-full">
+          <Calendar
+            mode="single"
+            selected={date}
+            onSelect={handleDaySelect}
+            disabled={isDateDisabled}
+            fromDate={today}
+            className="w-full [&_.rdp]:w-full [&_.rdp-months]:w-full [&_.rdp-month]:w-full [&_.rdp-table]:w-full [&_.rdp-head_cell]:flex-1 [&_.rdp-cell]:flex-1 [&_.rdp-row]:w-full [&_.rdp-day]:w-full"
+            classNames={{
+              months: 'w-full',
+              month: 'w-full',
+              table: 'w-full',
+              head_row: 'flex w-full',
+              head_cell: 'flex-1 text-center text-xs font-medium text-gray-500 py-2',
+              row: 'flex w-full mt-1',
+              cell: 'flex-1 text-center p-0',
+              day: 'w-full h-10 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors mx-auto flex items-center justify-center',
+              day_selected: 'bg-[#A3B18A] text-zinc-900 hover:bg-[#A3B18A] font-semibold',
+              day_today: 'border border-[#A3B18A] text-zinc-900',
+              day_disabled: 'text-gray-300 line-through cursor-not-allowed hover:bg-transparent',
+              day_outside: 'text-gray-300 opacity-40',
+              caption: 'flex justify-center items-center relative py-3 px-4 border-b border-gray-100',
+              caption_label: 'text-base font-semibold text-gray-900',
+              nav_button: 'absolute h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors',
+              nav_button_previous: 'left-3',
+              nav_button_next: 'right-3',
+            }}
+          />
         </div>
       </div>
-      {availableTimeSlots.length === 0 && (
-        <p className="text-red-500 text-sm mt-2">
-          No time slots available for this date. Please select another date.
+
+      {/* Time Slots */}
+      {availableTimeSlots.length === 0 ? (
+        <p className="text-sm text-gray-500 bg-gray-50 rounded-lg px-4 py-3 border border-gray-200">
+          No time slots available for this date — please select another day.
         </p>
+      ) : (
+        <div className="space-y-5">
+          {lunchSlots.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
+                Lunch
+              </p>
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                {lunchSlots.map((slot) => (
+                  <button
+                    key={slot.time}
+                    type="button"
+                    onClick={() => onUpdate(date, slot.time)}
+                    className={`py-2 rounded-lg text-sm font-medium transition-colors ${
+                      time === slot.time
+                        ? 'bg-[#A3B18A] text-zinc-900'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {slot.time}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {dinnerSlots.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
+                Dinner
+              </p>
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                {dinnerSlots.map((slot) => (
+                  <button
+                    key={slot.time}
+                    type="button"
+                    onClick={() => onUpdate(date, slot.time)}
+                    className={`py-2 rounded-lg text-sm font-medium transition-colors ${
+                      time === slot.time
+                        ? 'bg-[#A3B18A] text-zinc-900'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {slot.time}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
 };
 
-export default DatePicker;
+export default DatePickerComponent;

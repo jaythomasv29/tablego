@@ -14,7 +14,8 @@ import {
     MessageSquare,
     Flag,
     Settings,
-    Users
+    Users,
+    Printer
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -52,6 +53,7 @@ export default function AdminSidebar() {
         { href: '/admin/hours', label: 'Hours', icon: Clock },
         { href: '/admin/special-dates', label: 'Business Holidays', icon: Calendar },
         { href: '/admin/cater', label: 'Catering', icon: Utensils },
+        { href: '/admin/labeling', label: 'Food Labels', icon: Printer },
         { href: '/admin/menu', label: 'Restaurant Menu', icon: BookText },
         {
             href: '/admin/messages',
