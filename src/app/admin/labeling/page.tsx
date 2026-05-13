@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, getDocs, addDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import AdminLayout from '@/components/AdminLayout';
-import { Printer, ChevronDown, ChevronRight, Search, X } from 'lucide-react';
+import { Printer, ChevronDown, ChevronRight, Search, X, Pencil, Check } from 'lucide-react';
 
 interface MenuItem {
   id: string;
@@ -13,9 +13,14 @@ interface MenuItem {
   category: string;
 }
 
-type LabelStyle = 'classic' | 'elegant' | 'modern';
+type LabelStyle = 'classic' | 'elegant' | 'modern' | 'refined' | 'minimal' | 'rustic' | 'bold';
 
 const RESTAURANT_NAME = 'Thaiphoon Restaurant · Palo Alto';
+
+const PROTEINS = [
+  'Chicken', 'Pork', 'Beef', 'Shrimp', 'Sole Fish',
+  'Lamb', 'Salmon', 'Tofu', 'Tofu & Veggies', 'Veggies',
+];
 
 const CATEGORY_ORDER = [
   'Appetizers', 'Salad', 'Soup', 'Signature Dishes',
@@ -193,6 +198,151 @@ const TENT_CSS = `
     margin: 0;
   }
 
+  /* ── Refined — double border, very formal ──────────────────────── */
+  .tc-refined {
+    background: #fff;
+    border: 1px solid #c8c8c8;
+    box-shadow: inset 0 0 0 4px #fff, inset 0 0 0 5.5px #c8c8c8;
+  }
+  .tc-refined .tc-back  { padding: 0 22px; }
+  .tc-refined .tc-front { padding: 0 22px; gap: 5px; }
+  .tc-refined .tc-restaurant,
+  .tc-refined .tc-footer {
+    font-family: Georgia, serif;
+    font-size: 7px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: #bbb;
+  }
+  .tc-refined .tc-name {
+    font-family: Georgia, serif;
+    font-size: 19px;
+    font-weight: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #1a1a1a;
+    line-height: 1.25;
+    margin: 0;
+  }
+  .tc-refined .tc-divider {
+    width: 32px;
+    border-top: 1px solid #c8c8c8;
+    align-self: center;
+  }
+  .tc-refined .tc-desc {
+    font-family: Georgia, serif;
+    font-size: 9px;
+    color: #888;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  /* ── Minimal — extreme whitespace, no decoration ────────────────── */
+  .tc-minimal { background: #fff; }
+  .tc-minimal .tc-back  { padding: 0 28px; }
+  .tc-minimal .tc-front { padding: 0 28px; gap: 8px; }
+  .tc-minimal .tc-restaurant,
+  .tc-minimal .tc-footer {
+    font-family: Georgia, serif;
+    font-size: 7px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #ccc;
+  }
+  .tc-minimal .tc-name {
+    font-family: Georgia, serif;
+    font-size: 24px;
+    font-weight: normal;
+    color: #111;
+    line-height: 1.2;
+    margin: 0;
+  }
+  .tc-minimal .tc-divider { display: none; }
+  .tc-minimal .tc-desc {
+    font-family: Georgia, serif;
+    font-size: 9px;
+    color: #aaa;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  /* ── Rustic — warm tan, earthy serif ────────────────────────────── */
+  .tc-rustic { background: #faf5ee; }
+  .tc-rustic .tc-back  { padding: 0 20px; border-top: 1px solid #c4a882; }
+  .tc-rustic .tc-front { padding: 0 20px; gap: 5px; border-bottom: 1px solid #c4a882; }
+  .tc-rustic .tc-restaurant,
+  .tc-rustic .tc-footer {
+    font-family: Georgia, serif;
+    font-size: 7px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #c4a882;
+  }
+  .tc-rustic .tc-name {
+    font-family: Georgia, serif;
+    font-size: 21px;
+    font-style: italic;
+    font-weight: normal;
+    color: #3d2b1f;
+    line-height: 1.25;
+    margin: 0;
+  }
+  .tc-rustic .tc-divider {
+    width: 36px;
+    border-top: 1px solid #c4a882;
+    align-self: center;
+  }
+  .tc-rustic .tc-desc {
+    font-family: Georgia, serif;
+    font-size: 9px;
+    color: #8a7060;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  /* ── Bold — thick top/bottom rules, oversized name ──────────────── */
+  .tc-bold {
+    background: #fff;
+    border-top: 3px solid #1a1a1a;
+    border-bottom: 3px solid #1a1a1a;
+  }
+  .tc-bold .tc-back  { padding: 0 20px; }
+  .tc-bold .tc-front { padding: 0 20px; gap: 4px; }
+  .tc-bold .tc-restaurant,
+  .tc-bold .tc-footer {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 7px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: #bbb;
+  }
+  .tc-bold .tc-name {
+    font-family: Georgia, serif;
+    font-size: 26px;
+    font-weight: normal;
+    color: #111;
+    line-height: 1.1;
+    margin: 0;
+  }
+  .tc-bold .tc-divider { display: none; }
+  .tc-bold .tc-desc {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 9px;
+    color: #888;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  /* ── Protein line (shared + per-style overrides) ───────────────── */
+  .tc-protein { margin: 0; line-height: 1.2; flex-shrink: 0; }
+  .tc-classic .tc-protein { font-family: Georgia, serif; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #aaa; }
+  .tc-elegant .tc-protein { font-family: Georgia, serif; font-size: 10px; font-style: italic; color: #c8b89a; }
+  .tc-modern  .tc-protein { font-family: system-ui, sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #888; }
+  .tc-refined .tc-protein { font-family: Georgia, serif; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #aaa; }
+  .tc-minimal .tc-protein { font-family: Georgia, serif; font-size: 11px; color: #bbb; }
+  .tc-rustic  .tc-protein { font-family: Georgia, serif; font-size: 10px; font-style: italic; color: #c4a882; }
+  .tc-bold    .tc-protein { font-family: Georgia, serif; font-size: 12px; color: #888; }
+
   /* ── Print layout ───────────────────────────────────────────────── */
   @page { size: letter portrait; margin: 0.5in; }
 
@@ -236,12 +386,17 @@ const TENT_CSS = `
     }
     .tc-back  { height: 2in; flex: 0 0 2in; padding: 0 24pt !important; }
     .tc-front { height: 2in; flex: 0 0 2in; padding: 0 24pt !important; }
+
   }
 `;
 
 // ── Full tent card used in print output ───────────────────────────────────────
-function TentCard({ item, labelStyle }: { item: MenuItem; labelStyle: LabelStyle }) {
-  const isDividerLine = labelStyle === 'elegant' || labelStyle === 'modern';
+const DIVIDER_LINE_STYLES: LabelStyle[] = ['elegant', 'modern', 'refined', 'rustic'];
+const NO_DIVIDER_STYLES: LabelStyle[] = ['minimal', 'bold'];
+
+function TentCard({ item, labelStyle, protein }: { item: MenuItem; labelStyle: LabelStyle; protein?: string }) {
+  const isDividerLine = DIVIDER_LINE_STYLES.includes(labelStyle);
+  const hasDivider = !NO_DIVIDER_STYLES.includes(labelStyle);
   return (
     <div className={`tc tc-${labelStyle}`}>
       <div className="tc-back">
@@ -250,10 +405,11 @@ function TentCard({ item, labelStyle }: { item: MenuItem; labelStyle: LabelStyle
       <div className="tc-fold" />
       <div className="tc-front">
         <p className="tc-name">{item.name}</p>
-        {isDividerLine
+        {protein && <p className="tc-protein">{protein}</p>}
+        {hasDivider && (isDividerLine
           ? <div className="tc-divider" />
           : <span className="tc-divider">· · ·</span>
-        }
+        )}
         {item.description && <p className="tc-desc">{item.description}</p>}
         <span className="tc-footer">{RESTAURANT_NAME}</span>
       </div>
@@ -263,8 +419,9 @@ function TentCard({ item, labelStyle }: { item: MenuItem; labelStyle: LabelStyle
 
 // ── Preview card — shows only the front face at screen scale ──────────────────
 // Proportional to 3.5" × 2" (front half only)
-function PreviewCard({ item, labelStyle }: { item: MenuItem; labelStyle: LabelStyle }) {
-  const isDividerLine = labelStyle === 'elegant' || labelStyle === 'modern';
+function PreviewCard({ item, labelStyle, protein }: { item: MenuItem; labelStyle: LabelStyle; protein?: string }) {
+  const isDividerLine = DIVIDER_LINE_STYLES.includes(labelStyle);
+  const hasDivider = !NO_DIVIDER_STYLES.includes(labelStyle);
   // Inline size overrides to keep preview compact
   const frontStyle: React.CSSProperties = {
     height: 110,
@@ -272,22 +429,23 @@ function PreviewCard({ item, labelStyle }: { item: MenuItem; labelStyle: LabelSt
     padding: '0 14px',
     gap: 5,
   };
-  const nameSize = labelStyle === 'modern' ? 12 : 13;
+  const nameSize = labelStyle === 'bold' ? 18 : labelStyle === 'modern' ? 12 : 13;
+  const previewOverrides: React.CSSProperties = {
+    height: 110,
+    ...(labelStyle === 'elegant' ? { borderBottom: '1.5px solid #c8b89a', borderTop: 'none' } : {}),
+    ...(labelStyle === 'modern'  ? { borderTop: 'none', borderLeft: 'none' } : {}),
+    ...(labelStyle === 'rustic'  ? { borderBottom: '1px solid #c4a882', borderTop: 'none' } : {}),
+    ...(labelStyle === 'bold'    ? { borderBottom: '2px solid #1a1a1a', borderTop: 'none' } : {}),
+  };
   return (
-    <div
-      className={`tc tc-${labelStyle}`}
-      style={{
-        height: 110,
-        ...(labelStyle === 'elegant' ? { borderBottom: '1.5px solid #c8b89a', borderTop: 'none' } : {}),
-        ...(labelStyle === 'modern' ? { borderTop: 'none', borderLeft: 'none' } : {}),
-      }}
-    >
+    <div className={`tc tc-${labelStyle}`} style={previewOverrides}>
       <div className="tc-front" style={frontStyle}>
         <p className="tc-name" style={{ fontSize: nameSize, letterSpacing: '0.06em' }}>{item.name}</p>
-        {isDividerLine
+        {protein && <p className="tc-protein" style={{ fontSize: 8 }}>{protein}</p>}
+        {hasDivider && (isDividerLine
           ? <div className="tc-divider" style={{ width: 24 }} />
           : <span className="tc-divider" style={{ fontSize: 8 }}>· · ·</span>
-        }
+        )}
         {item.description && (
           <p
             className="tc-desc"
@@ -308,17 +466,26 @@ function PreviewCard({ item, labelStyle }: { item: MenuItem; labelStyle: LabelSt
   );
 }
 
+interface LabelEntry {
+  instanceId: string;
+  itemId: string;
+  protein: string;
+  customName?: string;
+  customDesc?: string;
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function LabelingPage() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [customItems, setCustomItems] = useState<MenuItem[]>([]);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [labelEntries, setLabelEntries] = useState<LabelEntry[]>([]);
   const [labelStyle, setLabelStyle] = useState<LabelStyle>('classic');
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [customName, setCustomName] = useState('');
   const [customDesc, setCustomDesc] = useState('');
+  const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -345,28 +512,52 @@ export default function LabelingPage() {
 
   const allItems = [...menuItems, ...customItems];
   const q = search.trim().toLowerCase();
-  const filteredItems = q
-    ? menuItems.filter(i => i.name.toLowerCase().includes(q) || i.description.toLowerCase().includes(q))
-    : menuItems;
-  const groups = groupAndSort(filteredItems);
-  const selectedItems = allItems.filter(i => selectedIds.has(i.id));
-  // 4 cards per page (2 columns × 2 rows)
-  const pages = chunk(selectedItems, 4);
+  const filtered = q
+    ? allItems.filter(i => i.name.toLowerCase().includes(q) || i.description.toLowerCase().includes(q))
+    : allItems;
+  const groups = groupAndSort(filtered);
+  const customIdSet = new Set(customItems.map(i => i.id));
 
-  const toggle = (id: string) =>
-    setSelectedIds(prev => {
-      const s = new Set(prev);
-      s.has(id) ? s.delete(id) : s.add(id);
-      return s;
-    });
+  // Entries drive the print output — each entry = one card
+  const pages = chunk(labelEntries, 4);
+
+  const newEntry = (itemId: string): LabelEntry =>
+    ({ instanceId: `inst-${Date.now()}-${Math.random()}`, itemId, protein: '' });
+
+  const toggle = (itemId: string) => {
+    const hasAny = labelEntries.some(e => e.itemId === itemId);
+    setLabelEntries(prev =>
+      hasAny ? prev.filter(e => e.itemId !== itemId) : [...prev, newEntry(itemId)]
+    );
+  };
+
+  const addInstance = (itemId: string) =>
+    setLabelEntries(prev => [...prev, newEntry(itemId)]);
+
+  const removeEntry = (instanceId: string) =>
+    setLabelEntries(prev => prev.filter(e => e.instanceId !== instanceId));
+
+  const selectProtein = (instanceId: string, protein: string) =>
+    setLabelEntries(prev => prev.map(e =>
+      e.instanceId === instanceId ? { ...e, protein: e.protein === protein ? '' : protein } : e
+    ));
+
+  const updateEntryText = (instanceId: string, field: 'customName' | 'customDesc', value: string) =>
+    setLabelEntries(prev => prev.map(e =>
+      e.instanceId === instanceId ? { ...e, [field]: value } : e
+    ));
+
 
   const toggleGroup = (items: MenuItem[]) => {
-    const allOn = items.every(i => selectedIds.has(i.id));
-    setSelectedIds(prev => {
-      const s = new Set(prev);
-      items.forEach(i => (allOn ? s.delete(i.id) : s.add(i.id)));
-      return s;
-    });
+    const allOn = items.every(i => labelEntries.some(e => e.itemId === i.id));
+    if (allOn) {
+      setLabelEntries(prev => prev.filter(e => !items.some(i => i.id === e.itemId)));
+    } else {
+      const newEntries = items
+        .filter(i => !labelEntries.some(e => e.itemId === i.id))
+        .map(i => newEntry(i.id));
+      setLabelEntries(prev => [...prev, ...newEntries]);
+    }
   };
 
   const addCustomItem = async () => {
@@ -376,14 +567,14 @@ export default function LabelingPage() {
     // Optimistic UI with temp ID
     const tempId = `custom-${Date.now()}`;
     setCustomItems(prev => [...prev, { id: tempId, name, description: desc, category: 'Custom' }]);
-    setSelectedIds(prev => new Set(prev).add(tempId));
+    setLabelEntries(prev => [...prev, newEntry(tempId)]);
     setCustomName('');
     setCustomDesc('');
     // Persist to Firestore, swap temp ID for real doc ID
     try {
       const ref = await addDoc(collection(db, 'labelItems'), { name, description: desc, createdAt: Timestamp.now() });
       setCustomItems(prev => prev.map(i => i.id === tempId ? { ...i, id: ref.id } : i));
-      setSelectedIds(prev => { const s = new Set(prev); s.delete(tempId); s.add(ref.id); return s; });
+      setLabelEntries(prev => prev.map(e => e.itemId === tempId ? { ...e, itemId: ref.id } : e));
     } catch (err) {
       console.error('Failed to save custom item:', err);
     }
@@ -391,7 +582,7 @@ export default function LabelingPage() {
 
   const removeCustomItem = async (id: string) => {
     setCustomItems(prev => prev.filter(i => i.id !== id));
-    setSelectedIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+    setLabelEntries(prev => prev.filter(e => e.itemId !== id));
     if (!id.startsWith('custom-')) {
       try { await deleteDoc(doc(db, 'labelItems', id)); }
       catch (err) { console.error('Failed to delete custom item:', err); }
@@ -422,20 +613,24 @@ export default function LabelingPage() {
           </div>
           <button
             onClick={() => window.print()}
-            disabled={selectedItems.length === 0}
+            disabled={labelEntries.length === 0}
             className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <Printer className="w-4 h-4" />
-            Print Labels{selectedItems.length > 0 ? ` (${selectedItems.length})` : ''}
+            Print Labels{labelEntries.length > 0 ? ` (${labelEntries.length})` : ''}
           </button>
         </div>
 
         {/* Style picker */}
         <div className="flex flex-wrap gap-2 mb-5">
           {([
-            { value: 'classic' as LabelStyle, label: 'Classic', sub: 'Uppercase serif' },
-            { value: 'elegant' as LabelStyle, label: 'Elegant', sub: 'Italic serif, gold' },
-            { value: 'modern'  as LabelStyle, label: 'Modern',  sub: 'Bold sans-serif' },
+            { value: 'classic'  as LabelStyle, label: 'Classic',  sub: 'Uppercase serif' },
+            { value: 'elegant'  as LabelStyle, label: 'Elegant',  sub: 'Italic serif, gold' },
+            { value: 'modern'   as LabelStyle, label: 'Modern',   sub: 'Bold sans-serif' },
+            { value: 'refined'  as LabelStyle, label: 'Refined',  sub: 'Double border' },
+            { value: 'minimal'  as LabelStyle, label: 'Minimal',  sub: 'No decoration' },
+            { value: 'rustic'   as LabelStyle, label: 'Rustic',   sub: 'Warm earthy serif' },
+            { value: 'bold'     as LabelStyle, label: 'Bold',     sub: 'Oversized name' },
           ]).map(({ value, label, sub }) => (
             <button
               key={value}
@@ -462,12 +657,12 @@ export default function LabelingPage() {
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <span className="text-sm font-semibold text-gray-700">
                 Menu Items
-                {selectedIds.size > 0 && (
-                  <span className="ml-2 text-xs font-normal text-blue-600">{selectedIds.size} selected</span>
+                {labelEntries.length > 0 && (
+                  <span className="ml-2 text-xs font-normal text-blue-600">{labelEntries.length} card{labelEntries.length !== 1 ? 's' : ''}</span>
                 )}
               </span>
-              {selectedIds.size > 0 && (
-                <button onClick={() => setSelectedIds(new Set())} className="text-xs text-gray-400 hover:text-gray-700 transition-colors">
+              {labelEntries.length > 0 && (
+                <button onClick={() => setLabelEntries([])} className="text-xs text-gray-400 hover:text-gray-700 transition-colors">
                   Clear all
                 </button>
               )}
@@ -475,28 +670,6 @@ export default function LabelingPage() {
 
             {/* Add custom item */}
             <div className="border-b border-gray-100">
-              {customItems.length > 0 && (
-                <div className="px-4 pt-2.5 pb-1 bg-blue-50/60">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-500 mb-1.5">Custom</p>
-                  {customItems.map(item => (
-                    <div key={item.id} className="flex items-start justify-between gap-2 py-1">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-800 leading-tight">{item.name}</p>
-                        {item.description && (
-                          <p className="text-xs text-gray-400 leading-snug">{item.description}</p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => removeCustomItem(item.id)}
-                        className="flex-shrink-0 text-gray-300 hover:text-red-400 transition-colors mt-0.5"
-                        title="Remove"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
               <div className="px-3 py-2.5 space-y-2">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Add Custom Item</p>
                 <input
@@ -552,11 +725,11 @@ export default function LabelingPage() {
                 <div className="flex items-center justify-center h-40 text-sm text-gray-400">Loading…</div>
               ) : groups.length === 0 ? (
                 <div className="flex items-center justify-center h-40 text-sm text-gray-400">
-                  {search ? `No items matching "${search}"` : 'No menu items found'}
+                  {search ? `No items matching "${search}"` : 'No items found'}
                 </div>
               ) : (
                 groups.map(({ category, items }) => {
-                  const allOn = items.every(i => selectedIds.has(i.id));
+                  const allOn = items.every(i => labelEntries.some(e => e.itemId === i.id));
                   const isCollapsed = collapsed.has(category);
                   return (
                     <div key={category} className="border-b border-gray-50 last:border-0">
@@ -573,22 +746,85 @@ export default function LabelingPage() {
                           {allOn ? 'Clear' : 'All'}
                         </button>
                       </div>
-                      {(!isCollapsed || q) && items.map(item => (
-                        <label key={item.id} className="flex items-start gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer border-b border-gray-50/60 last:border-0">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(item.id)}
-                            onChange={() => toggle(item.id)}
-                            className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-gray-300 text-gray-900 cursor-pointer"
-                          />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-gray-800 leading-tight">{item.name}</p>
-                            {item.description && (
-                              <p className="text-xs text-gray-400 mt-0.5 line-clamp-2 leading-snug">{item.description}</p>
+                      {(!isCollapsed || q) && items.map(item => {
+                        const itemEntries = labelEntries.filter(e => e.itemId === item.id);
+                        const isChecked = itemEntries.length > 0;
+                        return (
+                          <div key={item.id} className="border-b border-gray-50/60 last:border-0">
+                            <label className="flex items-start gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => toggle(item.id)}
+                                className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-gray-300 text-gray-900 cursor-pointer"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-gray-800 leading-tight">{item.name}</p>
+                                {item.description && (
+                                  <p className="text-xs text-gray-400 mt-0.5 line-clamp-2 leading-snug">{item.description}</p>
+                                )}
+                              </div>
+                              {customIdSet.has(item.id) && (
+                                <button
+                                  type="button"
+                                  onClick={e => { e.preventDefault(); removeCustomItem(item.id); }}
+                                  className="flex-shrink-0 text-gray-300 hover:text-red-400 transition-colors mt-0.5"
+                                  title="Delete custom item"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </label>
+
+                            {/* One protein row per entry (instance) */}
+                            {isChecked && (
+                              <div className="px-4 pb-2.5 space-y-1.5 -mt-1">
+                                {itemEntries.map((entry, idx) => (
+                                  <div key={entry.instanceId} className="space-y-1.5">
+                                    {itemEntries.length > 1 && (
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[10px] text-gray-400 font-medium">
+                                          Card {idx + 1}{entry.protein ? ` · ${entry.protein}` : ''}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => removeEntry(entry.instanceId)}
+                                          className="text-gray-300 hover:text-red-400 transition-colors"
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    )}
+                                    <div className="flex flex-wrap gap-1">
+                                      {PROTEINS.map(p => (
+                                        <button
+                                          key={p}
+                                          type="button"
+                                          onClick={() => selectProtein(entry.instanceId, p)}
+                                          className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
+                                            entry.protein === p
+                                              ? 'bg-gray-900 text-white border-gray-900'
+                                              : 'border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700'
+                                          }`}
+                                        >
+                                          {p}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                                <button
+                                  type="button"
+                                  onClick={() => addInstance(item.id)}
+                                  className="text-[10px] text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                                >
+                                  + Add another protein
+                                </button>
+                              </div>
                             )}
                           </div>
-                        </label>
-                      ))}
+                        );
+                      })}
                     </div>
                   );
                 })
@@ -601,14 +837,14 @@ export default function LabelingPage() {
           <div className="flex-1 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
             <div className="flex items-center px-4 py-3 border-b border-gray-100">
               <span className="text-sm font-semibold text-gray-700">Preview</span>
-              {selectedItems.length > 0 && (
+              {labelEntries.length > 0 && (
                 <span className="ml-2 text-xs text-gray-400">
-                  {selectedItems.length} card{selectedItems.length !== 1 ? 's' : ''} · {pages.length} page{pages.length !== 1 ? 's' : ''}
+                  {labelEntries.length} card{labelEntries.length !== 1 ? 's' : ''} · {pages.length} page{pages.length !== 1 ? 's' : ''}
                 </span>
               )}
             </div>
 
-            {selectedItems.length === 0 ? (
+            {labelEntries.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
                 <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
                   <Printer className="w-6 h-6 text-gray-400" />
@@ -625,13 +861,56 @@ export default function LabelingPage() {
                     <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">
                       Page {pi + 1}
                     </p>
-                    {/* 2-column grid matching the print layout */}
                     <div className="grid grid-cols-2 gap-2">
-                      {group.map(item => (
-                        <div key={item.id} className="shadow-sm rounded overflow-hidden">
-                          <PreviewCard item={item} labelStyle={labelStyle} />
-                        </div>
-                      ))}
+                      {group.map(entry => {
+                        const item = allItems.find(i => i.id === entry.itemId);
+                        if (!item) return null;
+                        const isEditing = editingInstanceId === entry.instanceId;
+                        const displayItem = {
+                          ...item,
+                          name: entry.customName || item.name,
+                          description: entry.customDesc !== undefined ? entry.customDesc : item.description,
+                        };
+                        return (
+                          <div key={entry.instanceId} className={`rounded overflow-hidden border transition-colors ${isEditing ? 'border-blue-300 shadow-sm' : 'border-transparent shadow-sm'}`}>
+                            {/* Card preview with pencil button */}
+                            <div className="relative group">
+                              <PreviewCard item={displayItem} labelStyle={labelStyle} protein={entry.protein || undefined} />
+                              <button
+                                type="button"
+                                onClick={() => setEditingInstanceId(isEditing ? null : entry.instanceId)}
+                                className={`absolute top-1.5 right-1.5 p-1 rounded-md transition-all ${
+                                  isEditing
+                                    ? 'bg-blue-600 text-white opacity-100'
+                                    : 'bg-white/80 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-blue-600'
+                                }`}
+                                title={isEditing ? 'Done editing' : 'Edit label text'}
+                              >
+                                {isEditing ? <Check className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
+                              </button>
+                            </div>
+                            {/* Edit inputs */}
+                            {isEditing && (
+                              <div className="p-2 bg-blue-50 border-t border-blue-200 space-y-1.5">
+                                <input
+                                  type="text"
+                                  value={entry.customName ?? item.name}
+                                  onChange={e => updateEntryText(entry.instanceId, 'customName', e.target.value)}
+                                  placeholder="Label name"
+                                  className="w-full px-2.5 py-1.5 text-xs border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white"
+                                />
+                                <textarea
+                                  value={entry.customDesc ?? item.description}
+                                  onChange={e => updateEntryText(entry.instanceId, 'customDesc', e.target.value)}
+                                  placeholder="Description (optional)"
+                                  rows={2}
+                                  className="w-full px-2.5 py-1.5 text-xs border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white resize-none"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
@@ -653,9 +932,18 @@ export default function LabelingPage() {
               <React.Fragment key={ri}>
                 {ri > 0 && <div className="print-row-cut" />}
                 <div className="print-row">
-                  {row.map(item => (
-                    <TentCard key={item.id} item={item} labelStyle={labelStyle} />
-                  ))}
+                  {row.map(entry => {
+                    const item = allItems.find(i => i.id === entry.itemId);
+                    if (!item) return null;
+                    const displayItem = {
+                      ...item,
+                      name: entry.customName || item.name,
+                      description: entry.customDesc !== undefined ? entry.customDesc : item.description,
+                    };
+                    return (
+                      <TentCard key={entry.instanceId} item={displayItem} labelStyle={labelStyle} protein={entry.protein || undefined} />
+                    );
+                  })}
                 </div>
               </React.Fragment>
             ))}

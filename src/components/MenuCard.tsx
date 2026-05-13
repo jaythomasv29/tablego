@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Navbar from './Navbar';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase';
+import { ChefHat } from 'lucide-react';
 
 interface MenuItem {
     id?: string;
@@ -24,7 +25,8 @@ const CATEGORY_ORDER = [
     'Noodles',
     'Fried Rice',
     'Grill',
-    'Sides'
+    'Sides',
+    'Desserts',
 ];
 
 interface MenuCardProps {
@@ -98,12 +100,21 @@ export default function MenuCard({ activeCategory }: MenuCardProps) {
                                             key={item.id}
                                             className="border rounded-lg hover:shadow-md transition-shadow bg-white overflow-hidden"
                                         >
-                                            <div className="h-48 w-full">
-                                                <img
-                                                    src={item.imageUrl || "https://placehold.co/400x300/e2e8f0/666666?text=Plate+of+Food"}
-                                                    alt={item.name}
-                                                    className="w-full h-full object-cover"
-                                                />
+                                            <div className="h-48 w-full bg-gray-100">
+                                                {item.imageUrl ? (
+                                                    <img
+                                                        src={item.imageUrl}
+                                                        alt={item.name}
+                                                        className="w-full h-full object-cover"
+                                                        onError={e => {
+                                                            (e.currentTarget as HTMLImageElement).style.display = 'none';
+                                                            e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                                        }}
+                                                    />
+                                                ) : null}
+                                                <div className={`w-full h-full flex items-center justify-center ${item.imageUrl ? 'hidden' : ''}`}>
+                                                    <ChefHat className="w-14 h-14 text-gray-300" />
+                                                </div>
                                             </div>
                                             <div className="p-4">
                                                 <div className="flex justify-between items-start mb-2">
