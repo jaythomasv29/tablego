@@ -106,6 +106,7 @@ interface PendingReservation {
     phone: string;
     email: string;
     status: string;
+    phoneVerified?: boolean;
 }
 
 interface MobileNotificationProps {
@@ -501,7 +502,8 @@ export default function AdminHome() {
                         comments: data.comments || '',
                         createdAt: data.createdAt,
                         reminderSent: data.reminderSent,
-                        reminderSentAt: data.reminderSentAt
+                        reminderSentAt: data.reminderSentAt,
+                        phoneVerified: data.phoneVerified ?? false,
                     });
                 }
 
@@ -639,7 +641,8 @@ export default function AdminHome() {
                         createdAt: data.createdAt,
                         reminderSent: data.reminderSent,
                         reminderSentAt: data.reminderSentAt,
-                        attendanceStatus: data.attendanceStatus
+                        attendanceStatus: data.attendanceStatus,
+                        phoneVerified: data.phoneVerified ?? false,
                     });
                 }
             });
@@ -1176,9 +1179,14 @@ export default function AdminHome() {
                                                         </div>
 
                                                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 mb-2">
-                                                            <span className="flex items-center gap-1">
+                                                            <span className="flex items-center gap-1.5">
                                                                 <Phone className="w-3.5 h-3.5 text-gray-400" />
                                                                 {reservation.phone}
+                                                                {reservation.phoneVerified && (
+                                                                    <span className="inline-flex items-center text-[10px] font-medium text-green-700 bg-green-50 border border-green-200 rounded px-1 py-0.5">
+                                                                        ✓ Verified
+                                                                    </span>
+                                                                )}
                                                             </span>
                                                             {reservation.email && (
                                                                 <span className="flex items-center gap-1">
