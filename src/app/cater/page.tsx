@@ -1,605 +1,619 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
+import { CheckCircle2, ChevronDown, Utensils, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase';
 
-interface FormData {
-    // Step 1
-    name: string;
-    email: string;
-    phone: string;
-    // Step 2
-    address: string;
-    budget: string;
-    date: string;
-    time: string;
-    partySize: string;
-    specialRequests?: string;
-    // Step 3
-    selectedDishes: string[];
+const ACCENT = '#A3B18A';
+
+interface MenuItem {
+  id: string;
+  name: string;
+  category: string;
 }
 
-const CateringPage = () => {
-    const [step, setStep] = useState(1);
-    const [formData, setFormData] = useState<FormData>({
-        name: '',
-        email: '',
-        phone: '',
-        address: '',
-        budget: '',
-        date: '',
-        time: '',
-        partySize: '',
-        specialRequests: '',
-        selectedDishes: [],
-    });
+interface FormData {
+  name: string;
+  email: string;
+  phone: string;
+  eventType: string;
+  date: string;
+  partySize: string;
+  budget: string;
+  specialRequests: string;
+}
 
-    const [menuItems, setMenuItems] = useState<Array<{
-        id: string;
-        name: string;
-        description: string;
-        imageUrl?: string;
-        category: string;
-    }>>([]);
-
-    const [showSuccessModal, setShowSuccessModal] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    useEffect(() => {
-        const fetchMenuItems = async () => {
-            try {
-                const querySnapshot = await getDocs(collection(db, 'menu'));
-                const items = querySnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    name: doc.data().name || '',
-                    description: doc.data().description || '',
-                    imageUrl: doc.data().imageUrl,
-                    category: doc.data().category || ''
-                }));
-
-
-                setMenuItems(items);
-            } catch (error) {
-                console.error('Error fetching menu items:', error);
-            }
-        };
-
-        fetchMenuItems();
-    }, []);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
-    };
-
-    const handleNext = () => {
-        if (step === 1 && !validateStep1()) {
-            alert('Please fill in all required fields');
-            return;
-        }
-        if (step === 2 && !validateStep2()) {
-            alert('Please fill in all required fields');
-            return;
-        }
-        setStep(prev => prev + 1);
-    };
-
-    const handleBack = () => {
-        setStep(prev => prev - 1);
-    };
-
-    const validateStep1 = () => {
-        return formData.name.trim() !== '' &&
-            formData.email.trim() !== '' &&
-            formData.phone.trim() !== '';
-    };
-
-    const validateStep2 = () => {
-        return formData.address.trim() !== '' &&
-            formData.date.trim() !== '' &&
-            formData.time.trim() !== '' &&
-            formData.partySize.trim() !== '';
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (!isSubmitting) return;
-
-        try {
-            const selectedDishesWithDetails = formData.selectedDishes.map(id => {
-                const dish = menuItems.find(item => item.id === id);
-                return {
-                    id: dish?.id,
-                    name: dish?.name,
-                    description: dish?.description,
-                    imageUrl: dish?.imageUrl
-                };
-            });
-
-            const response = await fetch('/api/send-proposal', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    formData: {
-                        ...formData,
-                        selectedDishes: selectedDishesWithDetails
-                    }
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-
-            // If we reach here, the submission was successful
-            setShowSuccessModal(true);
-            // Reset form
-            setFormData({
-                name: '',
-                email: '',
-                phone: '',
-                address: '',
-                budget: '',
-                date: '',
-                time: '',
-                partySize: '',
-                specialRequests: '',
-                selectedDishes: [],
-            });
-            setStep(1);
-
-        } catch (error) {
-            console.error('Error submitting form:', error);
-            // Only show error alert if email wasn't sent
-            if (error instanceof Error && !error.message.includes('200')) {
-                alert('Failed to submit inquiry. Please try again.');
-            }
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const inputClassName = "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500";
-
-    const handleDishSelection = (itemId: string) => {
-        setFormData(prev => {
-            if (prev.selectedDishes.includes(itemId)) {
-                return {
-                    ...prev,
-                    selectedDishes: prev.selectedDishes.filter(id => id !== itemId)
-                };
-            }
-            return {
-                ...prev,
-                selectedDishes: [...prev.selectedDishes, itemId]
-            };
-        });
-    };
-
-    const formatDisplayDate = (dateString: string) => {
-        if (!dateString) return '';
-
-        // Split the date string to get year, month, day
-        const [year, month, day] = dateString.split('-').map(Number);
-
-        // Create date object with explicit UTC time at noon to avoid timezone shifts
-        const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-
-        return date.toLocaleDateString('en-US', {
-            weekday: 'long',
-            month: 'long',
-            day: 'numeric',
-            year: 'numeric',
-            timeZone: 'UTC'  // Keep it in UTC to prevent shifts
-        });
-    };
-
-    return (
-        <>
-            <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-                <Navbar />
-                <Link
-                    href="/"
-                    className="fixed top-1/2 left-4 transform -translate-y-1/2 flex flex-col items-center gap-2 z-20"
-                    passHref
-                >
-                    <div className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors cursor-pointer">
-                        <ArrowLeft className="h-6 w-6 text-gray-600" />
-                    </div>
-                    <span className="text-sm font-medium text-gray-600 bg-white/80 backdrop-blur-sm px-2 py-1 rounded shadow-sm">
-                        Home
-                    </span>
-                </Link>
-
-                <main className="max-w-3xl mx-auto px-4 py-8">
-                    <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
-                        <div className="mb-8">
-                            <h2 className="text-2xl font-bold text-gray-800">Catering Inquiry</h2>
-                            <div className="mt-4 flex justify-between">
-                                {[1, 2, 3, 4].map((i) => (
-                                    <div
-                                        key={i}
-                                        className={`w-1/4 h-2 rounded-full mx-1 ${step >= i ? 'bg-indigo-600' : 'bg-gray-200'
-                                            }`}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-
-                        <form onSubmit={handleSubmit}>
-                            {step === 1 && (
-                                <div className="space-y-4">
-                                    <div className="mb-8 text-gray-600 border-b pb-6">
-                                        <p className="text-base leading-relaxed">
-                                            We appreciate your interest in our catering services and are happy to fire up our woks for you! (For immediate inquiries, please call us at 650-323-7700 or email us at thaiphoonpaloalto@gmail.com)
-                                        </p>
-                                        <p className="text-base leading-relaxed mt-4">
-                                            Let's get started by entering some customer details:
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Name</label>
-                                        <input
-                                            type="text"
-                                            name="name"
-                                            value={formData.name}
-                                            onChange={handleInputChange}
-                                            className={inputClassName}
-                                            required
-                                            placeholder="Your full name *"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Email</label>
-                                        <input
-                                            type="email"
-                                            name="email"
-                                            value={formData.email}
-                                            onChange={handleInputChange}
-                                            className={inputClassName}
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Phone</label>
-                                        <input
-                                            type="tel"
-                                            name="phone"
-                                            value={formData.phone}
-                                            onChange={handleInputChange}
-                                            className={inputClassName}
-                                            required
-                                        />
-                                    </div>
-                                </div>
-                            )}
-
-                            {step === 2 && (
-                                <div className="space-y-4">
-                                    <div className="mb-8 text-gray-600 border-b pb-6">
-                                        <p className="text-base leading-relaxed">
-                                            Lets get some general information of when this event is going down. This is a general baseline and we are happy to work with you! All information will be confirmed with our head staff.
-                                        </p>
-                                        <p className="text-base leading-relaxed mt-4">
-                                            Let's get some event information:
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Event Address</label>
-                                        <input
-                                            type="text"
-                                            name="address"
-                                            value={formData.address}
-                                            onChange={handleInputChange}
-                                            placeholder="Event location *"
-                                            className={inputClassName}
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Approximate Budget</label>
-                                        <input
-                                            type="number"
-                                            name="budget"
-                                            value={formData.budget}
-                                            onChange={handleInputChange}
-                                            placeholder="Approximate budget (optional)"
-                                            className={inputClassName}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Date</label>
-                                        <input
-                                            type="date"
-                                            name="date"
-                                            value={formData.date}
-                                            onChange={handleInputChange}
-                                            className={inputClassName}
-                                            required
-                                            min={new Date().toISOString().split('T')[0]}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Time</label>
-                                        <input
-                                            type="time"
-                                            name="time"
-                                            value={formData.time}
-                                            onChange={handleInputChange}
-                                            className={inputClassName}
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Party Size</label>
-                                        <input
-                                            type="number"
-                                            name="partySize"
-                                            value={formData.partySize}
-                                            onChange={handleInputChange}
-                                            placeholder="Number of guests *"
-                                            className={inputClassName}
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Special Requests</label>
-                                        <textarea
-                                            name="specialRequests"
-                                            value={formData.specialRequests}
-                                            onChange={(e) => setFormData(prev => ({
-                                                ...prev,
-                                                specialRequests: e.target.value
-                                            }))}
-                                            className={`${inputClassName} min-h-[100px]`}
-                                            placeholder="Any dietary restrictions, allergies, or special accommodations?"
-                                        />
-                                    </div>
-                                </div>
-                            )}
-
-                            {step === 3 && (
-                                <div className="space-y-6">
-                                    <div className="mb-8 text-gray-600 border-b pb-6">
-                                        <p className="text-base leading-relaxed">
-                                            Select the dishes you'd like to include in your catering package:
-                                        </p>
-                                    </div>
-
-                                    {/* Categories in order */}
-                                    {['Appetizers', 'Soup', 'Salad', 'Signature Dishes', 'Wok', 'Curry', 'Noodles', 'Fried Rice', 'Grill', 'Sides'].map(category => {
-                                        const categoryItems = menuItems.filter(item => item.category === category);
-
-                                        return categoryItems.length > 0 ? (
-                                            <div key={category} className="mb-8">
-                                                <h3 className="text-lg font-medium text-gray-800 mb-4">{category}</h3>
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                                    {categoryItems.map((item) => (
-                                                        <button
-                                                            key={item.id}
-                                                            type="button"
-                                                            onClick={() => handleDishSelection(item.id)}
-                                                            className={`
-                                                                relative p-4 rounded-lg border transition-all
-                                                                ${formData.selectedDishes.includes(item.id)
-                                                                    ? 'border-green-500 bg-green-50'
-                                                                    : 'border-gray-200 hover:border-gray-300'
-                                                                }
-                                                                ${formData.selectedDishes.includes(item.id)
-                                                                    ? 'ring-2 ring-green-500 ring-opacity-50'
-                                                                    : ''
-                                                                }
-                                                                cursor-pointer
-                                                            `}
-                                                        >
-                                                            <div className="h-24 w-full mb-2">
-                                                                <img
-                                                                    src={item.imageUrl || "https://placehold.co/400x300"}
-                                                                    alt={item.name}
-                                                                    className="h-full w-full object-cover rounded"
-                                                                />
-                                                            </div>
-                                                            <h3 className="text-sm font-medium text-gray-900">{item.name}</h3>
-                                                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">{item.description}</p>
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ) : null;
-                                    })}
-
-                                    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                                        <p className="text-sm text-gray-600">
-                                            Selected dishes ({formData.selectedDishes.length}):
-                                        </p>
-                                        <div className="mt-2 flex flex-wrap gap-2">
-                                            {formData.selectedDishes.map((id) => {
-                                                const item = menuItems.find(item => item.id === id);
-                                                return (
-                                                    <span
-                                                        key={id}
-                                                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
-                                                    >
-                                                        {item?.name}
-                                                    </span>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {step === 4 && (
-                                <div className="space-y-6">
-                                    <h3 className="text-lg font-medium text-gray-700 mb-4">Confirm Your Details</h3>
-
-                                    {/* Personal Details */}
-                                    <div className="bg-gray-50 rounded-lg p-4">
-                                        <h4 className="text-md font-medium text-gray-700 mb-3">Personal Information</h4>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <p className="text-sm text-gray-500">Name</p>
-                                                <p className="text-sm font-medium">{formData.name}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm text-gray-500">Email</p>
-                                                <p className="text-sm font-medium">{formData.email}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm text-gray-500">Phone</p>
-                                                <p className="text-sm font-medium">{formData.phone}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Event Details */}
-                                    <div className="bg-gray-50 rounded-lg p-4">
-                                        <h4 className="text-md font-medium text-gray-700 mb-3">Event Information</h4>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <p className="text-sm text-gray-500">Date</p>
-                                                <p className="text-sm font-medium">{formatDisplayDate(formData.date)}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm text-gray-500">Time</p>
-                                                <p className="text-sm font-medium">{formData.time}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm text-gray-500">Party Size</p>
-                                                <p className="text-sm font-medium">{formData.partySize} guests</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm text-gray-500">Budget</p>
-                                                <p className="text-sm font-medium">${formData.budget}</p>
-                                            </div>
-                                            <div className="col-span-2">
-                                                <p className="text-sm text-gray-500">Event Address</p>
-                                                <p className="text-sm font-medium">{formData.address}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Selected Dishes */}
-                                    <div className="bg-gray-50 rounded-lg p-4">
-                                        <h4 className="text-md font-medium text-gray-700 mb-3">
-                                            Selected Dishes ({formData.selectedDishes.length})
-                                        </h4>
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                            {formData.selectedDishes.map((id) => {
-                                                const item = menuItems.find(item => item.id === id);
-                                                return item ? (
-                                                    <div key={id} className="bg-white rounded-lg p-3 shadow-sm">
-                                                        <div className="h-24 w-full mb-2">
-                                                            <img
-                                                                src={item.imageUrl || "https://placehold.co/400x300"}
-                                                                alt={item.name}
-                                                                className="h-full w-full object-cover rounded"
-                                                            />
-                                                        </div>
-                                                        <h5 className="text-sm font-medium text-gray-900">{item.name}</h5>
-                                                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                                                            {item.description}
-                                                        </p>
-                                                    </div>
-                                                ) : null;
-                                            })}
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
-                                        <p className="text-sm text-blue-700">
-                                            Please review all details before submitting. Our team will contact you within 24-48 hours to discuss your catering request.
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="mt-6 flex justify-between">
-                                {step > 1 && (
-                                    <button
-                                        type="button"
-                                        onClick={handleBack}
-                                        className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors"
-                                    >
-                                        Back
-                                    </button>
-                                )}
-                                {step < 4 ? (
-                                    <button
-                                        type="button"
-                                        onClick={handleNext}
-                                        className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition-colors ml-auto"
-                                    >
-                                        Next
-                                    </button>
-                                ) : (
-                                    <button
-                                        type="submit"
-                                        onClick={() => setIsSubmitting(true)}
-                                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition-colors ml-auto"
-                                    >
-                                        Submit Inquiry
-                                    </button>
-                                )}
-                            </div>
-                        </form>
-                    </div>
-                </main>
-            </div>
-            <Footer />
-
-            {/* Success Modal */}
-            {showSuccessModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
-                        <div className="text-center">
-                            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
-                                <svg
-                                    className="h-6 w-6 text-green-600"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M5 13l4 4L19 7"
-                                    />
-                                </svg>
-                            </div>
-                            <h3 className="mt-4 text-lg font-medium text-gray-900">
-                                Catering Inquiry Submitted!
-                            </h3>
-                            <p className="mt-2 text-sm text-gray-500">
-                                Thank you for your interest in our catering services. Our team will review your request and contact you within 24-48 hours to discuss the details.
-                            </p>
-                            <div className="mt-6">
-                                <button
-                                    onClick={() => setShowSuccessModal(false)}
-                                    className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-green-500"
-                                >
-                                    Got it, thanks!
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </>
-    );
+const initialFormData: FormData = {
+  name: '',
+  email: '',
+  phone: '',
+  eventType: '',
+  date: '',
+  partySize: '',
+  budget: '',
+  specialRequests: '',
 };
 
-export default CateringPage;
+function MagneticButton({
+  children,
+  className,
+  onClick,
+  style,
+  disabled = false,
+  type = 'button',
+}: {
+  children: React.ReactNode;
+  className?: string;
+  onClick?: () => void | Promise<void>;
+  style?: React.CSSProperties;
+  disabled?: boolean;
+  type?: 'button' | 'submit';
+}) {
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+
+  const handleMove = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const el = buttonRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left - rect.width / 2;
+    const y = e.clientY - rect.top - rect.height / 2;
+    el.style.transform = `translate(${x * 0.08}px, ${y * 0.08}px) scale(1.05)`;
+  };
+
+  const handleLeave = () => {
+    const el = buttonRef.current;
+    if (!el) return;
+    el.style.transform = 'translate(0px, 0px) scale(1)';
+  };
+
+  return (
+    <button
+      ref={buttonRef}
+      type={type}
+      onClick={onClick}
+      style={style}
+      disabled={disabled}
+      onMouseMove={handleMove}
+      onMouseLeave={handleLeave}
+      className={`relative overflow-hidden transition-transform duration-200 disabled:opacity-60 disabled:cursor-not-allowed ${className || ''}`}
+    >
+      <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-500 group-hover:translate-x-full" />
+      <span className="relative z-10">{children}</span>
+    </button>
+  );
+}
+
+const EVENT_TYPES = ['Corporate', 'Wedding', 'Birthday', 'Private Party', 'Other'];
+
+const DISH_CATEGORIES = [
+  'Appetizers', 'Soup', 'Salad', 'Signature Dishes',
+  'Wok', 'Curry', 'Noodles', 'Fried Rice', 'Grill', 'Sides',
+];
+
+const BUDGET_OPTIONS = [
+  'Under $500',
+  '$500 – $1,000',
+  '$1,000 – $2,500',
+  '$2,500 – $5,000',
+  '$5,000+',
+  'Not sure yet',
+];
+
+const inputClass =
+  'w-full px-4 py-3 rounded-xl border border-zinc-200 bg-white/70 focus:outline-none focus:ring-2 focus:border-[#A3B18A] text-zinc-900 placeholder:text-zinc-400 text-sm transition-all';
+const labelClass = 'block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-1.5';
+
+export default function CateringPage() {
+  const [formData, setFormData] = useState<FormData>(initialFormData);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [selectedDishes, setSelectedDishes] = useState<MenuItem[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+
+  useEffect(() => {
+    getDocs(collection(db, 'menu')).then(snap => {
+      setMenuItems(
+        snap.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().name || '',
+          category: doc.data().category || '',
+        }))
+      );
+    }).catch(err => console.error('Error fetching menu:', err));
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const toggleDish = (item: MenuItem) => {
+    setSelectedDishes(prev =>
+      prev.find(d => d.id === item.id)
+        ? prev.filter(d => d.id !== item.id)
+        : [...prev, item]
+    );
+  };
+
+  const toggleCategory = (cat: string) => {
+    setActiveCategory(prev => (prev === cat ? null : cat));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError('');
+
+    try {
+      const response = await fetch('/api/send-proposal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          formData: {
+            ...formData,
+            address: '',
+            time: '',
+            selectedDishes: selectedDishes.map(d => ({
+              id: d.id,
+              name: d.name,
+              description: '',
+            })),
+          },
+        }),
+      });
+
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+      setShowSuccess(true);
+      setFormData(initialFormData);
+      setSelectedDishes([]);
+      setActiveCategory(null);
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      setSubmitError('Failed to send your inquiry. Please call us at (650) 323-7700.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const today = new Date().toISOString().split('T')[0];
+  const firstName = formData.name.trim().split(' ')[0];
+
+  return (
+    <div className="min-h-[100dvh] text-zinc-900" style={{ backgroundColor: 'transparent' }}>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,600;1,700&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+      />
+
+      {/* Film noise texture */}
+      <svg className="pointer-events-none fixed inset-0 z-0 opacity-[0.04]" aria-hidden="true">
+        <filter id="film-noise">
+          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" />
+        </filter>
+        <rect width="100%" height="100%" filter="url(#film-noise)" />
+      </svg>
+
+      {/* Navbar */}
+      <nav className="fixed inset-x-0 top-6 z-40 px-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="inline-flex items-center gap-4 rounded-full border border-black/10 bg-white/85 backdrop-blur-xl px-5 py-3 shadow-[0_20px_40px_-20px_rgba(0,0,0,0.25)]">
+            <div
+              className="flex items-center gap-2 font-semibold tracking-tight"
+              style={{ fontFamily: 'Inter, sans-serif' }}
+            >
+              <Utensils className="w-4 h-4" />
+              <span>Thaiphoon</span>
+            </div>
+            <div className="h-4 w-px bg-zinc-300" />
+            <Link href="/" className="text-sm text-zinc-600 hover:text-zinc-900 transition-colors">
+              Reserve
+            </Link>
+            <Link href="/menu" className="text-sm text-zinc-600 hover:text-zinc-900 transition-colors">
+              Menu
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero section */}
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        className="fixed inset-0 -z-10 h-full w-full object-cover"
+        src="/images/slow-mo-hero.mp4"
+      />
+      <div className="fixed inset-0 -z-10 bg-gradient-to-r from-black/55 via-black/40 to-black/20" />
+
+      <section className="relative min-h-[100dvh]">
+
+        {/* Content grid */}
+        <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 pt-32 md:pt-36 pb-16 min-h-[100dvh] grid grid-cols-1 md:grid-cols-[1.1fr_0.9fr] gap-10 items-center">
+
+          {/* Left column */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            className="text-white"
+          >
+            <p
+              className="text-xs uppercase tracking-[0.14em] text-white/70 mb-4"
+              style={{ fontFamily: 'Inter, sans-serif' }}
+            >
+              Thaiphoon · Palo Alto
+            </p>
+            <h1
+              className="text-4xl md:text-5xl lg:text-6xl font-semibold leading-tight mb-4"
+              style={{ fontFamily: 'Inter, sans-serif' }}
+            >
+              Bring the Wok{' '}
+              <span className="italic font-normal" style={{ fontFamily: 'Playfair Display, serif' }}>
+                to Your Event.
+              </span>
+            </h1>
+            <p
+              className="text-white/75 text-base md:text-lg leading-relaxed max-w-md mb-8"
+              style={{ fontFamily: 'Inter, sans-serif' }}
+            >
+              Thai & Pan-Asian catering for corporate events, weddings, and private parties in the Bay Area.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {['500+ Events Catered', '20 Years in Palo Alto', 'Bay Area Favorite'].map(stat => (
+                <div
+                  key={stat}
+                  className="rounded-full border border-white/30 bg-white/10 backdrop-blur-sm px-4 py-2 text-white text-sm"
+                  style={{ fontFamily: 'Inter, sans-serif' }}
+                >
+                  {stat}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Right column — glass card */}
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="rounded-[2rem] bg-white/85 border border-white/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_24px_60px_-28px_rgba(0,0,0,0.45)] backdrop-blur-xl p-6 md:p-8 w-full max-w-md md:ml-auto"
+          >
+            {showSuccess ? (
+              <div className="text-center py-6">
+                <div
+                  className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-5"
+                  style={{ backgroundColor: `${ACCENT}33` }}
+                >
+                  <CheckCircle2 className="w-9 h-9" style={{ color: ACCENT }} />
+                </div>
+                <h3
+                  className="text-2xl tracking-tight text-zinc-900 mb-2"
+                  style={{ fontFamily: 'Cormorant Garamond, serif' }}
+                >
+                  {firstName ? `We're on it, ${firstName}.` : "We're on it."}
+                </h3>
+                <p className="text-zinc-600 text-sm leading-relaxed mb-5">
+                  Our team will reach out within 24 hours to discuss your event details and menu options.
+                </p>
+                <div
+                  className="rounded-2xl p-4 text-sm text-zinc-700 mb-6"
+                  style={{ backgroundColor: `${ACCENT}22`, borderColor: `${ACCENT}44`, border: '1px solid' }}
+                >
+                  For immediate inquiries, call{' '}
+                  <a href="tel:+16503237700" className="font-semibold hover:underline">
+                    (650) 323-7700
+                  </a>
+                </div>
+                <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-800 transition-colors">
+                  ← Back to Thaiphoon
+                </Link>
+              </div>
+            ) : (
+              <>
+                <div className="mb-6">
+                  <h2
+                    className="text-2xl tracking-tight text-zinc-900"
+                    style={{ fontFamily: 'Cormorant Garamond, serif' }}
+                  >
+                    Catering Inquiry
+                  </h2>
+                  <p className="text-zinc-500 text-sm mt-1" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    We'll follow up within 24 hours.
+                  </p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {/* Name */}
+                  <div>
+                    <label className={labelClass}>Name</label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      required
+                      placeholder="Your full name"
+                      className={inputClass}
+                      style={{ '--tw-ring-color': ACCENT } as React.CSSProperties}
+                    />
+                  </div>
+
+                  {/* Email + Phone */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelClass}>Email</label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        required
+                        placeholder="you@email.com"
+                        className={inputClass}
+                        style={{ '--tw-ring-color': ACCENT } as React.CSSProperties}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Phone</label>
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        required
+                        placeholder="(650) 000-0000"
+                        className={inputClass}
+                        style={{ '--tw-ring-color': ACCENT } as React.CSSProperties}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Event Type */}
+                  <div>
+                    <label className={labelClass}>Event Type</label>
+                    <div className="flex flex-wrap gap-2">
+                      {EVENT_TYPES.map(type => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, eventType: type }))}
+                          className="rounded-full px-3 py-1.5 text-sm font-medium transition-all"
+                          style={
+                            formData.eventType === type
+                              ? { backgroundColor: ACCENT, color: '#121212' }
+                              : { border: '1px solid #d4d4d8', color: '#71717a', backgroundColor: 'transparent' }
+                          }
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Date + Party Size */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelClass}>Event Date</label>
+                      <input
+                        type="date"
+                        name="date"
+                        value={formData.date}
+                        onChange={handleChange}
+                        required
+                        min={today}
+                        className={inputClass}
+                        style={{ '--tw-ring-color': ACCENT } as React.CSSProperties}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Party Size</label>
+                      <input
+                        type="number"
+                        name="partySize"
+                        value={formData.partySize}
+                        onChange={handleChange}
+                        required
+                        min="1"
+                        placeholder="# guests"
+                        className={inputClass}
+                        style={{ '--tw-ring-color': ACCENT } as React.CSSProperties}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Budget Range */}
+                  <div>
+                    <label className={labelClass}>Approximate Budget</label>
+                    <select
+                      name="budget"
+                      value={formData.budget}
+                      onChange={handleChange}
+                      required
+                      className={inputClass}
+                      style={{ '--tw-ring-color': ACCENT } as React.CSSProperties}
+                    >
+                      <option value="" disabled>Select a range</option>
+                      {BUDGET_OPTIONS.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Special Requests */}
+                  <div>
+                    <label className={labelClass}>
+                      Special Requests <span className="normal-case text-zinc-400">(optional)</span>
+                    </label>
+                    <textarea
+                      name="specialRequests"
+                      value={formData.specialRequests}
+                      onChange={handleChange}
+                      placeholder="Dietary restrictions, allergies, or anything else we should know?"
+                      className={`${inputClass} min-h-[80px] resize-none`}
+                      style={{ '--tw-ring-color': ACCENT } as React.CSSProperties}
+                    />
+                  </div>
+
+                  {/* Menu Selection */}
+                  <div>
+                    <label className={labelClass}>
+                      Build Your Menu <span className="normal-case text-zinc-400">(optional)</span>
+                    </label>
+
+                    {/* Category pills */}
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {DISH_CATEGORIES.map(cat => {
+                        const count = selectedDishes.filter(d => d.category === cat).length;
+                        const isActive = activeCategory === cat;
+                        return (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => toggleCategory(cat)}
+                            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-all"
+                            style={
+                              isActive
+                                ? { backgroundColor: ACCENT, color: '#121212' }
+                                : count > 0
+                                ? { backgroundColor: `${ACCENT}30`, color: '#3f3f46', border: `1px solid ${ACCENT}` }
+                                : { border: '1px solid #d4d4d8', color: '#71717a', backgroundColor: 'transparent' }
+                            }
+                          >
+                            {cat}
+                            {count > 0 && (
+                              <span
+                                className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold"
+                                style={{ backgroundColor: isActive ? 'rgba(0,0,0,0.15)' : ACCENT, color: '#121212' }}
+                              >
+                                {count}
+                              </span>
+                            )}
+                            <ChevronDown
+                              className="w-3 h-3 transition-transform duration-200"
+                              style={{ transform: isActive ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Expanded dish list */}
+                    <AnimatePresence>
+                      {activeCategory && (
+                        <motion.div
+                          key={activeCategory}
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.22, ease: 'easeInOut' }}
+                          className="overflow-hidden"
+                        >
+                          <div
+                            className="mt-1 mb-2 rounded-2xl p-3"
+                            style={{ backgroundColor: `${ACCENT}12`, border: `1px solid ${ACCENT}33` }}
+                          >
+                            {menuItems.filter(i => i.category === activeCategory).length === 0 ? (
+                              <p className="text-xs text-zinc-400 text-center py-2">No items in this category yet.</p>
+                            ) : (
+                              <div className="flex flex-wrap gap-2">
+                                {menuItems
+                                  .filter(i => i.category === activeCategory)
+                                  .map(item => {
+                                    const picked = selectedDishes.some(d => d.id === item.id);
+                                    return (
+                                      <button
+                                        key={item.id}
+                                        type="button"
+                                        onClick={() => toggleDish(item)}
+                                        className="rounded-full px-3 py-1.5 text-sm font-medium transition-all"
+                                        style={
+                                          picked
+                                            ? { backgroundColor: ACCENT, color: '#121212' }
+                                            : { border: '1px solid #d4d4d8', color: '#3f3f46', backgroundColor: 'white' }
+                                        }
+                                      >
+                                        {item.name}
+                                      </button>
+                                    );
+                                  })}
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Selected dishes summary */}
+                    <AnimatePresence>
+                      {selectedDishes.length > 0 && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          transition={{ duration: 0.18 }}
+                          className="mt-2 rounded-2xl p-3"
+                          style={{ backgroundColor: `${ACCENT}18`, border: `1px solid ${ACCENT}44` }}
+                        >
+                          <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide mb-2">
+                            Selected · {selectedDishes.length} {selectedDishes.length === 1 ? 'item' : 'items'}
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {selectedDishes.map(dish => (
+                              <span
+                                key={dish.id}
+                                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium text-zinc-800"
+                                style={{ backgroundColor: `${ACCENT}40` }}
+                              >
+                                {dish.name}
+                                <button
+                                  type="button"
+                                  onClick={() => toggleDish(dish)}
+                                  className="ml-0.5 opacity-60 hover:opacity-100 transition-opacity"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Submit */}
+                  <MagneticButton
+                    type="submit"
+                    disabled={isSubmitting || !formData.eventType}
+                    className="group w-full rounded-full py-3.5 text-sm font-semibold text-zinc-900 mt-1"
+                    style={{ backgroundColor: ACCENT }}
+                  >
+                    {isSubmitting ? (
+                      <span className="inline-flex items-center gap-2">
+                        <span className="w-4 h-4 rounded-full border-2 border-zinc-900/30 border-t-zinc-900 animate-spin" />
+                        Sending inquiry…
+                      </span>
+                    ) : (
+                      'Request a Catering Proposal'
+                    )}
+                  </MagneticButton>
+
+                  {submitError && (
+                    <p className="text-sm text-red-600 text-center">{submitError}</p>
+                  )}
+                </form>
+              </>
+            )}
+          </motion.div>
+        </div>
+      </section>
+    </div>
+  );
+}

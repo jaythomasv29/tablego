@@ -510,6 +510,9 @@ function App() {
               <Link href="/menu" className="hover:text-zinc-950">
                 Menu
               </Link>
+              <Link href="/cater" className="hover:text-zinc-950">
+                Catering
+              </Link>
               <a
                 href="https://order.online/business/Thaiphoon-450?utm_source=sdk&visitorId=193be2bc7cf1d9e9c"
                 className="inline-flex items-center gap-1 hover:text-zinc-950"
@@ -563,6 +566,9 @@ function App() {
               </MagneticButton>
               <Link href="/menu" className="rounded-full border border-white/40 px-6 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors">
                 View Menu
+              </Link>
+              <Link href="/cater" className="rounded-full border border-white/40 px-6 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors">
+                Catering
               </Link>
               <a
                 href="https://order.online/business/Thaiphoon-450?utm_source=sdk&visitorId=193be2bc7cf1d9e9c"

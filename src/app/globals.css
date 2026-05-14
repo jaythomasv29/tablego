@@ -203,3 +203,7 @@ select::-webkit-scrollbar-thumb {
 .animate-shimmer-slide {
     animation: shimmer-slide 2s ease-in-out infinite;
 }
+
+/* Hide scrollbar for category pill strips */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

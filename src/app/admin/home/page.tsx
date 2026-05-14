@@ -31,7 +31,8 @@ import {
     Phone,
     Mail,
     User,
-    ChefHat
+    ChefHat,
+    Download,
 } from 'lucide-react';
 import PageTransition from '@/components/PageTransition';
 import StaggeredList from '@/components/StaggeredList';
@@ -79,6 +80,7 @@ interface DashboardMetrics {
     todayReservations: number;
     totalCatering: number;
     newCatering: number;
+    menuDownloads: number;
 }
 
 // interface Reservation {
@@ -284,6 +286,7 @@ export default function AdminHome() {
         todayReservations: 0,
         totalCatering: 0,
         newCatering: 0,
+        menuDownloads: 0,
     });
     const [loading, setLoading] = useState(true);
     const [todaysReservations, setTodaysReservations] = useState<Reservation[]>([]);
@@ -519,12 +522,18 @@ export default function AdminHome() {
             });
 
             setTodaysReservations(todaysList);
+            const cateringSnap = await getDocs(collection(db, 'catering'));
+            const newCateringCount = cateringSnap.docs.filter(d => d.data().status === 'pending').length;
+
+            const downloadsSnap = await getDocs(collection(db, 'menuDownloads'));
+
             setMetrics({
                 totalReservations: snapshot.size,
                 uniqueCustomers: uniqueEmails.size + uniquePhones.size,
                 todayReservations: todayCount,
-                totalCatering: metrics.totalCatering,
-                newCatering: metrics.newCatering,
+                totalCatering: cateringSnap.size,
+                newCatering: newCateringCount,
+                menuDownloads: downloadsSnap.size,
             });
 
         } catch (error) {
@@ -1047,6 +1056,11 @@ export default function AdminHome() {
                                                             clear
                                                         </button>
                                                     )}
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Download className="w-4 h-4 text-gray-400" />
+                                                    <span className="text-gray-500 hidden md:inline">Menu DLs</span>
+                                                    <span className="font-bold text-gray-900">{metrics.menuDownloads}</span>
                                                 </div>
                                             </div>
                                         </div>

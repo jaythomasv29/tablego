@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
-import { db } from '../../../firebase';
-import { collection, addDoc } from 'firebase/firestore';
-import nodemailer from 'nodemailer';
+import { NextResponse } from "next/server";
+import { db } from "../../../firebase";
+import { collection, addDoc } from "firebase/firestore";
+import nodemailer from "nodemailer";
 
 // Add these interfaces
 interface Dish {
@@ -26,8 +26,8 @@ interface CateringFormData {
 }
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
+  host: process.env.SMTP_HOST || "smtp.gmail.com",
+  port: parseInt(process.env.SMTP_PORT || "587"),
   secure: false,
   auth: {
     user: process.env.EMAIL_USER,
@@ -37,38 +37,42 @@ const transporter = nodemailer.createTransport({
 
 // Add this helper function at the top
 const formatDisplayDate = (dateString: string) => {
-  if (!dateString) return '';
+  if (!dateString) return "";
 
   // Split the date string to get year, month, day
-  const [year, month, day] = dateString.split('-').map(Number);
+  const [year, month, day] = dateString.split("-").map(Number);
 
   // Create date object with explicit UTC time at noon to avoid timezone shifts
   const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
 
-  return date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC'  // Keep it in UTC to prevent shifts
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC", // Keep it in UTC to prevent shifts
   });
 };
 
 export async function POST(request: Request) {
   try {
-    const { formData } = await request.json() as { formData: CateringFormData };
+    const { formData } = (await request.json()) as {
+      formData: CateringFormData;
+    };
 
     // Save to Firebase
-    const cateringRef = await addDoc(collection(db, 'catering'), {
+    const cateringRef = await addDoc(collection(db, "catering"), {
       ...formData,
       createdAt: new Date(),
-      status: 'pending'
+      status: "pending",
     });
 
     // Use the new formatter instead of direct Date conversion
     const readableDate = formatDisplayDate(formData.date);
 
-    const selectedDishesHTML = formData.selectedDishes.map((dish: Dish) => `
+    const selectedDishesHTML = formData.selectedDishes
+      .map(
+        (dish: Dish) => `
           <div style="display: inline-block; margin: 10px; text-align: center; width: 200px;">
             <img 
               src="${dish.imageUrl}" 
@@ -78,7 +82,9 @@ export async function POST(request: Request) {
             <div style="font-weight: 500; color: #374151;">${dish.name}</div>
             <div style="font-size: 14px; color: #6b7280;">${dish.description}</div>
           </div>
-        `).join('');
+        `,
+      )
+      .join("");
 
     const emailContent = `
       <!DOCTYPE html>
@@ -144,7 +150,7 @@ export async function POST(request: Request) {
                   <tr>
                     <td style="padding: 12px 0;">
                       <strong style="color: #4f46e5; display: inline-block; width: 140px;">Budget:</strong>
-                      <span style="color: #374151;">$${formData.budget}</span>
+                      <span style="color: #374151;">${formData.budget}</span>
                     </td>
                   </tr>
                   <tr>
@@ -182,7 +188,7 @@ export async function POST(request: Request) {
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: formData.email,
-      subject: 'Thaiphoon Catering Inquiry Received',
+      subject: "Thaiphoon Catering Inquiry Received",
       html: emailContent,
     });
 
@@ -190,7 +196,7 @@ export async function POST(request: Request) {
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: process.env.EMAIL_USER,
-      subject: 'Action Required: New Catering Inquiry',
+      subject: "Action Required: New Catering Inquiry",
       html: emailContent,
     });
 
@@ -202,14 +208,14 @@ export async function POST(request: Request) {
         date: readableDate,
         time: formData.time,
         partySize: formData.partySize,
-        email: formData.email
-      }
+        email: formData.email,
+      },
     });
   } catch (error) {
-    console.error('Operation failed:', error);
+    console.error("Operation failed:", error);
     return NextResponse.json(
-      { success: false, error: 'Failed to process catering inquiry' },
-      { status: 500 }
+      { success: false, error: "Failed to process catering inquiry" },
+      { status: 500 },
     );
   }
 }
