@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Calendar,
   CheckCircle2,
@@ -10,18 +10,20 @@ import {
   Users,
   Utensils,
   X,
-} from 'lucide-react';
-import Link from 'next/link';
-import DatePicker from './components/DatePicker';
-import GuestInfo from './components/GuestInfo';
-import AdditionalInfo from './components/AdditionalInfo';
-import ProgressBar from './components/ProgressBar';
-import { useTimezone } from './contexts/TimezoneContext';
-import { getDateInTimezone } from './utils/dateUtils';
-import { gsap } from 'gsap';
-import { db } from './firebase';
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
-import { TimeSlot } from './types/TimeSlot';
+} from "lucide-react";
+import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
+import { TrendingModal } from "./components/TrendingModal";
+import DatePicker from "./components/DatePicker";
+import GuestInfo from "./components/GuestInfo";
+import AdditionalInfo from "./components/AdditionalInfo";
+import ProgressBar from "./components/ProgressBar";
+import { useTimezone } from "./contexts/TimezoneContext";
+import { getDateInTimezone } from "./utils/dateUtils";
+import { gsap } from "gsap";
+import { db } from "./firebase";
+import { collection, doc, getDoc, getDocs } from "firebase/firestore";
+import { TimeSlot } from "./types/TimeSlot";
 
 export interface ReservationData {
   date: Date;
@@ -35,12 +37,12 @@ export interface ReservationData {
 
 const initialData: ReservationData = {
   date: new Date(),
-  time: '19:00',
+  time: "19:00",
   guests: 2,
-  name: '',
-  email: '',
-  phone: '',
-  comments: '',
+  name: "",
+  email: "",
+  phone: "",
+  comments: "",
 };
 
 // interface TimeSlot {
@@ -51,7 +53,7 @@ const initialData: ReservationData = {
 interface SpecialDate {
   date: string;
   reason: string;
-  closureType?: 'full' | 'lunch' | 'dinner';
+  closureType?: "full" | "lunch" | "dinner";
 }
 
 interface BannerData {
@@ -74,15 +76,15 @@ interface BusinessHours {
   };
 }
 
-const TAGLINE = 'Thai & Pan-Asian Flavors in the heart of Palo Alto.';
-const PILLARS = ['Wok-Fired', 'Family Friendly', 'Fresh Ingredients'];
+const TAGLINE = "Thai & Pan-Asian Flavors in the heart of Palo Alto.";
+const PILLARS = ["Wok-Fired", "Family Friendly", "Fresh Ingredients"];
 const SIAM_PALETTE = {
-  primary: '#F9F7F2',
-  accent: '#A3B18A',
-  surface: '#EAE0D5',
-  text: '#121212',
+  primary: "#F9F7F2",
+  accent: "#A3B18A",
+  surface: "#EAE0D5",
+  text: "#121212",
 };
-const HERO_VIDEO = '/images/slow-mo-hero.mp4';
+const HERO_VIDEO = "/images/slow-mo-hero.mp4";
 
 function MagneticButton({
   children,
@@ -90,14 +92,14 @@ function MagneticButton({
   onClick,
   style,
   disabled = false,
-  type = 'button',
+  type = "button",
 }: {
   children: React.ReactNode;
   className?: string;
   onClick?: () => void | Promise<void>;
   style?: React.CSSProperties;
   disabled?: boolean;
-  type?: 'button' | 'submit';
+  type?: "button" | "submit";
 }) {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -113,7 +115,7 @@ function MagneticButton({
   const handleLeave = () => {
     const el = buttonRef.current;
     if (!el) return;
-    el.style.transform = 'translate(0px, 0px) scale(1)';
+    el.style.transform = "translate(0px, 0px) scale(1)";
   };
 
   return (
@@ -125,12 +127,48 @@ function MagneticButton({
       disabled={disabled}
       onMouseMove={handleMove}
       onMouseLeave={handleLeave}
-      className={`relative overflow-hidden transition-transform duration-200 disabled:opacity-60 disabled:cursor-not-allowed ${className || ''}`}
+      className={`relative overflow-hidden transition-transform duration-200 disabled:opacity-60 disabled:cursor-not-allowed ${className || ""}`}
     >
       <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-500 group-hover:translate-x-full" />
       <span className="relative z-10">{children}</span>
     </button>
   );
+}
+
+function computeIsOpen(
+  hours: BusinessHours | null,
+  timezone: string,
+): boolean | null {
+  if (!hours || !timezone) return null;
+  const days = [
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+  ];
+  const localNow = new Date(
+    new Date().toLocaleString("en-US", { timeZone: timezone }),
+  );
+  const today = days[localNow.getDay()];
+  const day = hours[today];
+  if (!day) return false;
+  const cur = localNow.getHours() * 60 + localNow.getMinutes();
+  const t = (s: string) => {
+    const [h, m] = s.split(":").map(Number);
+    return h * 60 + m;
+  };
+  if (day.lunch?.isOpen && cur >= t(day.lunch.open) && cur < t(day.lunch.close))
+    return true;
+  if (
+    day.dinner?.isOpen &&
+    cur >= t(day.dinner.open) &&
+    cur < t(day.dinner.close)
+  )
+    return true;
+  return false;
 }
 
 function App() {
@@ -139,18 +177,36 @@ function App() {
   const [formData, setFormData] = useState<ReservationData>(initialData);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
-  const [businessHours, setBusinessHours] = useState<BusinessHours | null>(null);
+  const [businessHours, setBusinessHours] = useState<BusinessHours | null>(
+    null,
+  );
   const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlot[]>([]);
   const [reservationCutoffMinutes, setReservationCutoffMinutes] = useState(60);
   const [isReserveOpen, setIsReserveOpen] = useState(false);
   const [showReservationSuccess, setShowReservationSuccess] = useState(false);
-  const [modalValidationError, setModalValidationError] = useState<string | null>(null);
+  const [modalValidationError, setModalValidationError] = useState<
+    string | null
+  >(null);
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [smsOptIn, setSmsOptIn] = useState(false);
   const [bannerData, setBannerData] = useState<BannerData | null>(null);
   const [isEditingGuests, setIsEditingGuests] = useState(false);
-  const [guestDraft, setGuestDraft] = useState('2');
+  const [guestDraft, setGuestDraft] = useState("2");
+  const [showTrending, setShowTrending] = useState(false);
+  const [tick, setTick] = useState(0);
   const reservePanelRef = useRef<HTMLDivElement | null>(null);
+
+  // Re-evaluate open status every minute
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const isRestaurantOpen = useMemo(
+    () => computeIsOpen(businessHours, timezone),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [businessHours, timezone, tick],
+  );
   const guestInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -161,28 +217,28 @@ function App() {
     gsap.fromTo(
       panel,
       { opacity: 0, scale: 1.1 },
-      { opacity: 1, scale: 1, duration: 0.6, ease: 'power4.out' }
+      { opacity: 1, scale: 1, duration: 0.6, ease: "power4.out" },
     );
   }, [isReserveOpen]);
 
   useEffect(() => {
-    document.body.style.overflow = isReserveOpen ? 'hidden' : '';
+    document.body.style.overflow = isReserveOpen ? "hidden" : "";
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     };
   }, [isReserveOpen]);
 
   useEffect(() => {
     const fetchBannerData = async () => {
       try {
-        const bannerDoc = await getDoc(doc(db, 'settings', 'banner'));
+        const bannerDoc = await getDoc(doc(db, "settings", "banner"));
         if (bannerDoc.exists() && bannerDoc.data().text) {
           setBannerData(bannerDoc.data() as BannerData);
         } else {
           setBannerData(null);
         }
       } catch (error) {
-        console.error('Error fetching banner data:', error);
+        console.error("Error fetching banner data:", error);
         setBannerData(null);
       }
     };
@@ -194,9 +250,9 @@ function App() {
     const fetchReservationSettings = async () => {
       try {
         const [hoursDoc, generalDoc, specialDatesSnap] = await Promise.all([
-          getDoc(doc(db, 'settings', 'businessHours')),
-          getDoc(doc(db, 'settings', 'general')),
-          getDocs(collection(db, 'specialDates')),
+          getDoc(doc(db, "settings", "businessHours")),
+          getDoc(doc(db, "settings", "general")),
+          getDocs(collection(db, "specialDates")),
         ]);
 
         if (hoursDoc.exists()) {
@@ -205,14 +261,16 @@ function App() {
 
         if (generalDoc.exists()) {
           const data = generalDoc.data();
-          if (typeof data.reservationCutoffMinutes === 'number') {
+          if (typeof data.reservationCutoffMinutes === "number") {
             setReservationCutoffMinutes(data.reservationCutoffMinutes);
           }
         }
 
-        setSpecialDates(specialDatesSnap.docs.map((d) => d.data() as SpecialDate));
+        setSpecialDates(
+          specialDatesSnap.docs.map((d) => d.data() as SpecialDate),
+        );
       } catch (error) {
-        console.error('Error loading reservation settings:', error);
+        console.error("Error loading reservation settings:", error);
       }
     };
 
@@ -222,9 +280,9 @@ function App() {
   useEffect(() => {
     if (!timezoneLoading && timezone) {
       const restaurantToday = getDateInTimezone(new Date(), timezone);
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        date: restaurantToday
+        date: restaurantToday,
       }));
     }
   }, [timezone, timezoneLoading]);
@@ -243,18 +301,32 @@ function App() {
   }, [isEditingGuests]);
 
   const generateTimeSlots = (date: Date, hours: BusinessHours): TimeSlot[] => {
-    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const days = [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+    ];
     const dayOfWeek = days[date.getDay()];
     const dayHours = hours[dayOfWeek];
     if (!dayHours) return [];
 
     const specialDateForDay = specialDates.find((specialDate) => {
       const holidayDate = new Date(specialDate.date);
-      return holidayDate.getMonth() === date.getMonth() && holidayDate.getDate() === date.getDate();
+      return (
+        holidayDate.getMonth() === date.getMonth() &&
+        holidayDate.getDate() === date.getDate()
+      );
     });
-    const closureType = specialDateForDay?.closureType || (specialDateForDay ? 'full' : null);
-    const lunchClosedBySpecialDate = closureType === 'full' || closureType === 'lunch';
-    const dinnerClosedBySpecialDate = closureType === 'full' || closureType === 'dinner';
+    const closureType =
+      specialDateForDay?.closureType || (specialDateForDay ? "full" : null);
+    const lunchClosedBySpecialDate =
+      closureType === "full" || closureType === "lunch";
+    const dinnerClosedBySpecialDate =
+      closureType === "full" || closureType === "dinner";
 
     const slots: TimeSlot[] = [];
     const now = new Date();
@@ -263,25 +335,34 @@ function App() {
     const slotDuration = 30;
 
     const timeToMinutes = (time: string) => {
-      const [h, m] = time.split(':').map(Number);
+      const [h, m] = time.split(":").map(Number);
       return h * 60 + m;
     };
 
     const minutesToTime = (minutes: number) => {
       const hours = Math.floor(minutes / 60);
       const mins = minutes % 60;
-      const period = hours >= 12 ? 'PM' : 'AM';
+      const period = hours >= 12 ? "PM" : "AM";
       const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
-      return `${displayHours}:${mins.toString().padStart(2, '0')} ${period}`;
+      return `${displayHours}:${mins.toString().padStart(2, "0")} ${period}`;
     };
 
-    const pushRangeSlots = (start: number, end: number, period: 'lunch' | 'dinner') => {
+    const pushRangeSlots = (
+      start: number,
+      end: number,
+      period: "lunch" | "dinner",
+    ) => {
       let adjustedStart = start;
       if (isToday && adjustedStart < currentMinutes) {
-        adjustedStart = Math.ceil((currentMinutes + 30) / slotDuration) * slotDuration;
+        adjustedStart =
+          Math.ceil((currentMinutes + 30) / slotDuration) * slotDuration;
       }
 
-      for (let time = adjustedStart; time <= end - reservationCutoffMinutes; time += slotDuration) {
+      for (
+        let time = adjustedStart;
+        time <= end - reservationCutoffMinutes;
+        time += slotDuration
+      ) {
         if (!isToday || time >= currentMinutes + 30) {
           slots.push({ time: minutesToTime(time), period });
         }
@@ -294,11 +375,15 @@ function App() {
           const start = timeToMinutes(range.start);
           const end = timeToMinutes(range.end);
           if (!(isToday && end <= currentMinutes + reservationCutoffMinutes)) {
-            pushRangeSlots(start, end, 'lunch');
+            pushRangeSlots(start, end, "lunch");
           }
         });
       } else {
-        pushRangeSlots(timeToMinutes(dayHours.lunch.open), timeToMinutes(dayHours.lunch.close), 'lunch');
+        pushRangeSlots(
+          timeToMinutes(dayHours.lunch.open),
+          timeToMinutes(dayHours.lunch.close),
+          "lunch",
+        );
       }
     }
 
@@ -308,19 +393,23 @@ function App() {
           const start = timeToMinutes(range.start);
           const end = timeToMinutes(range.end);
           if (!(isToday && end <= currentMinutes + reservationCutoffMinutes)) {
-            pushRangeSlots(start, end, 'dinner');
+            pushRangeSlots(start, end, "dinner");
           }
         });
       } else {
-        pushRangeSlots(timeToMinutes(dayHours.dinner.open), timeToMinutes(dayHours.dinner.close), 'dinner');
+        pushRangeSlots(
+          timeToMinutes(dayHours.dinner.open),
+          timeToMinutes(dayHours.dinner.close),
+          "dinner",
+        );
       }
     }
 
     const sortTime = (timeStr: string) => {
-      const [time, period] = timeStr.split(' ');
-      let [h, m] = time.split(':').map(Number);
-      if (period === 'PM' && h !== 12) h += 12;
-      if (period === 'AM' && h === 12) h = 0;
+      const [time, period] = timeStr.split(" ");
+      let [h, m] = time.split(":").map(Number);
+      if (period === "PM" && h !== 12) h += 12;
+      if (period === "AM" && h === 12) h = 0;
       return h * 60 + m;
     };
 
@@ -332,25 +421,26 @@ function App() {
     const slots = generateTimeSlots(formData.date, businessHours);
     setAvailableTimeSlots(slots);
     if (formData.time && !slots.some((slot) => slot.time === formData.time)) {
-      setFormData((prev) => ({ ...prev, time: '' }));
+      setFormData((prev) => ({ ...prev, time: "" }));
     }
   }, [formData.date, businessHours, reservationCutoffMinutes, specialDates]);
 
   const steps = [
-    { title: 'Date & Time', icon: Calendar },
-    { title: 'Guest Details', icon: Users },
+    { title: "Date & Time", icon: Calendar },
+    { title: "Guest Details", icon: Users },
   ];
 
   const updateFormData = (data: Partial<ReservationData>) => {
     setModalValidationError(null);
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      ...data
+      ...data,
     }));
   };
 
-  const nextStep = () => setStep(prev => Math.min(prev + 1, steps.length - 1));
-  const prevStep = () => setStep(prev => Math.max(prev - 1, 0));
+  const nextStep = () =>
+    setStep((prev) => Math.min(prev + 1, steps.length - 1));
+  const prevStep = () => setStep((prev) => Math.max(prev - 1, 0));
   const openReserveModal = () => {
     setShowReservationSuccess(false);
     setModalValidationError(null);
@@ -365,23 +455,26 @@ function App() {
     setStep(0);
   };
 
-  const isStepOneValid = () => Boolean(formData.date && formData.time && formData.guests > 0);
-  const otpEnabled = process.env.NEXT_PUBLIC_OTP_ENABLED === 'true';
+  const isStepOneValid = () =>
+    Boolean(formData.date && formData.time && formData.guests > 0);
+  const otpEnabled = process.env.NEXT_PUBLIC_OTP_ENABLED === "true";
 
   const isStepTwoValid = () => {
-    const phoneDigits = formData.phone.replace(/\D/g, '');
+    const phoneDigits = formData.phone.replace(/\D/g, "");
     return Boolean(
       formData.name.trim() &&
       formData.email.trim() &&
       phoneDigits.length === 10 &&
       smsOptIn &&
-      (!otpEnabled || phoneVerified)
+      (!otpEnabled || phoneVerified),
     );
   };
 
   const handleContinue = () => {
     if (!isStepOneValid()) {
-      setModalValidationError('Please select date, time, and guest count before continuing.');
+      setModalValidationError(
+        "Please select date, time, and guest count before continuing.",
+      );
       return;
     }
     setModalValidationError(null);
@@ -391,21 +484,26 @@ function App() {
   const handleSubmit = async () => {
     if (isSubmitting) return;
     if (!isStepTwoValid()) {
-      setModalValidationError('Please complete name, email, and phone before confirming.');
+      setModalValidationError(
+        "Please complete name, email, and phone before confirming.",
+      );
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/send-confirmation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/send-confirmation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           formData: {
             ...formData,
-            date: formData.date instanceof Date ? formData.date.toISOString() : formData.date,
+            date:
+              formData.date instanceof Date
+                ? formData.date.toISOString()
+                : formData.date,
           },
-          timezone: timezone || 'America/Los_Angeles',
+          timezone: timezone || "America/Los_Angeles",
           phoneVerified: true,
           smsOptIn: true,
         }),
@@ -413,14 +511,16 @@ function App() {
 
       const result = await response.json();
       if (!response.ok || !result?.success) {
-        throw new Error(result?.error || 'Failed to process reservation');
+        throw new Error(result?.error || "Failed to process reservation");
       }
 
       setModalValidationError(null);
       setShowReservationSuccess(true);
     } catch (error) {
-      console.error('Reservation submission failed:', error);
-      setModalValidationError('Unable to complete reservation right now. Please try again.');
+      console.error("Reservation submission failed:", error);
+      setModalValidationError(
+        "Unable to complete reservation right now. Please try again.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -433,7 +533,7 @@ function App() {
 
   const handleDateTimeUpdate = (date: Date, time: string) => {
     setModalValidationError(null);
-    setFormData(prev => ({ ...prev, date, time }));
+    setFormData((prev) => ({ ...prev, date, time }));
   };
 
   const startGuestEdit = () => {
@@ -448,7 +548,9 @@ function App() {
 
   const commitGuestEdit = () => {
     const parsed = Number.parseInt(guestDraft, 10);
-    const safeValue = Number.isFinite(parsed) ? Math.min(20, Math.max(1, parsed)) : formData.guests;
+    const safeValue = Number.isFinite(parsed)
+      ? Math.min(20, Math.max(1, parsed))
+      : formData.guests;
     updateFormData({ guests: safeValue });
     setIsEditingGuests(false);
   };
@@ -456,15 +558,33 @@ function App() {
   return (
     <div
       className="h-[100dvh] overflow-hidden text-zinc-900"
-      style={{ backgroundColor: SIAM_PALETTE.primary, color: SIAM_PALETTE.text }}
+      style={{
+        backgroundColor: SIAM_PALETTE.primary,
+        color: SIAM_PALETTE.text,
+      }}
     >
       <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,600;1,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossOrigin="anonymous"
+      />
+      <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,600;1,700&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+      />
 
-      <svg className="pointer-events-none fixed inset-0 z-0 opacity-[0.04]" aria-hidden="true">
+      <svg
+        className="pointer-events-none fixed inset-0 z-0 opacity-[0.04]"
+        aria-hidden="true"
+      >
         <filter id="film-noise">
-          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" />
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="0.85"
+            numOctaves="2"
+            stitchTiles="stitch"
+          />
         </filter>
         <rect width="100%" height="100%" filter="url(#film-noise)" />
       </svg>
@@ -478,14 +598,14 @@ function App() {
             {bannerData.text}
             {bannerData.link && (
               <>
-                {' '}
+                {" "}
                 <Link
                   href={bannerData.link}
                   className="underline hover:text-zinc-700 transition-colors ml-2"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  {bannerData.linkText || 'Learn More'}
+                  {bannerData.linkText || "Learn More"}
                 </Link>
               </>
             )}
@@ -495,16 +615,23 @@ function App() {
 
       <nav
         className="fixed inset-x-0 z-40 px-4"
-        style={{ top: bannerData?.text ? '68px' : '24px' }}
+        style={{ top: bannerData?.text ? "68px" : "24px" }}
       >
         <div className="max-w-7xl mx-auto">
           <div className="mx-auto w-full md:w-auto inline-flex items-center gap-4 rounded-full border border-black/10 bg-white/85 backdrop-blur-xl px-5 py-3 shadow-[0_20px_40px_-20px_rgba(0,0,0,0.25)]">
-            <div className="flex items-center gap-2 font-semibold tracking-tight" style={{ fontFamily: 'Inter, sans-serif' }}>
+            <div
+              className="flex items-center gap-2 font-semibold tracking-tight"
+              style={{ fontFamily: "Inter, sans-serif" }}
+            >
               <Utensils className="w-4 h-4" />
               <span>Thaiphoon</span>
             </div>
             <div className="hidden md:flex items-center gap-4 text-sm text-zinc-700">
-              <button type="button" onClick={() => setIsReserveOpen(true)} className="hover:text-zinc-950">
+              <button
+                type="button"
+                onClick={() => setIsReserveOpen(true)}
+                className="hover:text-zinc-950"
+              >
                 Reserve
               </button>
               <Link href="/menu" className="hover:text-zinc-950">
@@ -526,7 +653,9 @@ function App() {
             <MagneticButton
               onClick={openReserveModal}
               className="group ml-auto rounded-full px-4 py-2 text-sm font-medium text-zinc-900"
-              style={{ backgroundColor: SIAM_PALETTE.accent } as React.CSSProperties}
+              style={
+                { backgroundColor: SIAM_PALETTE.accent } as React.CSSProperties
+              }
             >
               Reserve Now
             </MagneticButton>
@@ -546,28 +675,55 @@ function App() {
         <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/40 to-black/20" />
         <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 pt-36 md:pt-44 pb-16 min-h-[100dvh] grid grid-cols-1 md:grid-cols-[1.1fr_0.9fr] gap-10 items-end">
           <div>
-            <p className="text-zinc-100/85 text-sm md:text-base tracking-[0.14em] uppercase mb-4" style={{ fontFamily: 'Inter, sans-serif' }}>
+            <p
+              className="text-zinc-100/85 text-sm md:text-base tracking-[0.14em] uppercase mb-4"
+              style={{ fontFamily: "Inter, sans-serif" }}
+            >
               Thaiphoon · Palo Alto
             </p>
             <h1 className="text-4xl md:text-6xl leading-none tracking-tight text-white">
-              <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>Flavor is the</span>{' '}
-              <span style={{ fontFamily: 'Playfair Display, serif', fontStyle: 'italic' }}>Atmosphere.</span>
+              <span
+                style={{ fontFamily: "Inter, sans-serif", fontWeight: 600 }}
+              >
+                Flavor is the
+              </span>{" "}
+              <span
+                style={{
+                  fontFamily: "Playfair Display, serif",
+                  fontStyle: "italic",
+                }}
+              >
+                Atmosphere.
+              </span>
             </h1>
-            <p className="mt-6 max-w-[60ch] text-zinc-100/85 text-base leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+            <p
+              className="mt-6 max-w-[60ch] text-zinc-100/85 text-base leading-relaxed"
+              style={{ fontFamily: "Inter, sans-serif" }}
+            >
               {TAGLINE}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <MagneticButton
                 onClick={openReserveModal}
                 className="group rounded-full px-6 py-3 text-sm font-semibold text-zinc-900"
-                style={{ backgroundColor: SIAM_PALETTE.accent } as React.CSSProperties}
+                style={
+                  {
+                    backgroundColor: SIAM_PALETTE.accent,
+                  } as React.CSSProperties
+                }
               >
                 Reserve Now
               </MagneticButton>
-              <Link href="/menu" className="rounded-full border border-white/40 px-6 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors">
+              <Link
+                href="/menu"
+                className="rounded-full border border-white/40 px-6 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors"
+              >
                 View Menu
               </Link>
-              <Link href="/cater" className="rounded-full border border-white/40 px-6 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors">
+              <Link
+                href="/cater"
+                className="rounded-full border border-white/40 px-6 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors"
+              >
                 Catering
               </Link>
               <a
@@ -587,7 +743,10 @@ function App() {
                 <span
                   key={pillar}
                   className="rounded-full border border-white/30 bg-white/10 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-white/90 tracking-wide"
-                  style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '0.85rem' }}
+                  style={{
+                    fontFamily: "Cormorant Garamond, serif",
+                    fontSize: "0.85rem",
+                  }}
                 >
                   {pillar}
                 </span>
@@ -598,16 +757,69 @@ function App() {
           {/* Desktop-only: stacked glass cards */}
           <div className="hidden md:grid grid-cols-1 gap-3 md:justify-self-end w-full md:max-w-md">
             {PILLARS.map((pillar) => (
-              <div key={pillar} className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md px-4 py-3 text-white">
-                <div className="mt-1 text-lg" style={{ fontFamily: 'Cormorant Garamond, serif' }}>{pillar}</div>
+              <div
+                key={pillar}
+                className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md px-4 py-3 text-white"
+              >
+                <div
+                  className="mt-1 text-lg"
+                  style={{ fontFamily: "Cormorant Garamond, serif" }}
+                >
+                  {pillar}
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
+      {/* Floating LIVE / Closed trending button */}
+      <motion.button
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1.4, duration: 0.4 }}
+        onClick={() => setShowTrending(true)}
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 rounded-full bg-white border border-zinc-200 px-4 py-2.5 shadow-[0_8px_30px_-8px_rgba(0,0,0,0.25)] hover:shadow-[0_12px_36px_-8px_rgba(0,0,0,0.3)] transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
+        style={{ fontFamily: "Inter, sans-serif" }}
+      >
+        {isRestaurantOpen ? (
+          <>
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+            </span>
+            <span className="text-xs font-bold uppercase tracking-[0.1em] text-red-500">
+              Live
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-400" />
+            </span>
+            <span className="text-xs font-bold uppercase tracking-[0.1em] text-zinc-400">
+              Closed
+            </span>
+          </>
+        )}
+        <div className="h-3 w-px bg-zinc-200" />
+        <span className="text-xs font-medium text-zinc-700">
+          The Wok is Hot 🍲
+        </span>
+      </motion.button>
+
+      {/* Trending modal */}
+      <AnimatePresence>
+        {showTrending && (
+          <TrendingModal onClose={() => setShowTrending(false)} />
+        )}
+      </AnimatePresence>
+
       {isReserveOpen && (
-        <div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-2xl p-4 md:p-10" onClick={closeReserveModal}>
+        <div
+          className="fixed inset-0 z-50 bg-black/45 backdrop-blur-2xl p-4 md:p-10"
+          onClick={closeReserveModal}
+        >
           <div
             ref={reservePanelRef}
             className="max-w-4xl mx-auto h-full overflow-auto rounded-[2rem] bg-white/85 border border-white/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_24px_60px_-28px_rgba(0,0,0,0.45)] p-6 md:p-8"
@@ -615,18 +827,32 @@ function App() {
           >
             <div className="flex items-center justify-between mb-6">
               <div>
-                <p className="text-xs uppercase tracking-[0.12em] text-zinc-500">Reserve Now</p>
-                <h3 className="text-2xl md:text-3xl tracking-tight" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
-                  {showReservationSuccess ? 'Reservation Confirmed' : 'Confirm your table'}
+                <p className="text-xs uppercase tracking-[0.12em] text-zinc-500">
+                  Reserve Now
+                </p>
+                <h3
+                  className="text-2xl md:text-3xl tracking-tight"
+                  style={{ fontFamily: "Cormorant Garamond, serif" }}
+                >
+                  {showReservationSuccess
+                    ? "Reservation Confirmed"
+                    : "Confirm your table"}
                 </h3>
               </div>
-              <button onClick={closeReserveModal} className="rounded-full p-2 hover:bg-zinc-100">
+              <button
+                onClick={closeReserveModal}
+                className="rounded-full p-2 hover:bg-zinc-100"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {!showReservationSuccess && (
-              <ProgressBar currentStep={step} steps={steps} onStepClick={(index) => setStep(index)} />
+              <ProgressBar
+                currentStep={step}
+                steps={steps}
+                onStepClick={(index) => setStep(index)}
+              />
             )}
 
             <div className="mt-8">
@@ -636,25 +862,45 @@ function App() {
                     className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6"
                     style={{ backgroundColor: `${SIAM_PALETTE.accent}55` }}
                   >
-                    <CheckCircle2 className="w-11 h-11" style={{ color: SIAM_PALETTE.accent }} />
+                    <CheckCircle2
+                      className="w-11 h-11"
+                      style={{ color: SIAM_PALETTE.accent }}
+                    />
                   </div>
-                  <h4 className="text-2xl font-semibold text-zinc-900" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
+                  <h4
+                    className="text-2xl font-semibold text-zinc-900"
+                    style={{ fontFamily: "Cormorant Garamond, serif" }}
+                  >
                     Your table request is in
                   </h4>
                   <p className="mt-3 text-zinc-600 leading-relaxed">
-                    Thank you, {formData.name || 'guest'}. We are preparing your reservation details and will follow up by email shortly.
+                    Thank you, {formData.name || "guest"}. We are preparing your
+                    reservation details and will follow up by email shortly.
                   </p>
                   <div
                     className="mt-6 rounded-2xl border p-4 text-sm text-zinc-700"
-                    style={{ borderColor: `${SIAM_PALETTE.accent}66`, backgroundColor: `${SIAM_PALETTE.accent}22` }}
+                    style={{
+                      borderColor: `${SIAM_PALETTE.accent}66`,
+                      backgroundColor: `${SIAM_PALETTE.accent}22`,
+                    }}
                   >
-                    {formData.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {formData.time || '—'} · {formData.guests} {formData.guests === 1 ? 'guest' : 'guests'}
+                    {formData.date.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}{" "}
+                    at {formData.time || "—"} · {formData.guests}{" "}
+                    {formData.guests === 1 ? "guest" : "guests"}
                   </div>
                   <div className="mt-8 flex justify-center">
                     <MagneticButton
                       onClick={closeReserveModal}
                       className="group rounded-full px-7 py-2.5 text-sm font-semibold text-zinc-900"
-                      style={{ backgroundColor: SIAM_PALETTE.accent } as React.CSSProperties}
+                      style={
+                        {
+                          backgroundColor: SIAM_PALETTE.accent,
+                        } as React.CSSProperties
+                      }
                     >
                       Done
                     </MagneticButton>
@@ -679,7 +925,9 @@ function App() {
                         type="button"
                         onClick={() => {
                           if (isEditingGuests) commitGuestEdit();
-                          updateFormData({ guests: Math.max(1, formData.guests - 1) });
+                          updateFormData({
+                            guests: Math.max(1, formData.guests - 1),
+                          });
                         }}
                         className="w-10 h-10 rounded-md border border-zinc-300 text-zinc-700 hover:bg-zinc-50 disabled:opacity-40"
                         disabled={formData.guests <= 1}
@@ -695,13 +943,19 @@ function App() {
                             min={1}
                             max={20}
                             value={guestDraft}
-                            onChange={(e) => setGuestDraft(e.target.value.replace(/[^\d]/g, '').slice(0, 2))}
+                            onChange={(e) =>
+                              setGuestDraft(
+                                e.target.value
+                                  .replace(/[^\d]/g, "")
+                                  .slice(0, 2),
+                              )
+                            }
                             onBlur={commitGuestEdit}
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
+                              if (e.key === "Enter") {
                                 e.preventDefault();
                                 commitGuestEdit();
-                              } else if (e.key === 'Escape') {
+                              } else if (e.key === "Escape") {
                                 e.preventDefault();
                                 cancelGuestEdit();
                               }
@@ -709,10 +963,15 @@ function App() {
                             inputMode="numeric"
                             pattern="[0-9]*"
                             className="w-20 text-center text-xl font-semibold text-zinc-900 border border-zinc-300 rounded-md py-1 focus:outline-none focus:ring-2"
-                            style={{ ['--tw-ring-color' as string]: SIAM_PALETTE.accent }}
+                            style={{
+                              ["--tw-ring-color" as string]:
+                                SIAM_PALETTE.accent,
+                            }}
                             aria-label="Party size"
                           />
-                          <div className="text-xs text-zinc-500 mt-1">guests</div>
+                          <div className="text-xs text-zinc-500 mt-1">
+                            guests
+                          </div>
                         </div>
                       ) : (
                         <button
@@ -721,15 +980,21 @@ function App() {
                           className="text-center min-w-[92px] rounded-md px-2 py-1.5 hover:bg-zinc-50"
                           aria-label="Edit party size"
                         >
-                          <div className="text-xl font-semibold text-zinc-900">{formData.guests}</div>
-                          <div className="text-xs text-zinc-500">{formData.guests === 1 ? 'guest' : 'guests'}</div>
+                          <div className="text-xl font-semibold text-zinc-900">
+                            {formData.guests}
+                          </div>
+                          <div className="text-xs text-zinc-500">
+                            {formData.guests === 1 ? "guest" : "guests"}
+                          </div>
                         </button>
                       )}
                       <button
                         type="button"
                         onClick={() => {
                           if (isEditingGuests) commitGuestEdit();
-                          updateFormData({ guests: Math.min(20, formData.guests + 1) });
+                          updateFormData({
+                            guests: Math.min(20, formData.guests + 1),
+                          });
                         }}
                         className="w-10 h-10 rounded-md border border-zinc-300 text-zinc-700 hover:bg-zinc-50 disabled:opacity-40"
                         disabled={formData.guests >= 20}
@@ -740,21 +1005,28 @@ function App() {
                     </div>
                   </div>
                   <p className="text-xs text-zinc-500 leading-relaxed">
-                    Late cancellations and no-shows greatly impact our small team. We reserve the right to decline future bookings for accounts with multiple missed reservations.
+                    Late cancellations and no-shows greatly impact our small
+                    team. We reserve the right to decline future bookings for
+                    accounts with multiple missed reservations.
                   </p>
                 </div>
               ) : (
                 <div className="space-y-8">
                   <GuestInfo
                     formData={formData}
-                    onUpdate={(data: Partial<ReservationData>) => updateFormData(data)}
+                    onUpdate={(data: Partial<ReservationData>) =>
+                      updateFormData(data)
+                    }
                     phoneVerified={phoneVerified}
                     onPhoneVerified={setPhoneVerified}
                     smsOptIn={smsOptIn}
                     onSmsOptIn={setSmsOptIn}
                     otpEnabled={otpEnabled}
                   />
-                  <AdditionalInfo comments={formData.comments} onUpdate={updateFormData} />
+                  <AdditionalInfo
+                    comments={formData.comments}
+                    onUpdate={updateFormData}
+                  />
                 </div>
               )}
             </div>
@@ -774,7 +1046,11 @@ function App() {
                   <MagneticButton
                     onClick={handleContinue}
                     className="group ml-auto rounded-full px-6 py-2 text-sm font-medium text-zinc-900"
-                    style={{ backgroundColor: SIAM_PALETTE.accent } as React.CSSProperties}
+                    style={
+                      {
+                        backgroundColor: SIAM_PALETTE.accent,
+                      } as React.CSSProperties
+                    }
                   >
                     Continue
                     <ChevronRight className="w-4 h-4 inline ml-1" />
@@ -783,7 +1059,11 @@ function App() {
                   <MagneticButton
                     onClick={handleSubmit}
                     className="group ml-auto rounded-full px-6 py-2 text-sm font-medium text-zinc-900"
-                    style={{ backgroundColor: SIAM_PALETTE.accent } as React.CSSProperties}
+                    style={
+                      {
+                        backgroundColor: SIAM_PALETTE.accent,
+                      } as React.CSSProperties
+                    }
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? (
@@ -792,14 +1072,16 @@ function App() {
                         Confirming...
                       </span>
                     ) : (
-                      'Confirm Table'
+                      "Confirm Table"
                     )}
                   </MagneticButton>
                 )}
               </div>
             )}
             {!showReservationSuccess && modalValidationError && (
-              <p className="mt-4 text-sm text-red-600">{modalValidationError}</p>
+              <p className="mt-4 text-sm text-red-600">
+                {modalValidationError}
+              </p>
             )}
           </div>
         </div>
