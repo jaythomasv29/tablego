@@ -101,6 +101,7 @@ export async function GET(request: NextRequest) {
 
     const settings = settingsSnap.exists() ? settingsSnap.data() : {};
     const cutoffMinutes: number = settings.reservationCutoffMinutes ?? 60;
+    const leadTimeMinutes: number = settings.minimumLeadTimeMinutes ?? 50;
     const timezone: string = settings.timezone ?? 'America/Los_Angeles';
 
     // ── Special date check ──
@@ -144,6 +145,14 @@ export async function GET(request: NextRequest) {
 
       for (const range of ranges) {
         if (requestedMinutes >= range.start && requestedMinutes < range.end) {
+          if (isToday && requestedMinutes < currentMinutes + leadTimeMinutes) {
+            const h = Math.floor(leadTimeMinutes / 60);
+            const m = leadTimeMinutes % 60;
+            const leadStr = h > 0
+              ? (m > 0 ? `${h}h ${m}m` : `${h} hour${h !== 1 ? 's' : ''}`)
+              : `${m} minutes`;
+            return { ok: false, reason: `Same-day reservations must be booked at least ${leadStr} in advance.` };
+          }
           if (isToday && requestedMinutes <= currentMinutes + cutoffMinutes) {
             const h = Math.floor(cutoffMinutes / 60);
             const m = cutoffMinutes % 60;

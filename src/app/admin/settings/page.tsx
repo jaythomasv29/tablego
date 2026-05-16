@@ -12,6 +12,7 @@ import { TIMEZONE_OPTIONS, useTimezone } from '@/contexts/TimezoneContext';
 export default function AdminSettings() {
     const [selectedTimezone, setSelectedTimezone] = useState<string>('America/Los_Angeles');
     const [reservationCutoffMinutes, setReservationCutoffMinutes] = useState<number>(60); // Default 1 hour
+    const [minimumLeadTimeMinutes, setMinimumLeadTimeMinutes] = useState<number>(50);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const { refreshTimezone } = useTimezone();
@@ -30,6 +31,9 @@ export default function AdminSettings() {
                     }
                     if (data.reservationCutoffMinutes !== undefined) {
                         setReservationCutoffMinutes(data.reservationCutoffMinutes);
+                    }
+                    if (data.minimumLeadTimeMinutes !== undefined) {
+                        setMinimumLeadTimeMinutes(data.minimumLeadTimeMinutes);
                     }
                 }
             } catch (error) {
@@ -75,6 +79,7 @@ export default function AdminSettings() {
             await setDoc(doc(db, 'settings', 'general'), {
                 timezone: selectedTimezone,
                 reservationCutoffMinutes: reservationCutoffMinutes,
+                minimumLeadTimeMinutes: minimumLeadTimeMinutes,
                 updatedAt: new Date(),
             }, { merge: true });
 
@@ -252,6 +257,56 @@ export default function AdminSettings() {
                         <p className="text-sm text-gray-600">
                             <strong>Example:</strong> If dinner closes at 9:30 PM and cutoff is set to 1 hour,
                             the last available reservation slot will be 8:30 PM.
+                        </p>
+                    </div>
+                </div>
+
+                {/* Minimum Booking Lead Time Card */}
+                <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-3 bg-purple-50 rounded-full">
+                            <Clock className="w-6 h-6 text-purple-500" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold">Minimum Booking Lead Time</h2>
+                            <p className="text-sm text-gray-500">
+                                Minimum time in advance a guest must book a same-day reservation.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="mb-6">
+                        <label htmlFor="leadTime" className="block text-sm font-medium text-gray-700 mb-2">
+                            Lead Time (minutes from now)
+                        </label>
+                        <select
+                            id="leadTime"
+                            value={minimumLeadTimeMinutes}
+                            onChange={(e) => setMinimumLeadTimeMinutes(Number(e.target.value))}
+                            className="w-full md:w-96 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white text-gray-900"
+                        >
+                            <option value={30}>30 minutes</option>
+                            <option value={45}>45 minutes</option>
+                            <option value={60}>1 hour</option>
+                            <option value={90}>1.5 hours</option>
+                            <option value={120}>2 hours</option>
+                        </select>
+                    </div>
+
+                    <div className="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                        <p className="text-sm text-purple-800">
+                            <strong>Current Setting:</strong> Same-day reservations must be booked at least{' '}
+                            <strong>{minimumLeadTimeMinutes >= 60
+                                ? `${minimumLeadTimeMinutes / 60} hour${minimumLeadTimeMinutes > 60 ? 's' : ''}`
+                                : `${minimumLeadTimeMinutes} minutes`}</strong>{' '}
+                            in advance.
+                        </p>
+                    </div>
+
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <p className="text-sm text-gray-600">
+                            <strong>Example:</strong> If a guest tries to book at 6:40 PM with a 60-minute lead time,
+                            the earliest available slot they'll see is 7:40 PM.
                         </p>
                     </div>
                 </div>

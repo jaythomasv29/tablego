@@ -184,6 +184,7 @@ export default function ReservationForm() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [selectedSignatureDish, setSelectedSignatureDish] = useState<MenuItem | null>(null);
   const [reservationCutoffMinutes, setReservationCutoffMinutes] = useState<number>(60); // Default 1 hour
+  const [minimumLeadTimeMinutes, setMinimumLeadTimeMinutes] = useState<number>(50);
 
   // Helper function to get current date in restaurant's timezone
   const getRestaurantDate = (date?: Date): Date => {
@@ -311,6 +312,9 @@ export default function ReservationForm() {
           const data = settingsDoc.data();
           if (data.reservationCutoffMinutes !== undefined) {
             setReservationCutoffMinutes(data.reservationCutoffMinutes);
+          }
+          if (data.minimumLeadTimeMinutes !== undefined) {
+            setMinimumLeadTimeMinutes(data.minimumLeadTimeMinutes);
           }
         }
       } catch (error) {
@@ -451,12 +455,12 @@ export default function ReservationForm() {
 
           // Adjust start time if it's today and in the past
           if (isToday && start < currentMinutes) {
-            start = Math.ceil((currentMinutes + 30) / slotDuration) * slotDuration;
+            start = Math.ceil((currentMinutes + minimumLeadTimeMinutes) / slotDuration) * slotDuration;
           }
 
           // Last slot must be reservationCutoffMinutes before closing
           for (let time = start; time <= end - reservationCutoffMinutes; time += slotDuration) {
-            if (!isToday || time >= currentMinutes + 30) {
+            if (!isToday || time >= currentMinutes + minimumLeadTimeMinutes) {
               slots.push({
                 time: minutesToTime(time),
                 period: 'lunch'
@@ -470,12 +474,12 @@ export default function ReservationForm() {
         const end = timeToMinutes(dayHours.lunch.close);
 
         if (isToday && start < currentMinutes) {
-          start = Math.ceil((currentMinutes + 30) / slotDuration) * slotDuration;
+          start = Math.ceil((currentMinutes + minimumLeadTimeMinutes) / slotDuration) * slotDuration;
         }
 
         // Last slot must be reservationCutoffMinutes before closing
         for (let time = start; time <= end - reservationCutoffMinutes; time += slotDuration) {
-          if (!isToday || time >= currentMinutes + 30) {
+          if (!isToday || time >= currentMinutes + minimumLeadTimeMinutes) {
             slots.push({
               time: minutesToTime(time),
               period: 'lunch'
@@ -498,12 +502,12 @@ export default function ReservationForm() {
 
           // Adjust start time if it's today and in the past
           if (isToday && start < currentMinutes) {
-            start = Math.ceil((currentMinutes + 30) / slotDuration) * slotDuration;
+            start = Math.ceil((currentMinutes + minimumLeadTimeMinutes) / slotDuration) * slotDuration;
           }
 
           // Last slot must be reservationCutoffMinutes before closing
           for (let time = start; time <= end - reservationCutoffMinutes; time += slotDuration) {
-            if (!isToday || time >= currentMinutes + 30) {
+            if (!isToday || time >= currentMinutes + minimumLeadTimeMinutes) {
               slots.push({
                 time: minutesToTime(time),
                 period: 'dinner'
@@ -517,12 +521,12 @@ export default function ReservationForm() {
         const end = timeToMinutes(dayHours.dinner.close);
 
         if (isToday && start < currentMinutes) {
-          start = Math.ceil((currentMinutes + 30) / slotDuration) * slotDuration;
+          start = Math.ceil((currentMinutes + minimumLeadTimeMinutes) / slotDuration) * slotDuration;
         }
 
         // Last slot must be reservationCutoffMinutes before closing
         for (let time = start; time <= end - reservationCutoffMinutes; time += slotDuration) {
-          if (!isToday || time >= currentMinutes + 30) {
+          if (!isToday || time >= currentMinutes + minimumLeadTimeMinutes) {
             slots.push({
               time: minutesToTime(time),
               period: 'dinner'

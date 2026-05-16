@@ -182,6 +182,7 @@ function App() {
   );
   const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlot[]>([]);
   const [reservationCutoffMinutes, setReservationCutoffMinutes] = useState(60);
+  const [minimumLeadTimeMinutes, setMinimumLeadTimeMinutes] = useState(50);
   const [isReserveOpen, setIsReserveOpen] = useState(false);
   const [showReservationSuccess, setShowReservationSuccess] = useState(false);
   const [modalValidationError, setModalValidationError] = useState<
@@ -263,6 +264,9 @@ function App() {
           const data = generalDoc.data();
           if (typeof data.reservationCutoffMinutes === "number") {
             setReservationCutoffMinutes(data.reservationCutoffMinutes);
+          }
+          if (typeof data.minimumLeadTimeMinutes === "number") {
+            setMinimumLeadTimeMinutes(data.minimumLeadTimeMinutes);
           }
         }
 
@@ -355,7 +359,7 @@ function App() {
       let adjustedStart = start;
       if (isToday && adjustedStart < currentMinutes) {
         adjustedStart =
-          Math.ceil((currentMinutes + 30) / slotDuration) * slotDuration;
+          Math.ceil((currentMinutes + minimumLeadTimeMinutes) / slotDuration) * slotDuration;
       }
 
       for (
@@ -363,7 +367,7 @@ function App() {
         time <= end - reservationCutoffMinutes;
         time += slotDuration
       ) {
-        if (!isToday || time >= currentMinutes + 30) {
+        if (!isToday || time >= currentMinutes + minimumLeadTimeMinutes) {
           slots.push({ time: minutesToTime(time), period });
         }
       }
