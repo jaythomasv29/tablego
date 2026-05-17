@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import toast, { Toaster } from 'react-hot-toast';
-import { Globe, Save, RefreshCw, Clock } from 'lucide-react';
+import { Globe, Save, RefreshCw, Clock, Mail, Send } from 'lucide-react';
 import PageTransition from '@/components/PageTransition';
 import { TIMEZONE_OPTIONS, useTimezone } from '@/contexts/TimezoneContext';
 
@@ -15,6 +15,8 @@ export default function AdminSettings() {
     const [minimumLeadTimeMinutes, setMinimumLeadTimeMinutes] = useState<number>(50);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [testEmail, setTestEmail] = useState('');
+    const [sendingTest, setSendingTest] = useState(false);
     const { refreshTimezone } = useTimezone();
 
     // Current time display in selected timezone
@@ -92,6 +94,29 @@ export default function AdminSettings() {
             toast.error('Failed to save settings');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleSendTestEmail = async () => {
+        if (!testEmail.trim()) return;
+        setSendingTest(true);
+        try {
+            const res = await fetch('/api/send-test-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: testEmail.trim() }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success(`Test email sent to ${testEmail}`);
+                setTestEmail('');
+            } else {
+                toast.error(data.error || 'Failed to send test email');
+            }
+        } catch {
+            toast.error('Failed to send test email');
+        } finally {
+            setSendingTest(false);
         }
     };
 
@@ -308,6 +333,49 @@ export default function AdminSettings() {
                             <strong>Example:</strong> If a guest tries to book at 6:40 PM with a 60-minute lead time,
                             the earliest available slot they'll see is 7:40 PM.
                         </p>
+                    </div>
+                </div>
+
+                {/* Test Email Card */}
+                <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-3 bg-green-50 rounded-full">
+                            <Mail className="w-6 h-6 text-green-500" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold">Send Test Email</h2>
+                            <p className="text-sm text-gray-500">
+                                Creates a real test reservation in Firebase and sends both the customer and restaurant confirmation emails — with working cancel, reschedule, and menu download links.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                        <input
+                            type="email"
+                            value={testEmail}
+                            onChange={(e) => setTestEmail(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSendTestEmail()}
+                            placeholder="Enter email address"
+                            className="flex-1 md:max-w-sm px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 placeholder-gray-400"
+                        />
+                        <button
+                            onClick={handleSendTestEmail}
+                            disabled={sendingTest || !testEmail.trim()}
+                            className="flex items-center gap-2 px-5 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        >
+                            {sendingTest ? (
+                                <>
+                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                    Sending...
+                                </>
+                            ) : (
+                                <>
+                                    <Send className="w-4 h-4" />
+                                    Send Test
+                                </>
+                            )}
+                        </button>
                     </div>
                 </div>
 

@@ -1,21 +1,19 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { doc, getDoc, updateDoc, Timestamp, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Banner from '@/components/Banner';
-import { DatePicker as MuiDatePicker } from '@mui/x-date-pickers/DatePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { BusinessHours } from '@/components/ReservationForm';
+import { CheckCircle2, CalendarDays, Clock, Users } from 'lucide-react';
 
 interface Reservation {
     id: string;
-    date: Timestamp | string | Date;  // Updated type to handle all possible date formats
+    date: Timestamp | string | Date;
     time: string;
     name: string;
     guests: number;
@@ -24,154 +22,44 @@ interface Reservation {
     status: string;
 }
 
-interface SpecialDate {
-    date: string;
-    reason: string;
-}
-
 interface TimeSlot {
     time: string;
     period: 'lunch' | 'dinner';
 }
 
-const slotDuration = 30;
+interface PageProps {
+    params: Promise<{ id: string }>;
+}
 
-// Add this helper function at the top of the file
-const getDateFromTimestamp = (date: Timestamp | string | Date) => {
-    // If it's already a YYYY-MM-DD string, create a date at noon PST to avoid timezone shifts
+const SIAM_PALETTE = {
+    primary: '#F9F7F2',
+    accent: '#A3B18A',
+    surface: '#EAE0D5',
+    text: '#121212',
+};
+
+const getDateFromTimestamp = (date: Timestamp | string | Date): Date => {
     if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
         return new Date(date + 'T12:00:00');
     }
-
-    // If it's a Firestore Timestamp
     if (date && typeof date === 'object' && 'toDate' in date) {
-        return date.toDate();
+        return (date as Timestamp).toDate();
     }
-
-    // If it's a string (ISO format)
-    if (typeof date === 'string') {
-        return new Date(date);
-    }
-
-    // If it's already a Date object
-    return date;
+    if (typeof date === 'string') return new Date(date);
+    return date as Date;
 };
 
-// Add this helper function to check if a time is in the future with buffer
-const isTimeInFutureWithBuffer = (time: string, bufferHours: number = 2): boolean => {
-    const [timeValue, period] = time.split(' ');
-    const [hours, minutes] = timeValue.split(':');
-
-    const reservationTime = new Date();
-    let hour = parseInt(hours);
-
-    // Convert to 24 hour format
-    if (period === 'PM' && hour !== 12) {
-        hour += 12;
-    } else if (period === 'AM' && hour === 12) {
-        hour = 0;
+const formatReadableDate = (date: Date | string): string => {
+    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        const [y, m, d] = date.split('-').map(Number);
+        return new Date(Date.UTC(y, m - 1, d, 12, 0, 0)).toLocaleDateString('en-US', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
+        });
     }
-
-    reservationTime.setHours(hour, parseInt(minutes), 0, 0);
-
-    const currentTime = new Date();
-    const bufferTime = bufferHours * 60 * 60 * 1000; // Convert hours to milliseconds
-
-    return reservationTime.getTime() > (currentTime.getTime() + bufferTime);
+    const d = date instanceof Date ? date : new Date(date);
+    return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 };
 
-// Add this interface for business hours
-interface BusinessDay {
-    lunch: {
-        start: string;
-        end: string;
-        isClosed: boolean;
-    };
-    dinner: {
-        start: string;
-        end: string;
-        isClosed: boolean;
-    };
-    isHoliday: boolean;
-    holidayName?: string;
-}
-
-// Add this helper function at the top
-const getPSTDate = () => {
-    return new Date(new Date().toLocaleString('en-US', {
-        timeZone: 'America/Los_Angeles'
-    }));
-};
-
-// Update generateTimeSlots function to properly handle today's slots
-const generateTimeSlots = async (date: Date) => {
-    try {
-        const pstDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
-        const dateString = pstDate.toLocaleDateString('en-US', {
-            weekday: 'long',
-            timeZone: 'America/Los_Angeles'
-        }).toLowerCase();
-
-        const hoursDoc = await getDoc(doc(db, 'settings', 'businessHours'));
-        if (!hoursDoc.exists()) return [];
-
-        const businessHours = hoursDoc.data() as BusinessHours;
-        const dayHours = businessHours[dateString];
-        if (!dayHours) return [];
-
-        const slots: TimeSlot[] = [];
-        const pstNow = getPSTDate();
-
-        // Compare dates in PST for today's check
-        const isToday = pstDate.toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' }) ===
-            pstNow.toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' });
-
-        // For today, use PST time for comparison
-        const currentPSTHour = pstNow.getHours();
-        const currentPSTMinutes = pstNow.getMinutes();
-        const currentTotalMinutes = currentPSTHour * 60 + currentPSTMinutes;
-
-        // Process lunch and dinner slots
-        if (dayHours.lunch.isOpen) {
-            const lunchStart = timeToMinutes(dayHours.lunch.open);
-            const lunchEnd = timeToMinutes(dayHours.lunch.close) - 30;
-
-            // For today, only show future times
-            if (!isToday || currentTotalMinutes < lunchEnd) {
-                const startTime = isToday ? Math.max(lunchStart, currentTotalMinutes + 30) : lunchStart;
-                for (let time = startTime; time <= lunchEnd; time += slotDuration) {
-                    slots.push({
-                        time: minutesToTime(time),
-                        period: 'lunch'
-                    });
-                }
-            }
-        }
-
-        if (dayHours.dinner.isOpen) {
-            const dinnerStart = timeToMinutes(dayHours.dinner.open);
-            const dinnerEnd = timeToMinutes(dayHours.dinner.close) - 30;
-
-            // For today, only show future times
-            if (!isToday || currentTotalMinutes < dinnerEnd) {
-                const startTime = isToday ? Math.max(dinnerStart, currentTotalMinutes + 30) : dinnerStart;
-                for (let time = startTime; time <= dinnerEnd; time += slotDuration) {
-                    slots.push({
-                        time: minutesToTime(time),
-                        period: 'dinner'
-                    });
-                }
-            }
-        }
-
-        return slots.map(slot => slot.time);
-    } catch (error) {
-        console.error('Error generating time slots:', error);
-        return [];
-    }
-};
-
-// Add helper functions
 const timeToMinutes = (timeStr: string): number => {
     const [time, period] = timeStr.split(' ');
     let [hours, minutes] = time.split(':').map(Number);
@@ -188,366 +76,152 @@ const minutesToTime = (minutes: number): string => {
     return `${displayHours}:${mins.toString().padStart(2, '0')} ${period}`;
 };
 
-// Add these helper functions at the top
-const convertUTCToPST = (utcDate: string) => {
-    return new Date(utcDate).toLocaleString('en-US', {
-        timeZone: 'America/Los_Angeles'
-    });
-};
+const generateTimeSlots = async (date: Date, reservationId: string): Promise<string[]> => {
+    try {
+        const pstDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+        const dayName = pstDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'America/Los_Angeles' }).toLowerCase();
 
-const isSamePSTDay = (date1: string, date2: string) => {
-    const pst1 = new Date(convertUTCToPST(date1));
-    const pst2 = new Date(convertUTCToPST(date2));
+        const hoursDoc = await getDoc(doc(db, 'settings', 'businessHours'));
+        if (!hoursDoc.exists()) return [];
+        const businessHours = hoursDoc.data() as BusinessHours;
+        const dayHours = businessHours[dayName];
+        if (!dayHours) return [];
 
-    return pst1.getFullYear() === pst2.getFullYear() &&
-        pst1.getMonth() === pst2.getMonth() &&
-        pst1.getDate() === pst2.getDate();
-};
+        const pstNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+        const isToday = pstDate.toDateString() === pstNow.toDateString();
+        const currentMinutes = isToday ? pstNow.getHours() * 60 + pstNow.getMinutes() : 0;
 
-// Add this at the top with other helper functions
-const formatLADate = (date: Date | string) => {
-    // If it's a YYYY-MM-DD string, parse it directly to avoid timezone issues
-    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        const [year, month, day] = date.split('-').map(Number);
-        const d = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-        return d.toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            timeZone: 'UTC'
-        });
+        const slots: string[] = [];
+        const addSlots = (open: string, close: string) => {
+            const start = timeToMinutes(open);
+            const end = timeToMinutes(close) - 30;
+            const adjustedStart = isToday ? Math.max(start, currentMinutes + 30) : start;
+            for (let t = adjustedStart; t <= end; t += 30) {
+                slots.push(minutesToTime(t));
+            }
+        };
+
+        if (dayHours.lunch?.isOpen) addSlots(dayHours.lunch.open, dayHours.lunch.close);
+        if (dayHours.dinner?.isOpen) addSlots(dayHours.dinner.open, dayHours.dinner.close);
+
+        // Filter out already-booked times
+        const targetDate = date.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+        const q = query(collection(db, 'reservations'), where('date', '==', targetDate), where('status', '!=', 'cancelled'));
+        const snap = await getDocs(q);
+        const booked = snap.docs.filter(d => d.id !== reservationId).map(d => d.data().time);
+
+        return slots.filter(t => !booked.includes(t)).sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
+    } catch {
+        return [];
     }
-
-    if (date instanceof Date) {
-        return date.toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-    }
-
-    return new Date(date as string).toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
 };
-
-// Add this helper function to format the date and time
-const formatDateTime = (date: string, time: string) => {
-    // If it's a YYYY-MM-DD string, parse it directly to avoid timezone issues
-    let pstDate: string;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        const [year, month, day] = date.split('-').map(Number);
-        const d = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-        pstDate = d.toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            timeZone: 'UTC'
-        });
-    } else {
-        pstDate = new Date(date).toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-    }
-    return { pstDate, time };
-};
-
-interface PageProps {
-    params: Promise<{ id: string }>;
-}
 
 export default function ReschedulePage({ params }: PageProps) {
     const { id } = use(params);
     const [reservation, setReservation] = useState<Reservation | null>(null);
     const [loading, setLoading] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
-    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [selectedDate, setSelectedDate] = useState<string>('');
     const [selectedTime, setSelectedTime] = useState<string>('');
     const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
-    const [todaysReservations, setTodaysReservations] = useState<any[]>([]);
 
     useEffect(() => {
         const fetchReservation = async () => {
             try {
-                const reservationDoc = await getDoc(doc(db, 'reservations', id));
-                if (!reservationDoc.exists()) {
-                    setError('Reservation not found');
-                    return;
-                }
+                const snap = await getDoc(doc(db, 'reservations', id));
+                if (!snap.exists()) { setError('Reservation not found.'); return; }
+                const data = { id: snap.id, ...snap.data() } as Reservation;
+                setReservation(data);
 
-                const data = reservationDoc.data();
-                const reservationData = {
-                    id: reservationDoc.id,
-                    ...data
-                } as Reservation;
-
-                setReservation(reservationData);
-                const reservationDate = getDateFromTimestamp(data.date);
-                setSelectedDate(reservationDate);
+                const date = getDateFromTimestamp(data.date);
+                const dateStr = date.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+                setSelectedDate(dateStr);
                 setSelectedTime(data.time);
-                fetchAvailableTimeSlots(reservationDate);
-            } catch (err) {
-                console.error('Error fetching reservation:', err);
-                setError('Failed to load reservation');
+
+                const slots = await generateTimeSlots(date, id);
+                setAvailableTimeSlots(slots);
+            } catch {
+                setError('Failed to load reservation.');
             } finally {
                 setLoading(false);
             }
         };
-
         fetchReservation();
     }, [id]);
 
+    const handleDateChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        setSelectedDate(val);
+        setSelectedTime('');
+        if (!val) { setAvailableTimeSlots([]); return; }
+        const [y, m, d] = val.split('-').map(Number);
+        const date = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+        const slots = await generateTimeSlots(date, id);
+        setAvailableTimeSlots(slots);
+    };
+
     const handleReschedule = async () => {
-        if (!selectedDate || !selectedTime) {
-            setError('Please select both date and time');
-            return;
-        }
-
+        if (!selectedDate || !selectedTime) { setError('Please select a date and time.'); return; }
+        setSubmitting(true);
+        setError(null);
         try {
-            setLoading(true);
-            // Convert selected date to YYYY-MM-DD format in PST timezone
-            const dateToStore = selectedDate.toLocaleDateString('en-CA', {
-                timeZone: 'America/Los_Angeles'
-            });
-
             await updateDoc(doc(db, 'reservations', id), {
-                date: dateToStore, // Store as YYYY-MM-DD string in PST
+                date: selectedDate,
                 time: selectedTime,
                 updatedAt: new Date().toISOString(),
-                status: 'confirmed'
+                status: 'confirmed',
             });
 
-            // Send rescheduling confirmation email
             await fetch('/api/send-reschedule', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     reservationId: reservation?.id,
                     email: reservation?.email,
                     name: reservation?.name,
-                    date: dateToStore,
+                    date: selectedDate,
                     time: selectedTime,
                     guests: reservation?.guests,
-                    phone: reservation?.phone
+                    phone: reservation?.phone,
                 }),
             });
 
             setSuccess(true);
-        } catch (err) {
-            console.error('Error rescheduling:', err);
-            setError('Failed to reschedule reservation');
+        } catch {
+            setError('Failed to reschedule. Please try again.');
         } finally {
-            setLoading(false);
+            setSubmitting(false);
         }
     };
 
-    const fetchAvailableTimeSlots = async (date: Date) => {
-        try {
-            const allTimeSlots = await generateTimeSlots(date);
-
-            // Get today's date and time in Los Angeles timezone
-            const laDateTime = new Date().toLocaleString('en-US', {
-                timeZone: 'America/Los_Angeles',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit'
-            });
-
-            // console.log('Current LA Time:', new Date().toLocaleString('en-US', {
-            //     timeZone: 'America/Los_Angeles',
-            //     hour: 'numeric',
-            //     minute: '2-digit',
-            //     hour12: true
-            // }));
-            // console.log('Current LA Date:', laDateTime);
-
-            // Query all reservations
-            const reservationsRef = collection(db, 'reservations');
-            const querySnapshot = await getDocs(reservationsRef);
-
-            // Filter for today's reservations in LA time
-            const existingReservations = querySnapshot.docs
-                .filter(doc => {
-                    const reservationDate = new Date(doc.data().date).toLocaleString('en-US', {
-                        timeZone: 'America/Los_Angeles',
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit'
-                    });
-
-                    // Log each reservation's date for debugging
-                    // console.log('Reservation Date:', reservationDate, 'Time:', doc.data().time);
-
-                    return (
-                        reservationDate === laDateTime && // Same date in LA
-                        doc.id !== id && // Not current reservation
-                        doc.data().status !== 'cancelled' // Not cancelled
-                    );
-                })
-                .map(doc => doc.data().time);
-
-            // Log filtered reservations
-            // console.log('Today\'s Reservations:', existingReservations);
-
-            // Filter out booked times
-            let availableSlots = allTimeSlots.filter(time => !existingReservations.includes(time));
-
-            // Sort times
-            availableSlots.sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
-
-            setAvailableTimeSlots(availableSlots);
-
-            // Add this after fetching existing reservations in fetchAvailableTimeSlots
-            const todayReservations = querySnapshot.docs
-                .filter(doc => {
-                    const reservationDate = new Date(doc.data().date).toLocaleString('en-US', {
-                        timeZone: 'America/Los_Angeles',
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit'
-                    });
-                    return reservationDate === laDateTime && doc.data().status !== 'cancelled';
-                })
-                .map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-            setTodaysReservations(todayReservations);
-        } catch (error) {
-            console.error('Error fetching available time slots:', error);
-            setAvailableTimeSlots([]);
-        }
-    };
-
-    const handleDateChange = (newDate: Date | null) => {
-        if (!newDate) {
-            setSelectedDate(null);
-            setSelectedTime('');
-            return;
-        }
-
-        // Convert selected date to PST
-        const pstDate = new Date(newDate.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
-        setSelectedDate(pstDate);
-        setSelectedTime('');
-        fetchAvailableTimeSlots(pstDate);
-    };
-
-    const checkTimeSlotAvailability = async (date: Date, timeSlots: string[]) => {
-        try {
-            // Convert input date to YYYY-MM-DD format in PST
-            const targetDate = date.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-
-            // Get all reservations for the day using the date string format
-            const reservationsRef = collection(db, 'reservations');
-            const q = query(
-                reservationsRef,
-                where('date', '==', targetDate),
-                where('status', '!=', 'cancelled')
-            );
-
-            const querySnapshot = await getDocs(q);
-            const bookedTimes = querySnapshot.docs
-                .filter(doc => doc.id !== id && doc.data().status !== 'cancelled')
-                .map(doc => doc.data().time);
-
-            // Convert business hours to minutes for accurate comparison
-            const convertTimeToMinutes = (time: string) => {
-                const [timeStr, period] = time.split(' ');
-                const [hours, minutes] = timeStr.split(':').map(Number);
-                let totalMinutes = hours * 60 + minutes;
-                if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
-                if (period === 'AM' && hours === 12) totalMinutes = minutes;
-                return totalMinutes;
-            };
-
-            const hoursDoc = await getDoc(doc(db, 'settings', 'businessHours'));
-            if (!hoursDoc.exists()) {
-                throw new Error('Business hours not found');
-            }
-
-            const data = hoursDoc.data();
-            const businessHours = {
-                lunch: {
-                    start: data?.lunch?.start || "11:00 AM",
-                    end: data?.lunch?.end || "2:30 PM"
-                },
-                dinner: {
-                    start: data?.dinner?.start || "5:00 PM",
-                    end: data?.dinner?.end || "10:00 PM"
-                }
-            };
-
-            const lunchStart = convertTimeToMinutes(businessHours.lunch.start);
-            const lunchEnd = convertTimeToMinutes(businessHours.lunch.end);
-            const dinnerStart = convertTimeToMinutes(businessHours.dinner.start);
-            const dinnerEnd = convertTimeToMinutes(businessHours.dinner.end);
-
-            // Filter available time slots
-            return timeSlots.filter(time => {
-                const timeInMinutes = convertTimeToMinutes(time);
-                const isLunchHour = timeInMinutes >= lunchStart && timeInMinutes <= lunchEnd;
-                const isDinnerHour = timeInMinutes >= dinnerStart && timeInMinutes <= dinnerEnd;
-
-                return !bookedTimes.includes(time) && (isLunchHour || isDinnerHour);
-            });
-        } catch (error) {
-            console.error('Error checking availability:', error);
-            return [];
-        }
-    };
-
-    // Helper function to convert 12-hour time to 24-hour format
-    const convertTo24Hour = (time12h: string) => {
-        const [time, modifier] = time12h.split(' ');
-        let [hours, minutes] = time.split(':');
-
-        let hoursNumber = parseInt(hours, 10);
-        if (modifier === 'PM' && hoursNumber < 12) {
-            hoursNumber += 12;
-        }
-        if (modifier === 'AM' && hoursNumber === 12) {
-            hoursNumber = 0;
-        }
-
-        return `${hoursNumber.toString().padStart(2, '0')}:${minutes}`;
-    };
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
 
     if (loading) {
         return (
             <>
-                <Navbar />
                 <Banner />
-                <div className="min-h-screen flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                <Navbar />
+                <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: SIAM_PALETTE.primary }}>
+                    <div className="w-8 h-8 rounded-full border-2 border-zinc-300 border-t-zinc-800 animate-spin" />
                 </div>
                 <Footer />
             </>
         );
     }
 
-    if (error) {
+    if (error && !reservation) {
         return (
             <>
                 <Banner />
                 <Navbar />
-                <div className="min-h-screen flex items-center justify-center px-4">
+                <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: SIAM_PALETTE.primary }}>
                     <div className="text-center">
-                        <h1 className="text-2xl font-bold text-gray-900 mb-4">{error}</h1>
-                        <Link href="/" className="text-indigo-600 hover:text-indigo-800">
-                            Return to Homepage
+                        <p className="text-sm uppercase tracking-widest text-zinc-400 mb-3" style={{ fontFamily: 'Inter, sans-serif' }}>Something went wrong</p>
+                        <h1 className="text-3xl mb-6" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontStyle: 'italic' }}>{error}</h1>
+                        <Link href="/" className="inline-block rounded-full px-6 py-2.5 text-sm font-medium text-zinc-900 transition-colors hover:opacity-80" style={{ backgroundColor: SIAM_PALETTE.accent }}>
+                            Return Home
                         </Link>
                     </div>
                 </div>
@@ -559,38 +233,44 @@ export default function ReschedulePage({ params }: PageProps) {
     if (success) {
         return (
             <>
-                <Navbar />
                 <Banner />
+                <Navbar />
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="min-h-screen flex items-center justify-center px-4"
+                    transition={{ duration: 0.5, ease: 'easeOut' }}
+                    className="min-h-screen flex items-center justify-center px-4 py-20"
+                    style={{ backgroundColor: SIAM_PALETTE.primary }}
                 >
-                    <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 text-center">
-                        <svg className="w-16 h-16 text-green-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        <h2 className="text-2xl font-bold text-gray-900 mb-4">Reservation Updated</h2>
-                        <p className="text-gray-600 mb-6">
-                            Your reservation has been successfully rescheduled. A confirmation email has been sent to your inbox.
+                    <div className="w-full max-w-md text-center">
+                        <div
+                            className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6"
+                            style={{ backgroundColor: `${SIAM_PALETTE.accent}33` }}
+                        >
+                            <CheckCircle2 className="w-10 h-10" style={{ color: SIAM_PALETTE.accent }} />
+                        </div>
+                        <p className="text-xs uppercase tracking-[0.16em] mb-2" style={{ fontFamily: 'Inter, sans-serif', color: SIAM_PALETTE.accent }}>
+                            All set
                         </p>
-                        <div className="bg-gray-50 p-4 rounded-lg mb-6">
-                            <p className="text-gray-600">New Reservation Details:</p>
-                            <p className="font-medium text-gray-900">
-                                {selectedDate?.toLocaleDateString('en-US', {
-                                    weekday: 'long',
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric'
-                                })}
-                            </p>
-                            <p className="text-gray-600">{selectedTime}</p>
+                        <h2 className="text-3xl mb-4" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontStyle: 'italic' }}>
+                            Reservation updated.
+                        </h2>
+                        <p className="text-zinc-500 text-sm leading-relaxed mb-8" style={{ fontFamily: 'Inter, sans-serif' }}>
+                            A confirmation has been sent to your inbox with the new details.
+                        </p>
+                        <div
+                            className="rounded-2xl border p-4 text-sm mb-8"
+                            style={{ borderColor: `${SIAM_PALETTE.accent}55`, backgroundColor: `${SIAM_PALETTE.accent}18`, fontFamily: 'Inter, sans-serif' }}
+                        >
+                            <p className="font-medium text-zinc-800">{formatReadableDate(selectedDate)}</p>
+                            <p className="text-zinc-500 mt-1">{selectedTime} · {reservation?.guests} {reservation?.guests === 1 ? 'guest' : 'guests'}</p>
                         </div>
                         <Link
                             href="/"
-                            className="inline-block bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                            className="inline-block rounded-full px-7 py-2.5 text-sm font-medium text-zinc-900 transition-opacity hover:opacity-80"
+                            style={{ backgroundColor: SIAM_PALETTE.accent, fontFamily: 'Inter, sans-serif' }}
                         >
-                            Return to Homepage
+                            Return Home
                         </Link>
                     </div>
                 </motion.div>
@@ -601,122 +281,129 @@ export default function ReschedulePage({ params }: PageProps) {
 
     return (
         <>
-            <Navbar />
             <Banner />
+            <Navbar />
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="min-h-screen flex items-center justify-center px-4"
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+                className="min-h-screen flex items-center justify-center px-4 py-24"
+                style={{ backgroundColor: SIAM_PALETTE.primary }}
             >
-                <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
-                    {/* Add Today's Date Header */}
-                    <div className="mb-6 text-center">
-                        <h2 className="text-xl font-semibold text-gray-900">
-                            Today: {formatLADate(new Date())}
-                        </h2>
-                        <p className="text-gray-600 mt-1">
-                            {new Date().toLocaleString('en-US', {
-                                hour: 'numeric',
-                                minute: '2-digit',
-                                hour12: true,
-                                timeZone: 'America/Los_Angeles'
-                            })}
+                <div className="w-full max-w-md">
+                    {/* Header */}
+                    <div className="mb-8">
+                        <p className="text-xs uppercase tracking-[0.16em] mb-2" style={{ fontFamily: 'Inter, sans-serif', color: SIAM_PALETTE.accent }}>
+                            Modify reservation
                         </p>
+                        <h1 className="text-4xl leading-tight" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontStyle: 'italic', color: SIAM_PALETTE.text }}>
+                            Reschedule your table.
+                        </h1>
                     </div>
 
-                    <h2 className="text-2xl font-bold text-gray-900 mb-6">Reschedule Reservation</h2>
+                    {/* Current booking card */}
                     {reservation && (
-                        <div className="space-y-6">
-                            <div className="bg-gray-50 p-4 rounded-lg">
-                                <h3 className="font-medium text-gray-900 mb-2">Current Reservation</h3>
-                                <p className="text-gray-600 font-medium">
-                                    {formatLADate(getDateFromTimestamp(reservation.date))}
-                                </p>
-                                <p className="text-gray-600">Time: {reservation.time}</p>
-                                <p className="text-gray-600">Guests: {reservation.guests}</p>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Select New Date
-                                    </label>
-                                    <LocalizationProvider dateAdapter={AdapterDateFns}>
-                                        <MuiDatePicker
-                                            value={selectedDate}
-                                            onChange={handleDateChange}
-                                            minDate={new Date()}
-                                            className="w-full"
-                                        />
-                                    </LocalizationProvider>
+                        <div className="rounded-2xl p-5 mb-6" style={{ backgroundColor: SIAM_PALETTE.surface }}>
+                            <p className="text-xs uppercase tracking-[0.12em] mb-3" style={{ fontFamily: 'Inter, sans-serif', color: SIAM_PALETTE.accent }}>
+                                Current booking
+                            </p>
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2.5 text-sm" style={{ fontFamily: 'Inter, sans-serif', color: SIAM_PALETTE.text }}>
+                                    <CalendarDays className="w-4 h-4 shrink-0" style={{ color: SIAM_PALETTE.accent }} />
+                                    <span>{formatReadableDate(getDateFromTimestamp(reservation.date))}</span>
                                 </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Select New Time
-                                    </label>
-                                    <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto">
-                                        {availableTimeSlots.map((time) => (
-                                            <button
-                                                key={time}
-                                                onClick={() => setSelectedTime(time)}
-                                                className={`px-3 py-2 rounded-lg text-sm font-medium
-                                                    ${selectedTime === time
-                                                        ? 'bg-indigo-600 text-white'
-                                                        : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                                                    }`}
-                                            >
-                                                {time}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    {availableTimeSlots.length === 0 && selectedDate && (
-                                        <p className="text-sm text-gray-500 mt-2">
-                                            No available time slots for this date. Please select another date.
-                                        </p>
-                                    )}
+                                <div className="flex items-center gap-2.5 text-sm" style={{ fontFamily: 'Inter, sans-serif', color: SIAM_PALETTE.text }}>
+                                    <Clock className="w-4 h-4 shrink-0" style={{ color: SIAM_PALETTE.accent }} />
+                                    <span>{reservation.time}</span>
                                 </div>
-
-                                {error && (
-                                    <p className="text-red-600 text-sm">{error}</p>
-                                )}
-
-                                <button
-                                    onClick={handleReschedule}
-                                    disabled={!selectedDate || !selectedTime || loading}
-                                    className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg 
-                                             hover:bg-indigo-700 transition-colors disabled:bg-gray-300 
-                                             disabled:cursor-not-allowed"
-                                >
-                                    {loading ? 'Updating...' : 'Confirm New Time'}
-                                </button>
+                                <div className="flex items-center gap-2.5 text-sm" style={{ fontFamily: 'Inter, sans-serif', color: SIAM_PALETTE.text }}>
+                                    <Users className="w-4 h-4 shrink-0" style={{ color: SIAM_PALETTE.accent }} />
+                                    <span>{reservation.guests} {reservation.guests === 1 ? 'guest' : 'guests'}</span>
+                                </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Add this JSX after the current reservation card */}
-                    <div className="mt-8">
-                        <h3 className="font-medium text-gray-900 mb-4">Today's Reservations</h3>
-                        <div className="space-y-4">
-                            {todaysReservations.map((res) => {
-                                const { pstDate } = formatDateTime(res.date, res.time);
-                                return (
-                                    <div key={res.id} className="bg-gray-50 p-4 rounded-lg">
-                                        <p className="text-gray-900 font-medium">{pstDate}</p>
-                                        <p className="text-gray-600">Time: {res.time}</p>
-                                        <p className="text-gray-600">Guests: {res.guests}</p>
-                                        <p className="text-gray-600">Name: {res.name}</p>
-                                    </div>
-                                );
-                            })}
-                            {todaysReservations.length === 0 && (
-                                <p className="text-gray-500">No reservations for today</p>
+                    {/* Form */}
+                    <div className="space-y-5">
+                        {/* Date picker */}
+                        <div>
+                            <label className="block text-xs uppercase tracking-[0.12em] mb-2" style={{ fontFamily: 'Inter, sans-serif', color: '#6b6b6b' }}>
+                                New date
+                            </label>
+                            <input
+                                type="date"
+                                value={selectedDate}
+                                min={todayStr}
+                                onChange={handleDateChange}
+                                className="w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all"
+                                style={{
+                                    fontFamily: 'Inter, sans-serif',
+                                    backgroundColor: '#ffffff',
+                                    borderColor: '#e4e4e4',
+                                    color: SIAM_PALETTE.text,
+                                }}
+                                onFocus={e => (e.target.style.borderColor = SIAM_PALETTE.accent)}
+                                onBlur={e => (e.target.style.borderColor = '#e4e4e4')}
+                            />
+                        </div>
+
+                        {/* Time slots */}
+                        <div>
+                            <label className="block text-xs uppercase tracking-[0.12em] mb-2" style={{ fontFamily: 'Inter, sans-serif', color: '#6b6b6b' }}>
+                                New time
+                            </label>
+                            {selectedDate && availableTimeSlots.length === 0 ? (
+                                <p className="text-sm text-zinc-400 py-3" style={{ fontFamily: 'Inter, sans-serif' }}>
+                                    No available slots for this date. Please try another day.
+                                </p>
+                            ) : (
+                                <div className="grid grid-cols-4 gap-2">
+                                    {availableTimeSlots.map(time => (
+                                        <button
+                                            key={time}
+                                            type="button"
+                                            onClick={() => setSelectedTime(time)}
+                                            className="rounded-lg py-2 text-xs font-medium transition-all"
+                                            style={{
+                                                fontFamily: 'Inter, sans-serif',
+                                                backgroundColor: selectedTime === time ? SIAM_PALETTE.accent : '#ffffff',
+                                                color: selectedTime === time ? SIAM_PALETTE.text : '#4b4b4b',
+                                                border: `1px solid ${selectedTime === time ? SIAM_PALETTE.accent : '#e4e4e4'}`,
+                                            }}
+                                        >
+                                            {time}
+                                        </button>
+                                    ))}
+                                </div>
                             )}
                         </div>
+
+                        {error && (
+                            <p className="text-sm text-red-500" style={{ fontFamily: 'Inter, sans-serif' }}>{error}</p>
+                        )}
+
+                        <button
+                            onClick={handleReschedule}
+                            disabled={!selectedDate || !selectedTime || submitting}
+                            className="w-full rounded-full py-3 text-sm font-medium transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                            style={{
+                                backgroundColor: SIAM_PALETTE.accent,
+                                color: SIAM_PALETTE.text,
+                                fontFamily: 'Inter, sans-serif',
+                            }}
+                        >
+                            {submitting ? (
+                                <span className="inline-flex items-center justify-center gap-2">
+                                    <span className="w-4 h-4 rounded-full border-2 border-zinc-900/30 border-t-zinc-900 animate-spin" />
+                                    Updating...
+                                </span>
+                            ) : 'Confirm New Time'}
+                        </button>
                     </div>
                 </div>
             </motion.div>
             <Footer />
         </>
     );
-} 
+}
