@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import toast, { Toaster } from 'react-hot-toast';
-import { Globe, Save, RefreshCw, Clock, Mail, Send } from 'lucide-react';
+import { Globe, Save, RefreshCw, Clock, Mail, Send, Trash2 } from 'lucide-react';
 import PageTransition from '@/components/PageTransition';
 import { TIMEZONE_OPTIONS, useTimezone } from '@/contexts/TimezoneContext';
 
@@ -17,6 +17,7 @@ export default function AdminSettings() {
     const [saving, setSaving] = useState(false);
     const [testEmail, setTestEmail] = useState('');
     const [sendingTest, setSendingTest] = useState(false);
+    const [deletingTest, setDeletingTest] = useState(false);
     const { refreshTimezone } = useTimezone();
 
     // Current time display in selected timezone
@@ -117,6 +118,26 @@ export default function AdminSettings() {
             toast.error('Failed to send test email');
         } finally {
             setSendingTest(false);
+        }
+    };
+
+    const handleDeleteTestReservations = async () => {
+        setDeletingTest(true);
+        try {
+            const res = await fetch('/api/delete-test-reservations', { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+                toast.success(data.deleted === 0
+                    ? 'No test reservations found'
+                    : `Deleted ${data.deleted} test reservation${data.deleted !== 1 ? 's' : ''}`
+                );
+            } else {
+                toast.error(data.error || 'Failed to delete test reservations');
+            }
+        } catch {
+            toast.error('Failed to delete test reservations');
+        } finally {
+            setDeletingTest(false);
         }
     };
 
@@ -350,7 +371,7 @@ export default function AdminSettings() {
                         </div>
                     </div>
 
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 flex-wrap">
                         <input
                             type="email"
                             value={testEmail}
@@ -373,6 +394,23 @@ export default function AdminSettings() {
                                 <>
                                     <Send className="w-4 h-4" />
                                     Send Test
+                                </>
+                            )}
+                        </button>
+                        <button
+                            onClick={handleDeleteTestReservations}
+                            disabled={deletingTest}
+                            className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        >
+                            {deletingTest ? (
+                                <>
+                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                    Deleting...
+                                </>
+                            ) : (
+                                <>
+                                    <Trash2 className="w-4 h-4" />
+                                    Delete Test Reservations
                                 </>
                             )}
                         </button>
