@@ -15,7 +15,8 @@ import {
     Flag,
     Settings,
     Users,
-    Printer
+    Printer,
+    Package
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -50,6 +51,7 @@ export default function AdminSidebar() {
         { href: '/admin/home', label: 'Dashboard', icon: Home },
         { href: '/admin/reservation', label: 'Reservations', icon: CalendarDays },
         { href: '/admin/team', label: 'Team View / Tip Report', icon: Users },
+        { href: '/admin/inventory', label: 'Inventory', icon: Package },
         { href: '/admin/hours', label: 'Hours', icon: Clock },
         { href: '/admin/special-dates', label: 'Business Holidays', icon: Calendar },
         { href: '/admin/cater', label: 'Catering', icon: Utensils },
