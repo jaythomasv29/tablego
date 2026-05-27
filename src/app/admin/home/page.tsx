@@ -69,6 +69,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 // Business Hours interface
 interface DayHours {
@@ -1267,7 +1268,17 @@ export default function AdminHome() {
                                 : "bg-muted/50"
                             }`}
                           >
-                            <div className="text-center leading-none">
+                            <div className="text-center leading-none flex flex-col items-center gap-1.5">
+                              <Avatar className="w-10 h-10">
+                                <AvatarFallback className="bg-[#A3B18A]/20 text-[#7a9065] font-semibold text-[10px]">
+                                  {reservation.name
+                                    .split(" ")
+                                    .map((n: string) => n[0])
+                                    .slice(0, 2)
+                                    .join("")
+                                    .toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
                               <div
                                 className={`text-2xl sm:text-3xl font-black tracking-tight whitespace-nowrap ${
                                   reservation.status?.toLowerCase() ===
@@ -1282,11 +1293,11 @@ export default function AdminHome() {
                               </div>
                               {reservation.status?.toLowerCase() ===
                               "cancelled" ? (
-                                <div className="text-[10px] font-bold text-red-500 mt-1 tracking-wide uppercase">
+                                <div className="text-[10px] font-bold text-red-500 tracking-wide uppercase">
                                   Cancelled
                                 </div>
                               ) : (
-                                <div className="text-[11px] sm:text-xs font-semibold text-muted-foreground mt-1 tracking-wide uppercase">
+                                <div className="text-[11px] sm:text-xs font-semibold text-muted-foreground tracking-wide uppercase">
                                   {reservation.time.split(" ")[1] ?? ""}
                                 </div>
                               )}
@@ -1477,104 +1488,132 @@ export default function AdminHome() {
               </CardContent>
             </Card>
 
-            {/* New Bookings Alert - Compact Rows */}
+            {/* New Bookings — shadcn Alert per reservation */}
             {pendingReservations.length > 0 && (
-              <Card id="pending-reservations" className="mb-8 shadow-sm">
-                <CardHeader className="py-3 px-4 border-b border-border">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Bell className="w-4 h-4 text-muted-foreground" />
-                      <CardTitle className="text-sm font-medium text-muted-foreground">
-                        New Bookings
-                      </CardTitle>
-                      <Badge
-                        variant="secondary"
-                        className="text-xs bg-muted text-muted-foreground"
-                      >
-                        {pendingReservations.length} unread
-                      </Badge>
-                    </div>
-                    {pendingReservations.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={async () => {
-                          const count = pendingReservations.length;
-                          for (const res of pendingReservations) {
-                            await handleMarkReservation(res.id, false);
-                          }
-                          toast.success(`${count} reservations acknowledged`);
-                        }}
-                        className="text-xs text-muted-foreground hover:text-muted-foreground h-7 px-2"
-                      >
-                        Acknowledge all
-                      </Button>
-                    )}
+              <div id="pending-reservations" className="mb-8 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-muted-foreground">
+                      New Bookings
+                    </span>
+                    <Badge
+                      variant="secondary"
+                      className="text-xs bg-muted text-muted-foreground"
+                    >
+                      {pendingReservations.length} unread
+                    </Badge>
                   </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="divide-y divide-border max-h-[300px] overflow-y-auto">
-                    {pendingReservations.map((reservation) => (
+                  {pendingReservations.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={async () => {
+                        const count = pendingReservations.length;
+                        for (const res of pendingReservations) {
+                          await handleMarkReservation(res.id, false);
+                        }
+                        toast.success(`${count} reservations acknowledged`);
+                      }}
+                      className="text-xs text-muted-foreground hover:text-muted-foreground h-7 px-2"
+                    >
+                      Acknowledge all
+                    </Button>
+                  )}
+                </div>
+
+                <div className="space-y-2 max-h-[360px] overflow-y-auto">
+                  {pendingReservations.map((reservation) => {
+                    const initials = reservation.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .slice(0, 2)
+                      .join("")
+                      .toUpperCase();
+                    return (
                       <div
                         key={reservation.id}
                         onClick={() => setSelectedReservation(reservation)}
-                        className="flex flex-col px-4 py-2.5 hover:bg-muted transition-colors cursor-pointer group"
+                        className="flex items-start gap-3 rounded-xl border border-border bg-card px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors"
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <div className="w-2 h-2 rounded-full bg-muted-foreground flex-shrink-0 animate-pulse" />
-                            <span className="font-medium text-foreground text-sm truncate">
+                        {/* Avatar */}
+                        <Avatar className="mt-0.5 shrink-0 w-9 h-9">
+                          <AvatarFallback className="bg-[#A3B18A]/20 text-[#7a9065] font-semibold text-xs">
+                            {initials}
+                          </AvatarFallback>
+                        </Avatar>
+
+                        {/* Main content */}
+                        <div className="flex-1 min-w-0">
+                          {/* Name + timestamp */}
+                          <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                            <span className="font-semibold text-sm text-foreground truncate animate-pulse">
                               {reservation.name}
                             </span>
-                            <span className="text-muted-foreground text-sm hidden sm:inline">
-                              ·
-                            </span>
-                            <span className="text-muted-foreground text-sm hidden sm:inline">
-                              {reservation.guests} guests
-                            </span>
-                            <span className="text-muted-foreground text-sm hidden md:inline">
-                              ·
-                            </span>
-                            <span className="text-muted-foreground text-sm hidden md:inline">
+                            {reservation.createdAt && (
+                              <span className="text-[11px] text-muted-foreground/60 shrink-0">
+                                {formatTimeAgo(new Date(reservation.createdAt))}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Date · time · guests row */}
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
                               {reservation.date.toLocaleDateString("en-US", {
                                 month: "short",
                                 day: "numeric",
                               })}
-                              {""}
-                              at {reservation.time}
+                            </span>
+                            <span className="text-border">·</span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {reservation.time}
+                            </span>
+                            <span className="text-border">·</span>
+                            <span className="flex items-center gap-1">
+                              <Users className="w-3 h-3" />
+                              {reservation.guests}{" "}
+                              {reservation.guests === 1 ? "guest" : "guests"}
                             </span>
                           </div>
-                          <div className="flex items-center gap-4 flex-shrink-0">
-                            {reservation.createdAt && (
-                              <span className="text-[10px] text-muted-foreground hidden lg:inline">
-                                {formatTimeAgo(new Date(reservation.createdAt))}
-                              </span>
-                            )}
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              className="h-7 px-2 text-xs text-muted-foreground bg-muted hover:bg-muted hover:text-muted-foreground"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleMarkReservation(reservation.id);
-                              }}
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              Acknowledge
-                            </Button>
-                          </div>
+
+                          {/* Phone */}
+                          {reservation.phone && (
+                            <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                              <Phone className="w-3 h-3" />
+                              {reservation.phone}
+                            </div>
+                          )}
+
+                          {/* Comments */}
+                          {reservation.comments && (
+                            <p className="mt-1.5 text-xs text-muted-foreground italic truncate">
+                              &ldquo;{reservation.comments.slice(0, 70)}
+                              {reservation.comments.length > 70 ? "…" : ""}
+                              &rdquo;
+                            </p>
+                          )}
                         </div>
-                        {reservation.comments && (
-                          <p className="text-xs text-muted-foreground italic ml-5 mt-1 truncate">
-                            "{reservation.comments.slice(0, 50)}
-                            {reservation.comments.length > 50 ? "..." : ""}"
-                          </p>
-                        )}
+
+                        {/* Acknowledge button */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="shrink-0 h-7 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted mt-0.5"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMarkReservation(reservation.id);
+                          }}
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        </Button>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </>
         ) : (
@@ -1662,11 +1701,17 @@ export default function AdminHome() {
           </Card>
         )}
 
-        {/* Add Mobile Notification */}
-        <MobileNotification
-          count={pendingReservations.length}
-          onClose={() => setShowMobileNotification(false)}
-        />
+        {/* Spacer so fixed bottom notification doesn't cover content on mobile */}
+        {showMobileNotification && pendingReservations.length > 0 && (
+          <div className="h-24 md:hidden" />
+        )}
+
+        {showMobileNotification && (
+          <MobileNotification
+            count={pendingReservations.length}
+            onClose={() => setShowMobileNotification(false)}
+          />
+        )}
 
         {/* Reservation Detail Modal */}
         <Dialog
@@ -1718,15 +1763,20 @@ export default function AdminHome() {
                   <div className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3">
                     <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
                     <div>
-                      <p className="text-xs text-muted-foreground">Date & Time</p>
+                      <p className="text-xs text-muted-foreground">
+                        Date & Time
+                      </p>
                       <p className="text-sm font-medium text-foreground">
                         {typeof selectedReservation.date === "string"
                           ? selectedReservation.date
-                          : selectedReservation.date.toLocaleDateString("en-US", {
-                              weekday: "short",
-                              month: "short",
-                              day: "numeric",
-                            })}
+                          : selectedReservation.date.toLocaleDateString(
+                              "en-US",
+                              {
+                                weekday: "short",
+                                month: "short",
+                                day: "numeric",
+                              },
+                            )}
                       </p>
                       <p className="text-base font-bold text-foreground">
                         {selectedReservation.time}
@@ -1738,7 +1788,9 @@ export default function AdminHome() {
                   <div className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3">
                     <Users className="w-4 h-4 text-muted-foreground shrink-0" />
                     <div>
-                      <p className="text-xs text-muted-foreground">Party Size</p>
+                      <p className="text-xs text-muted-foreground">
+                        Party Size
+                      </p>
                       <p className="text-sm font-medium text-foreground">
                         {selectedReservation.guests}{" "}
                         {selectedReservation.guests === 1 ? "Guest" : "Guests"}
@@ -1756,7 +1808,9 @@ export default function AdminHome() {
                       className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3 text-foreground transition-colors hover:bg-muted"
                     >
                       <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
-                      <span className="text-sm font-medium">{selectedReservation.phone}</span>
+                      <span className="text-sm font-medium">
+                        {selectedReservation.phone}
+                      </span>
                     </a>
                     {selectedReservation.email && (
                       <a
@@ -1764,7 +1818,9 @@ export default function AdminHome() {
                         className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3 text-foreground transition-colors hover:bg-muted"
                       >
                         <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
-                        <span className="text-sm font-medium break-all">{selectedReservation.email}</span>
+                        <span className="text-sm font-medium break-all">
+                          {selectedReservation.email}
+                        </span>
                       </a>
                     )}
                   </div>
@@ -1805,21 +1861,27 @@ export default function AdminHome() {
                       onClick={() => {
                         handleAttendanceUpdate(
                           selectedReservation.id,
-                          selectedReservation.attendanceStatus === "show" ? "default" : "show",
+                          selectedReservation.attendanceStatus === "show"
+                            ? "default"
+                            : "show",
                         );
                         setSelectedReservation((prev) =>
                           prev
                             ? {
                                 ...prev,
                                 attendanceStatus:
-                                  prev.attendanceStatus === "show" ? undefined : "show",
+                                  prev.attendanceStatus === "show"
+                                    ? undefined
+                                    : "show",
                               }
                             : null,
                         );
                       }}
                     >
                       <CheckCircle2 className="w-4 h-4 mr-2" />
-                      {selectedReservation.attendanceStatus === "show" ? "Showed ✓" : "Mark Show"}
+                      {selectedReservation.attendanceStatus === "show"
+                        ? "Showed ✓"
+                        : "Mark Show"}
                     </Button>
 
                     <Button
@@ -1832,25 +1894,33 @@ export default function AdminHome() {
                       onClick={() => {
                         handleAttendanceUpdate(
                           selectedReservation.id,
-                          selectedReservation.attendanceStatus === "no-show" ? "default" : "no-show",
+                          selectedReservation.attendanceStatus === "no-show"
+                            ? "default"
+                            : "no-show",
                         );
                         setSelectedReservation((prev) =>
                           prev
                             ? {
                                 ...prev,
                                 attendanceStatus:
-                                  prev.attendanceStatus === "no-show" ? undefined : "no-show",
+                                  prev.attendanceStatus === "no-show"
+                                    ? undefined
+                                    : "no-show",
                               }
                             : null,
                         );
                       }}
                     >
                       <XCircle className="w-4 h-4 mr-2" />
-                      {selectedReservation.attendanceStatus === "no-show" ? "No-Show ✓" : "Mark No-Show"}
+                      {selectedReservation.attendanceStatus === "no-show"
+                        ? "No-Show ✓"
+                        : "Mark No-Show"}
                     </Button>
                   </div>
 
-                  {pendingReservations.some((r) => r.id === selectedReservation.id) && (
+                  {pendingReservations.some(
+                    (r) => r.id === selectedReservation.id,
+                  ) && (
                     <Button
                       className="w-full"
                       onClick={() => {
