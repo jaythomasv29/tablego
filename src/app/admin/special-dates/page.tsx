@@ -31,17 +31,12 @@ export default function SpecialDatesAdmin() {
     const [editError, setEditError] = useState('');
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        loadSpecialDates();
-    }, []);
+    useEffect(() => { loadSpecialDates(); }, []);
 
     const loadSpecialDates = async () => {
         try {
             const snapshot = await getDocs(collection(db, 'specialDates'));
-            const dates = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })) as SpecialDate[];
+            const dates = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SpecialDate[];
             dates.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             setSpecialDates(dates);
         } catch (error) {
@@ -53,24 +48,15 @@ export default function SpecialDatesAdmin() {
 
     const handleAddDate = async () => {
         if (!newDate) return;
-        if (!reason.trim()) {
-            setAddError('Reason is required.');
-            return;
-        }
+        if (!reason.trim()) { setAddError('Reason is required.'); return; }
         setAddError('');
-
         try {
-            const payload = {
+            await addDoc(collection(db, 'specialDates'), {
                 date: newDate.toISOString(),
                 reason: reason.trim(),
-                closureType
-            };
-
-            await addDoc(collection(db, 'specialDates'), payload);
-            setNewDate(null);
-            setReason('');
-            setClosureType('full');
-            setAddError('');
+                closureType,
+            });
+            setNewDate(null); setReason(''); setClosureType('full');
             setIsAddModalOpen(false);
             loadSpecialDates();
         } catch (error) {
@@ -96,26 +82,18 @@ export default function SpecialDatesAdmin() {
     };
 
     const cancelEditModal = () => {
-        setEditingDateId(null);
-        setEditDate(null);
-        setEditReason('');
-        setEditClosureType('full');
-        setEditError('');
+        setEditingDateId(null); setEditDate(null); setEditReason(''); setEditClosureType('full'); setEditError('');
     };
 
     const handleSaveEdit = async () => {
         if (!editingDateId || !editDate) return;
-        if (!editReason.trim()) {
-            setEditError('Reason is required.');
-            return;
-        }
+        if (!editReason.trim()) { setEditError('Reason is required.'); return; }
         setEditError('');
-
         try {
             await updateDoc(doc(db, 'specialDates', editingDateId), {
                 date: editDate.toISOString(),
                 reason: editReason.trim(),
-                closureType: editClosureType
+                closureType: editClosureType,
             });
             cancelEditModal();
             loadSpecialDates();
@@ -125,9 +103,9 @@ export default function SpecialDatesAdmin() {
     };
 
     const getClosureLabel = (type?: ClosureType) => {
-        const value = type || 'full';
-        if (value === 'lunch') return 'Lunch Closed';
-        if (value === 'dinner') return 'Dinner Closed';
+        const v = type || 'full';
+        if (v === 'lunch') return 'Lunch Closed';
+        if (v === 'dinner') return 'Dinner Closed';
         return 'Full Day Closed';
     };
 
@@ -135,7 +113,7 @@ export default function SpecialDatesAdmin() {
         return (
             <AdminLayout>
                 <div className="flex justify-center items-center h-64">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
                 </div>
             </AdminLayout>
         );
@@ -144,66 +122,54 @@ export default function SpecialDatesAdmin() {
     return (
         <AdminLayout>
             <div className="max-w-4xl mx-auto p-6">
-                <h1 className="text-2xl font-bold mb-6">Special Dates Management</h1>
+                <h1 className="text-2xl font-bold text-foreground mb-6">Special Dates Management</h1>
 
-                <div className="bg-white shadow rounded-lg p-6">
-                    <div className="mb-6">
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-lg font-semibold">Special Dates</h2>
-                            <button
-                                onClick={() => {
-                                    setAddError('');
-                                    setNewDate(null);
-                                    setReason('');
-                                    setClosureType('full');
-                                    setIsAddModalOpen(true);
-                                }}
-                                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-                            >
-                                Add Special Date
-                            </button>
-                        </div>
+                <div className="bg-card border border-border shadow-sm rounded-lg p-6">
+                    <div className="mb-6 flex items-center justify-between">
+                        <h2 className="text-lg font-semibold text-foreground">Special Dates</h2>
+                        <button
+                            onClick={() => { setAddError(''); setNewDate(null); setReason(''); setClosureType('full'); setIsAddModalOpen(true); }}
+                            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors text-sm font-medium"
+                        >
+                            Add Special Date
+                        </button>
                     </div>
 
                     <div>
-                        <h2 className="text-lg font-semibold mb-4">Existing Closures</h2>
-                        <div className="space-y-4">
+                        <h2 className="text-lg font-semibold text-foreground mb-4">Existing Closures</h2>
+                        <div className="space-y-3">
                             {specialDates.map((date) => {
                                 const closureDate = new Date(date.date);
                                 const today = new Date();
                                 today.setHours(0, 0, 0, 0);
                                 const closureDay = new Date(closureDate);
                                 closureDay.setHours(0, 0, 0, 0);
-                                const isPastClosure = closureDay < today;
+                                const isPast = closureDay < today;
 
                                 return (
                                     <div
                                         key={date.id}
-                                        className={`flex items-center justify-between border-b pb-2 ${
-                                            isPastClosure ? 'opacity-65' : ''
-                                        }`}
+                                        className={`flex items-center justify-between border-b border-border pb-3 ${isPast ? 'opacity-50' : ''}`}
                                     >
                                         <div>
-                                            <p className={`font-medium ${isPastClosure ? 'text-gray-500' : ''}`}>
+                                            <p className="font-medium text-foreground">
                                                 {closureDate.toLocaleDateString()}
                                             </p>
-                                            <p className={`text-sm ${isPastClosure ? 'text-gray-500' : 'text-gray-600'}`}>
-                                                {date.reason}
-                                            </p>
-                                            <p className={`text-xs mt-0.5 ${isPastClosure ? 'text-gray-500' : 'text-indigo-600'}`}>
+                                            <p className="text-sm text-muted-foreground">{date.reason}</p>
+                                            <p className={`text-xs mt-0.5 ${isPast ? 'text-muted-foreground' : 'text-primary'}`}>
                                                 {getClosureLabel(date.closureType)}
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-3">
                                             <button
                                                 onClick={() => startEdit(date)}
-                                                className={`${isPastClosure ? 'text-gray-500 hover:text-gray-700' : 'text-blue-600 hover:text-blue-800'}`}
+                                                className="text-sm text-primary hover:text-primary/80 transition-colors"
                                             >
                                                 Edit
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteDate(date.id)}
-                                                className={`${isPastClosure ? 'text-gray-500 hover:text-gray-700' : 'text-red-600 hover:text-red-800'}`}
+                                                className="text-sm text-destructive hover:text-destructive/80 transition-colors"
                                             >
                                                 Delete
                                             </button>
@@ -216,49 +182,39 @@ export default function SpecialDatesAdmin() {
                 </div>
             </div>
 
+            {/* Add modal */}
             {isAddModalOpen && (
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
                     onClick={() => setIsAddModalOpen(false)}
                 >
-                    <div
-                        className="bg-white rounded-xl shadow-2xl w-full max-w-lg"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="px-5 py-4 border-b">
-                            <h3 className="text-lg font-semibold text-gray-900">Add New Special Date</h3>
+                    <div className="bg-card rounded-xl border border-border shadow-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+                        <div className="px-5 py-4 border-b border-border">
+                            <h3 className="text-lg font-semibold text-foreground">Add New Special Date</h3>
                         </div>
                         <div className="p-5 space-y-4">
                             <LocalizationProvider dateAdapter={AdapterDateFns}>
-                                <DatePicker
-                                    label="Select Date"
-                                    value={newDate}
-                                    onChange={(date) => setNewDate(date)}
-                                    disablePast
-                                />
+                                <DatePicker label="Select Date" value={newDate} onChange={(d) => setNewDate(d)} disablePast />
                             </LocalizationProvider>
                             <div>
-                                <label className="text-sm font-medium text-gray-700 mb-1 block">
-                                    Reason <span className="text-red-500">*</span>
+                                <label className="text-sm font-medium text-foreground mb-1 block">
+                                    Reason <span className="text-destructive">*</span>
                                 </label>
                                 <input
                                     type="text"
                                     placeholder="Reason (e.g., Christmas)"
                                     value={reason}
-                                    onChange={(e) => {
-                                        setReason(e.target.value);
-                                        if (addError) setAddError('');
-                                    }}
-                                    className={`border rounded-md p-2 w-full ${addError ? 'border-red-400' : ''}`}
+                                    onChange={(e) => { setReason(e.target.value); if (addError) setAddError(''); }}
+                                    className={`border rounded-md p-2 w-full bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring ${addError ? 'border-destructive' : 'border-border'}`}
                                 />
-                                {addError && <p className="text-xs text-red-600 mt-1">{addError}</p>}
+                                {addError && <p className="text-xs text-destructive mt-1">{addError}</p>}
                             </div>
                             <div>
-                                <label className="text-sm font-medium text-gray-700 mb-1 block">Closure</label>
+                                <label className="text-sm font-medium text-foreground mb-1 block">Closure</label>
                                 <select
                                     value={closureType}
                                     onChange={(e) => setClosureType(e.target.value as ClosureType)}
-                                    className="border rounded-md p-2 w-full"
+                                    className="border border-border rounded-md p-2 w-full bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                                 >
                                     <option value="full">Full Day Closed</option>
                                     <option value="lunch">Lunch Closed (Dinner Open)</option>
@@ -266,16 +222,16 @@ export default function SpecialDatesAdmin() {
                                 </select>
                             </div>
                         </div>
-                        <div className="px-5 py-4 border-t flex items-center justify-end gap-2">
+                        <div className="px-5 py-4 border-t border-border flex items-center justify-end gap-2">
                             <button
                                 onClick={() => setIsAddModalOpen(false)}
-                                className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200"
+                                className="px-4 py-2 rounded-md text-sm text-muted-foreground bg-muted hover:bg-muted/80 transition-colors"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleAddDate}
-                                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                                className="px-4 py-2 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                             >
                                 Add Special Date
                             </button>
@@ -284,49 +240,39 @@ export default function SpecialDatesAdmin() {
                 </div>
             )}
 
+            {/* Edit modal */}
             {editingDateId && (
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
                     onClick={cancelEditModal}
                 >
-                    <div
-                        className="bg-white rounded-xl shadow-2xl w-full max-w-lg"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="px-5 py-4 border-b">
-                            <h3 className="text-lg font-semibold text-gray-900">Edit Special Date</h3>
+                    <div className="bg-card rounded-xl border border-border shadow-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+                        <div className="px-5 py-4 border-b border-border">
+                            <h3 className="text-lg font-semibold text-foreground">Edit Special Date</h3>
                         </div>
                         <div className="p-5 space-y-4">
                             <LocalizationProvider dateAdapter={AdapterDateFns}>
-                                <DatePicker
-                                    label="Select Date"
-                                    value={editDate}
-                                    onChange={(date) => setEditDate(date)}
-                                    disablePast
-                                />
+                                <DatePicker label="Select Date" value={editDate} onChange={(d) => setEditDate(d)} disablePast />
                             </LocalizationProvider>
                             <div>
-                                <label className="text-sm font-medium text-gray-700 mb-1 block">
-                                    Reason <span className="text-red-500">*</span>
+                                <label className="text-sm font-medium text-foreground mb-1 block">
+                                    Reason <span className="text-destructive">*</span>
                                 </label>
                                 <input
                                     type="text"
                                     placeholder="Reason (e.g., Christmas)"
                                     value={editReason}
-                                    onChange={(e) => {
-                                        setEditReason(e.target.value);
-                                        if (editError) setEditError('');
-                                    }}
-                                    className={`border rounded-md p-2 w-full ${editError ? 'border-red-400' : ''}`}
+                                    onChange={(e) => { setEditReason(e.target.value); if (editError) setEditError(''); }}
+                                    className={`border rounded-md p-2 w-full bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring ${editError ? 'border-destructive' : 'border-border'}`}
                                 />
-                                {editError && <p className="text-xs text-red-600 mt-1">{editError}</p>}
+                                {editError && <p className="text-xs text-destructive mt-1">{editError}</p>}
                             </div>
                             <div>
-                                <label className="text-sm font-medium text-gray-700 mb-1 block">Closure</label>
+                                <label className="text-sm font-medium text-foreground mb-1 block">Closure</label>
                                 <select
                                     value={editClosureType}
                                     onChange={(e) => setEditClosureType(e.target.value as ClosureType)}
-                                    className="border rounded-md p-2 w-full"
+                                    className="border border-border rounded-md p-2 w-full bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                                 >
                                     <option value="full">Full Day Closed</option>
                                     <option value="lunch">Lunch Closed (Dinner Open)</option>
@@ -334,16 +280,16 @@ export default function SpecialDatesAdmin() {
                                 </select>
                             </div>
                         </div>
-                        <div className="px-5 py-4 border-t flex items-center justify-end gap-2">
+                        <div className="px-5 py-4 border-t border-border flex items-center justify-end gap-2">
                             <button
                                 onClick={cancelEditModal}
-                                className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200"
+                                className="px-4 py-2 rounded-md text-sm text-muted-foreground bg-muted hover:bg-muted/80 transition-colors"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleSaveEdit}
-                                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                                className="px-4 py-2 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                             >
                                 Save Changes
                             </button>
@@ -353,4 +299,4 @@ export default function SpecialDatesAdmin() {
             )}
         </AdminLayout>
     );
-} 
+}

@@ -44,9 +44,10 @@ const DatePickerComponent: React.FC<DatePickerProps> = ({
 
   const handleDaySelect = (selected: Date | undefined) => {
     if (!selected) return;
-    selected.setHours(12, 0, 0, 0);
-    onUpdate(selected, time);
-    onDateChange(selected);
+    const d = new Date(selected);
+    d.setHours(12, 0, 0, 0);
+    onUpdate(d, time);
+    onDateChange(d);
   };
 
   const lunchSlots = availableTimeSlots.filter((s) => s.period === 'lunch');
@@ -59,7 +60,6 @@ const DatePickerComponent: React.FC<DatePickerProps> = ({
           Select Date &amp; Time
         </h2>
 
-        {/* Calendar */}
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden w-full">
           <Calendar
             mode="single"
@@ -67,25 +67,51 @@ const DatePickerComponent: React.FC<DatePickerProps> = ({
             onSelect={handleDaySelect}
             disabled={isDateDisabled}
             fromDate={today}
-            className="w-full [&_.rdp]:w-full [&_.rdp-months]:w-full [&_.rdp-month]:w-full [&_.rdp-table]:w-full [&_.rdp-head_cell]:flex-1 [&_.rdp-cell]:flex-1 [&_.rdp-row]:w-full [&_.rdp-day]:w-full"
+            className="w-full"
             classNames={{
-              months: 'w-full',
-              month: 'w-full',
-              table: 'w-full',
-              head_row: 'flex w-full',
-              head_cell: 'flex-1 text-center text-xs font-medium text-gray-500 py-2',
-              row: 'flex w-full mt-1',
-              cell: 'flex-1 text-center p-0',
-              day: 'w-full h-10 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors mx-auto flex items-center justify-center',
-              day_selected: 'bg-[#A3B18A] text-zinc-900 hover:bg-[#A3B18A] font-semibold',
-              day_today: 'border border-[#A3B18A] text-zinc-900',
-              day_disabled: 'text-gray-300 line-through cursor-not-allowed hover:bg-transparent',
-              day_outside: 'text-gray-300 opacity-40',
-              caption: 'flex justify-center items-center relative py-3 px-4 border-b border-gray-100',
+              months: 'w-full relative flex flex-col gap-4',
+              month: 'w-full flex flex-col gap-4',
+              table: 'w-full border-collapse',
+              month_caption: 'flex h-auto w-full items-center justify-center px-7 py-3 border-b border-gray-100',
               caption_label: 'text-base font-semibold text-gray-900',
-              nav_button: 'absolute h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors',
-              nav_button_previous: 'left-3',
-              nav_button_next: 'right-3',
+              weekdays: 'flex w-full',
+              weekday: 'flex-1 text-center text-xs font-medium text-gray-500 py-2 select-none',
+              week: 'flex w-full mt-1',
+              day: 'relative flex-1 p-0 text-center',
+              today: '',
+              disabled: '',
+              outside: '',
+            }}
+            components={{
+              DayButton: ({ day, modifiers, children, ...buttonProps }) => {
+                const dayDate = day?.date;
+                const isSelected =
+                  !!dayDate &&
+                  dayDate.getFullYear() === date.getFullYear() &&
+                  dayDate.getMonth() === date.getMonth() &&
+                  dayDate.getDate() === date.getDate();
+
+                let cls =
+                  'flex h-10 w-full items-center justify-center rounded-md text-sm font-medium transition-colors focus:outline-none';
+
+                if (isSelected) {
+                  cls += ' bg-[#A3B18A] text-zinc-900 hover:bg-[#A3B18A]';
+                } else if (modifiers?.disabled) {
+                  cls += ' text-gray-400 line-through pointer-events-none select-none';
+                } else if (modifiers?.outside) {
+                  cls += ' text-gray-300 opacity-40 hover:bg-gray-50';
+                } else if (modifiers?.today) {
+                  cls += ' border border-[#A3B18A] text-zinc-900 hover:bg-gray-50';
+                } else {
+                  cls += ' text-gray-900 hover:bg-gray-100';
+                }
+
+                return (
+                  <button {...buttonProps} className={cls}>
+                    {children}
+                  </button>
+                );
+              },
             }}
           />
         </div>

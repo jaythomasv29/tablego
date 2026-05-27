@@ -158,13 +158,15 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
               <span>Full Name</span>
             </div>
           </label>
-          <input
-            type="text"
-            value={formData.name}
-            onChange={(e) => onUpdate({ name: e.target.value })}
-            placeholder="John Doe"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
-          />
+          <div className="flex items-center w-full border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => onUpdate({ name: e.target.value })}
+              placeholder="John Doe"
+              className="w-full px-3 py-2 border-0 bg-white focus:outline-none"
+            />
+          </div>
         </div>
 
         <div>
@@ -174,13 +176,15 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
               <span>Email</span>
             </div>
           </label>
-          <input
-            type="email"
-            value={formData.email}
-            onChange={(e) => onUpdate({ email: e.target.value })}
-            placeholder="john@example.com"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
-          />
+          <div className="flex items-center w-full border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => onUpdate({ email: e.target.value })}
+              placeholder="john@example.com"
+              className="w-full px-3 py-2 border-0 bg-white focus:outline-none"
+            />
+          </div>
         </div>
 
         <div>

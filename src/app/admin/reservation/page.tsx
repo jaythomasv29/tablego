@@ -8,7 +8,7 @@ import AdminLayout from '@/components/AdminLayout';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-import { Calendar as CalendarIcon, Check, ChevronsUpDown, Users, Calendar, Clock, Mail, Edit, MessageSquare } from 'lucide-react';
+import { Calendar as CalendarIcon, Check, ChevronsUpDown, Users, Calendar, Clock, Mail, Edit } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Toaster } from 'react-hot-toast';
 
@@ -191,16 +191,16 @@ const isDateInFutureUTC = (date: Timestamp | string) => {
 
 // First, add or update the getStatusBadge function
 const getStatusBadge = (status: string, isPassed: boolean) => {
-    if (isPassed) return 'bg-gray-100 text-gray-600';
+    if (isPassed) return 'bg-muted text-muted-foreground';
     switch (status?.toLowerCase()) {
         case 'confirmed':
             return 'bg-green-100 text-green-800';
         case 'cancelled':
             return 'bg-red-100 text-red-800';
         case 'pending':
-            return 'bg-yellow-100 text-yellow-800';
+            return 'bg-muted text-foreground';
         default:
-            return 'bg-gray-100 text-gray-800';
+            return 'bg-muted text-foreground';
     }
 };
 
@@ -501,7 +501,7 @@ export default function ReservationAdminPage() {
 
     // Modify the getStatusBadge function
     const getStatusBadge = (status: string, isPassed: boolean) => {
-        if (isPassed) return 'bg-gray-100 text-gray-600';
+        if (isPassed) return 'bg-muted text-muted-foreground';
         if (status === 'cancelled') return 'bg-red-100 text-red-800';
         return ''; // Return empty string for other statuses
     };
@@ -643,54 +643,13 @@ export default function ReservationAdminPage() {
         setReservations(updatedReservations);
     };
 
-    const handleSendSMS = async (reservation: Reservation) => {
-        if (reservation.smsSent) {
-            toast.error('SMS reminder already sent');
-            return;
-        }
-
-        const toastId = `sms-${reservation.id}`;
-        try {
-            toast.loading('Sending SMS…', { id: toastId });
-            const dateToSend = typeof reservation.date === 'string'
-                ? reservation.date
-                : reservation.date?.toDate?.()?.toISOString() ?? '';
-
-            const response = await fetch('/api/send-sms', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    reservationId: reservation.id,
-                    phone: reservation.phone,
-                    name: reservation.name,
-                    date: dateToSend,
-                    time: reservation.time,
-                    guests: reservation.guests,
-                }),
-            });
-
-            if (!response.ok) throw new Error('Failed to send SMS');
-
-            setReservations(prev =>
-                prev.map(r =>
-                    r.id === reservation.id
-                        ? { ...r, smsSent: true, smsSentAt: Timestamp.now() }
-                        : r
-                )
-            );
-            toast.success('SMS sent successfully', { id: toastId });
-        } catch (error) {
-            console.error('Error sending SMS:', error);
-            toast.error('Failed to send SMS', { id: toastId });
-        }
-    };
 
     const getReservationBorderClass = (reservation: Reservation) => {
         if (reservation.status?.toLowerCase() === 'cancelled') return 'border-red-500';
         if (reservation.attendanceStatus === 'show') return 'border-green-500';
         if (reservation.attendanceStatus === 'no-show') return 'border-orange-500';
-        if (viewMode === 'today' && isReservationPassed(reservation.time)) return 'border-gray-400';
-        return 'border-blue-400';
+        if (viewMode === 'today' && isReservationPassed(reservation.time)) return 'border-border';
+        return 'border-border';
     };
 
     const getReminderLabel = (reservation: Reservation) => {
@@ -701,7 +660,10 @@ export default function ReservationAdminPage() {
 
     const renderReservationCard = (reservation: Reservation) => {
         const isCancelled = reservation.status?.toLowerCase() === 'cancelled';
-        const canSend = canSendReminder(reservation);
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: timezone });
+        const reservationDate = getLocalDateStringHelper(reservation.date, timezone);
+        const isPast = reservationDate < today || (reservationDate === today && isReservationPassed(reservation.time));
+        const canSend = canSendReminder(reservation) && !isPast;
         const isSelected = selectedReservations.has(reservation.id);
         const [displayTime, displayPeriod] = reservation.time?.split(' ') ?? [reservation.time, ''];
         const isTodayCompact = viewMode === 'today';
@@ -709,13 +671,13 @@ export default function ReservationAdminPage() {
         return (
             <div
                 key={reservation.id}
-                className={`bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-200 border-l-4 ${getReservationBorderClass(reservation)}`}
+                className={`bg-card rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-200 border-l-4 ${getReservationBorderClass(reservation)}`}
             >
                 <div className="p-0">
                     <div className="flex items-stretch">
-                        <div className={`${isTodayCompact ? 'w-20 sm:w-24 px-1.5' : 'w-28 sm:w-32 px-2'} border-r flex items-center justify-center ${isCancelled ? 'bg-red-50' : 'bg-gray-50'}`}>
+                        <div className={`${isTodayCompact ? 'w-20 sm:w-24 px-1.5' : 'w-28 sm:w-32 px-2'} border-r flex items-center justify-center ${isCancelled ? 'bg-red-50' : 'bg-muted/50'}`}>
                             <div className="text-center leading-none">
-                                <div className={`${isTodayCompact ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl'} font-black tracking-tight ${isCancelled ? 'text-red-300 line-through' : 'text-gray-900'}`}>
+                                <div className={`${isTodayCompact ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl'} font-black tracking-tight ${isCancelled ? 'text-red-300 line-through' : 'text-foreground'}`}>
                                     {displayTime}
                                 </div>
                                 {isCancelled ? (
@@ -723,7 +685,7 @@ export default function ReservationAdminPage() {
                                         Cancelled
                                     </div>
                                 ) : displayPeriod && (
-                                    <div className="text-[11px] sm:text-xs font-semibold text-gray-500 mt-1 tracking-wide">
+                                    <div className="text-[11px] sm:text-xs font-semibold text-muted-foreground mt-1 tracking-wide">
                                         {displayPeriod}
                                     </div>
                                 )}
@@ -733,16 +695,16 @@ export default function ReservationAdminPage() {
                         <div className={`flex-1 ${isTodayCompact ? 'p-3' : 'p-4'}`}>
                             <div className={`flex items-start justify-between ${isTodayCompact ? 'gap-2 mb-1.5' : 'gap-3 mb-2'}`}>
                                 <div className="min-w-0">
-                                    <h3 className={`font-semibold text-gray-900 truncate ${isTodayCompact ? 'text-sm' : ''}`}>{reservation.name}</h3>
-                                    <div className={`flex flex-wrap items-center gap-2 ${isTodayCompact ? 'mt-0.5 text-xs' : 'mt-1 text-sm'} text-gray-600`}>
+                                    <h3 className={`font-semibold text-foreground truncate ${isTodayCompact ? 'text-sm' : ''}`}>{reservation.name}</h3>
+                                    <div className={`flex flex-wrap items-center gap-2 ${isTodayCompact ? 'mt-0.5 text-xs' : 'mt-1 text-sm'} text-muted-foreground`}>
                                         <span className="flex items-center">
-                                            <Calendar className="w-3.5 h-3.5 mr-1 text-gray-400" />
+                                            <Calendar className="w-3.5 h-3.5 mr-1 text-muted-foreground" />
                                             {formatReadableDatePST(reservation.date, timezone)}
                                         </span>
-                                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5">
-                                            <Users className="w-3.5 h-3.5 text-blue-500" />
-                                            <span className="text-base leading-none font-bold text-blue-700">{reservation.guests}</span>
-                                            <span className="text-[11px] font-medium text-blue-600">{reservation.guests === 1 ? 'guest' : 'guests'}</span>
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-muted border border-border px-2 py-0.5">
+                                            <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                                            <span className="text-base leading-none font-bold text-foreground">{reservation.guests}</span>
+                                            <span className="text-[11px] font-medium text-muted-foreground">{reservation.guests === 1 ? 'guest' : 'guests'}</span>
                                         </span>
                                     </div>
                                 </div>
@@ -754,7 +716,7 @@ export default function ReservationAdminPage() {
                                             onChange={() => toggleReservationSelection(reservation.id)}
                                             disabled={!canSend}
                                             title={canSend ? 'Select for reminder' : 'Reminder already sent'}
-                                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                            className="w-4 h-4 rounded border-border text-primary focus:ring-ring"
                                         />
                                     )}
                                     <Badge variant={isCancelled ? 'destructive' : reservation.status === 'Confirmed' ? 'success' : 'warning'}>
@@ -768,9 +730,9 @@ export default function ReservationAdminPage() {
                                 </div>
                             </div>
 
-                            <div className={`flex flex-wrap ${isTodayCompact ? 'gap-x-4 text-xs mb-2' : 'gap-x-5 text-sm mb-3'} gap-y-1 text-gray-600`}>
+                            <div className={`flex flex-wrap ${isTodayCompact ? 'gap-x-4 text-xs mb-2' : 'gap-x-5 text-sm mb-3'} gap-y-1 text-muted-foreground`}>
                                 <span className="flex items-center gap-1.5">
-                                    <svg className="w-3.5 h-3.5 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-3.5 h-3.5 mr-1 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                     </svg>
                                     {reservation.phone}
@@ -781,31 +743,25 @@ export default function ReservationAdminPage() {
                                     )}
                                 </span>
                                 <span className="flex items-center">
-                                    <Mail className="w-3.5 h-3.5 mr-1 text-gray-400" />
+                                    <Mail className="w-3.5 h-3.5 mr-1 text-muted-foreground" />
                                     <span className={`truncate ${isTodayCompact ? 'max-w-[220px]' : 'max-w-[320px]'}`}>{reservation.email}</span>
                                 </span>
                             </div>
 
-                            <div className={`flex flex-wrap ${isTodayCompact ? 'gap-x-4 text-[11px] mb-2' : 'gap-x-5 text-xs mb-3'} gap-y-1 text-gray-500`}>
+                            <div className={`flex flex-wrap ${isTodayCompact ? 'gap-x-4 text-[11px] mb-2' : 'gap-x-5 text-xs mb-3'} gap-y-1 text-muted-foreground`}>
                                 <span className="flex items-center">
-                                    <CalendarIcon className="w-3.5 h-3.5 mr-1 text-gray-400" />
+                                    <CalendarIcon className="w-3.5 h-3.5 mr-1 text-muted-foreground" />
                                     Reservation made: {reservation.createdAt ? formatDateTime(reservation.createdAt) : 'N/A'}
                                 </span>
-                                <span className={`flex items-center ${reservation.reminderSent ? 'text-green-600' : 'text-amber-600'}`}>
+                                <span className={`flex items-center ${reservation.reminderSent ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
                                     <Mail className="w-3.5 h-3.5 mr-1" />
                                     Reminder: {getReminderLabel(reservation)}
-                                </span>
-                                <span className={`flex items-center ${reservation.smsSent ? 'text-green-600' : 'text-gray-400'}`}>
-                                    <MessageSquare className="w-3.5 h-3.5 mr-1" />
-                                    SMS: {reservation.smsSent
-                                        ? (reservation.smsSentAt ? `Sent ${formatTimeAgo(reservation.smsSentAt.toDate())}` : 'Sent')
-                                        : 'Not sent'}
                                 </span>
                             </div>
 
                             {reservation.comments && (
-                                <div className={`${isTodayCompact ? 'text-xs p-2 mb-2' : 'text-sm p-2.5 mb-3'} text-gray-700 bg-yellow-50 border border-yellow-200 rounded-md`}>
-                                    <span className="font-medium text-xs text-yellow-800 mr-1">Notes:</span>
+                                <div className={`${isTodayCompact ? 'text-xs p-2 mb-2' : 'text-sm p-2.5 mb-3'} text-muted-foreground [background:var(--muted)] border [border-color:var(--border)] rounded-md`}>
+                                    <span className="font-medium text-xs text-foreground mr-1">Notes:</span>
                                     {reservation.comments}
                                 </div>
                             )}
@@ -816,7 +772,7 @@ export default function ReservationAdminPage() {
                                         size="sm"
                                         variant="outline"
                                         className={cn(
-                                            `bg-white border-gray-200 ${isTodayCompact ? 'h-7 px-2 text-xs' : ''}`,
+                                            `bg-card border-border ${isTodayCompact ? 'h-7 px-2 text-xs' : ''}`,
                                             reservation.attendanceStatus === 'show'
                                                 ? "text-green-800 bg-green-50 border-green-200"
                                                 : "hover:bg-green-50 hover:text-green-800"
@@ -829,7 +785,7 @@ export default function ReservationAdminPage() {
                                         size="sm"
                                         variant="outline"
                                         className={cn(
-                                            `bg-white border-gray-200 ${isTodayCompact ? 'h-7 px-2 text-xs' : ''}`,
+                                            `bg-card border-border ${isTodayCompact ? 'h-7 px-2 text-xs' : ''}`,
                                             reservation.attendanceStatus === 'no-show'
                                                 ? "text-red-800 bg-red-50 border-red-200"
                                                 : "hover:bg-red-50 hover:text-red-800"
@@ -845,22 +801,11 @@ export default function ReservationAdminPage() {
                                         onClick={() => handleSendReminder(reservation)}
                                         disabled={!canSend}
                                         variant="outline"
-                                        className={`bg-white hover:bg-gray-50 ${isTodayCompact ? 'h-7 px-2 text-xs' : ''}`}
+                                        className={`bg-card hover:bg-muted/50 ${isTodayCompact ? 'h-7 px-2 text-xs' : ''}`}
                                         title={canSend ? 'Send reservation reminder email' : 'Reminder already sent'}
                                     >
                                         <Mail className="w-4 h-4 mr-1" />
                                         {canSend ? 'Send Reminder' : 'Reminder Sent'}
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        onClick={() => handleSendSMS(reservation)}
-                                        disabled={!!reservation.smsSent}
-                                        variant="outline"
-                                        className={`bg-white hover:bg-gray-50 ${isTodayCompact ? 'h-7 px-2 text-xs' : ''}`}
-                                        title={reservation.smsSent ? 'SMS already sent' : 'Send SMS reminder'}
-                                    >
-                                        <MessageSquare className="w-4 h-4 mr-1" />
-                                        {reservation.smsSent ? 'SMS Sent' : 'Send SMS'}
                                     </Button>
                                 </div>
                             </div>
@@ -900,10 +845,10 @@ export default function ReservationAdminPage() {
                         const monthReservations = reservationsByMonth[monthYear];
                         return (
                             <div key={monthYear} className="space-y-2">
-                                <div className="bg-blue-50 px-4 py-2 rounded-md font-medium text-blue-700 flex items-center border-l-4 border-blue-500">
+                                <div className="bg-muted/50 px-4 py-2 rounded-md font-medium text-foreground flex items-center border-l-4 border-border">
                                     <Calendar className="w-5 h-5 mr-2" />
                                     <span className="text-lg">{monthYear}</span>
-                                    <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">
+                                    <span className="ml-2 bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-full">
                                         {monthReservations.length} {monthReservations.length === 1 ? 'reservation' : 'reservations'}
                                     </span>
                                 </div>
@@ -924,10 +869,10 @@ export default function ReservationAdminPage() {
 
     return (
         <AdminLayout>
-            <div className="p-4 sm:p-6 bg-gray-100 min-h-screen">
+            <div className="p-4 sm:p-6 bg-muted min-h-screen">
                 <Link
                     href="/admin/home"
-                    className="inline-flex items-center mb-4 text-gray-600 hover:text-gray-800"
+                    className="inline-flex items-center mb-4 text-muted-foreground hover:text-foreground"
                 >
                     <svg
                         className="w-6 h-6 mr-2"
@@ -944,64 +889,42 @@ export default function ReservationAdminPage() {
                     </svg>
                     Back to Dashboard
                 </Link>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-4 text-center text-gray-800">
+                <h1 className="text-2xl sm:text-3xl font-bold mb-4 text-center text-foreground">
                     Reservation Overview
                 </h1>
 
                 {/* Current Time in Restaurant's Timezone */}
                 <div className="mb-6 flex justify-center">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-sm border border-gray-200">
-                        <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-card rounded-lg shadow-sm border border-border">
+                        <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <div className="text-sm">
-                            <span className="text-gray-500">Current time in </span>
-                            <span className="font-medium text-gray-700">{getTimezoneLabel(timezone)}</span>
-                            <span className="text-gray-500">: </span>
-                            <span className="font-medium text-gray-900">{currentTimeDisplay}</span>
+                            <span className="text-muted-foreground">Current time in </span>
+                            <span className="font-medium text-muted-foreground">{getTimezoneLabel(timezone)}</span>
+                            <span className="text-muted-foreground">: </span>
+                            <span className="font-medium text-foreground">{currentTimeDisplay}</span>
                         </div>
                     </div>
                 </div>
 
                 {/* View Mode Selector */}
-                <div className="mb-6">
-                    <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
+                <div className="mb-6 flex flex-wrap justify-center gap-1.5">
+                    {(['past', 'yesterday', 'today', 'tomorrow', 'future'] as const).map((mode) => (
                         <button
-                            className={`px-3 sm:px-5 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base 
-                                ${viewMode === 'past' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}
-                            onClick={() => setViewMode('past')}
+                            key={mode}
+                            onClick={() => setViewMode(mode)}
+                            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors duration-150 capitalize
+                                ${viewMode === mode
+                                    ? '[background:var(--foreground)] [color:var(--background)]'
+                                    : '[background:var(--muted)] [color:var(--muted-foreground)] hover:[color:var(--foreground)]'
+                                }`}
                         >
-                            Past
+                            {mode === 'yesterday' ? 'Yesterday' :
+                             mode === 'tomorrow' ? 'Tomorrow' :
+                             mode.charAt(0).toUpperCase() + mode.slice(1)}
                         </button>
-                        <button
-                            className={`px-3 sm:px-5 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base 
-                                ${viewMode === 'yesterday' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}
-                            onClick={() => setViewMode('yesterday')}
-                        >
-                            Yesterday
-                        </button>
-                        <button
-                            className={`px-3 sm:px-5 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base 
-                                ${viewMode === 'today' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}
-                            onClick={() => setViewMode('today')}
-                        >
-                            Today
-                        </button>
-                        <button
-                            className={`px-3 sm:px-5 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base 
-                                ${viewMode === 'tomorrow' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}
-                            onClick={() => setViewMode('tomorrow')}
-                        >
-                            Tomorrow
-                        </button>
-                        <button
-                            className={`px-3 sm:px-5 py-2 rounded-lg shadow-md transition-colors duration-300 text-sm sm:text-base 
-                                ${viewMode === 'future' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}
-                            onClick={() => setViewMode('future')}
-                        >
-                            Future
-                        </button>
-                    </div>
+                    ))}
                 </div>
 
                 {/* Search Input - Only show for past reservations */}
@@ -1014,11 +937,11 @@ export default function ReservationAdminPage() {
                                     placeholder="Search by customer name..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full px-4 py-2 pl-10 pr-4 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    className="w-full px-4 py-2 pl-10 pr-4 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
                                 />
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <svg
-                                        className="h-5 w-5 text-gray-400"
+                                        className="h-5 w-5 text-muted-foreground"
                                         fill="none"
                                         stroke="currentColor"
                                         viewBox="0 0 24 24"
@@ -1044,7 +967,7 @@ export default function ReservationAdminPage() {
                             onClick={toggleSelectionMode}
                             className={`px-4 py-2 rounded-lg transition-colors ${isSelectionMode
                                 ? 'bg-gray-600 text-white'
-                                : 'bg-white text-gray-600 border border-gray-300'
+                                : 'bg-card text-muted-foreground border border-border'
                                 }`}
                         >
                             {isSelectionMode ? 'Cancel Selection' : 'Select Multiple'}
@@ -1053,7 +976,7 @@ export default function ReservationAdminPage() {
                         {isSelectionMode && selectedReservations.size > 0 && (
                             <button
                                 onClick={handleBatchReminder}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
+                                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 
                                          transition-colors flex items-center gap-2"
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1070,8 +993,8 @@ export default function ReservationAdminPage() {
 
                 {/* No Results Message */}
                 {!loading && filteredReservations.length === 0 && (
-                    <div className="text-center py-8 bg-white rounded-lg shadow-md">
-                        <p className="text-gray-600 text-base">
+                    <div className="text-center py-8 bg-card rounded-lg shadow-md">
+                        <p className="text-muted-foreground text-base">
                             {searchTerm
                                 ? `No reservations found for "${searchTerm}"`
                                 : 'No reservations found for this period.'

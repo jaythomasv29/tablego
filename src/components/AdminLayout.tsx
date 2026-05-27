@@ -61,16 +61,16 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     };
 
     return (
-        <div className="h-screen bg-gray-100 dark:bg-gray-900 flex overflow-hidden">
+        <div className="h-screen bg-background flex overflow-hidden">
             {isSidebarVisible && <AdminSideBar />}
             <div className="flex-1 flex flex-col">
                 {/* Top bar */}
-                <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex items-center justify-between">
+                <div className="bg-card border-b border-border px-4 py-2 flex items-center justify-between">
                     <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => setIsSidebarVisible(prev => !prev)}
-                        className="flex items-center gap-2 text-gray-700 dark:text-gray-300"
+                        className="flex items-center gap-2 text-muted-foreground"
                         title={isSidebarVisible ? 'Hide sidebar navigation' : 'Show sidebar navigation'}
                     >
                         {isSidebarVisible ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
@@ -83,7 +83,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-                                className="flex items-center gap-2 text-gray-700 dark:text-gray-300"
+                                className="flex items-center gap-2 text-muted-foreground"
                                 title="Toggle dark mode"
                             >
                                 {resolvedTheme === 'dark' ? (
@@ -99,7 +99,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                             size="sm"
                             onClick={forceRefresh}
                             disabled={isRefreshing}
-                            className="flex items-center gap-2 text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950"
+                            className="flex items-center gap-2 text-muted-foreground"
                             title="Force refresh page (Ctrl+Shift+R)"
                         >
                             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />

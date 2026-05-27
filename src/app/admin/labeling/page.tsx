@@ -601,13 +601,13 @@ export default function LabelingPage() {
       <style>{TENT_CSS}</style>
 
       {/* ── Screen UI ──────────────────────────────────────────── */}
-      <div className="print:hidden flex flex-col p-4 sm:p-6 bg-gray-50 min-h-screen">
+      <div className="print:hidden flex flex-col p-4 sm:p-6 bg-muted/50 min-h-screen">
 
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Food Label Maker</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <h1 className="text-2xl font-bold text-foreground">Food Label Maker</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
               3.5″ × 2″ folded tent cards · 4 per page
             </p>
           </div>
@@ -638,11 +638,11 @@ export default function LabelingPage() {
               className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors text-left ${
                 labelStyle === value
                   ? 'border-gray-900 bg-gray-900 text-white'
-                  : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400'
+                  : 'border-border bg-card text-muted-foreground hover:border-gray-400'
               }`}
             >
               {label}
-              <span className={`block text-[11px] font-normal mt-0.5 ${labelStyle === value ? 'text-gray-300' : 'text-gray-400'}`}>
+              <span className={`block text-[11px] font-normal mt-0.5 ${labelStyle === value ? 'text-gray-300' : 'text-muted-foreground'}`}>
                 {sub}
               </span>
             </button>
@@ -653,32 +653,32 @@ export default function LabelingPage() {
         <div className="flex gap-4" style={{ minHeight: 560 }}>
 
           {/* Left: item checklist */}
-          <div className="w-72 flex-shrink-0 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-              <span className="text-sm font-semibold text-gray-700">
+          <div className="w-72 flex-shrink-0 bg-card rounded-xl border border-border flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <span className="text-sm font-semibold text-muted-foreground">
                 Menu Items
                 {labelEntries.length > 0 && (
-                  <span className="ml-2 text-xs font-normal text-blue-600">{labelEntries.length} card{labelEntries.length !== 1 ? 's' : ''}</span>
+                  <span className="ml-2 text-xs font-normal text-primary">{labelEntries.length} card{labelEntries.length !== 1 ? 's' : ''}</span>
                 )}
               </span>
               {labelEntries.length > 0 && (
-                <button onClick={() => setLabelEntries([])} className="text-xs text-gray-400 hover:text-gray-700 transition-colors">
+                <button onClick={() => setLabelEntries([])} className="text-xs text-muted-foreground hover:text-muted-foreground transition-colors">
                   Clear all
                 </button>
               )}
             </div>
 
             {/* Add custom item */}
-            <div className="border-b border-gray-100">
+            <div className="border-b border-border">
               <div className="px-3 py-2.5 space-y-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Add Custom Item</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Add Custom Item</p>
                 <input
                   type="text"
                   placeholder="Item name *"
                   value={customName}
                   onChange={e => setCustomName(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && addCustomItem()}
-                  className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 placeholder:text-gray-400"
+                  className="w-full px-3 py-1.5 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 placeholder:text-muted-foreground"
                 />
                 <input
                   type="text"
@@ -686,7 +686,7 @@ export default function LabelingPage() {
                   value={customDesc}
                   onChange={e => setCustomDesc(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && addCustomItem()}
-                  className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 placeholder:text-gray-400"
+                  className="w-full px-3 py-1.5 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 placeholder:text-muted-foreground"
                 />
                 <button
                   onClick={addCustomItem}
@@ -699,20 +699,20 @@ export default function LabelingPage() {
             </div>
 
             {/* Search */}
-            <div className="px-3 py-2.5 border-b border-gray-100">
+            <div className="px-3 py-2.5 border-b border-border">
               <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Search items…"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className="w-full pl-8 pr-7 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent placeholder:text-gray-400"
+                  className="w-full pl-8 pr-7 py-1.5 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent placeholder:text-muted-foreground"
                 />
                 {search && (
                   <button
                     onClick={() => setSearch('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -722,9 +722,9 @@ export default function LabelingPage() {
 
             <div className="flex-1 overflow-y-auto">
               {loading ? (
-                <div className="flex items-center justify-center h-40 text-sm text-gray-400">Loading…</div>
+                <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">Loading…</div>
               ) : groups.length === 0 ? (
-                <div className="flex items-center justify-center h-40 text-sm text-gray-400">
+                <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">
                   {search ? `No items matching "${search}"` : 'No items found'}
                 </div>
               ) : (
@@ -733,16 +733,16 @@ export default function LabelingPage() {
                   const isCollapsed = collapsed.has(category);
                   return (
                     <div key={category} className="border-b border-gray-50 last:border-0">
-                      <div className="flex items-center justify-between px-4 py-2 bg-gray-50/80">
+                      <div className="flex items-center justify-between px-4 py-2 bg-muted/50/80">
                         <button
                           onClick={() => toggleCollapse(category)}
-                          className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-800 transition-colors"
+                          className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
                         >
                           {isCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                           {category}
-                          <span className="font-normal text-gray-400 ml-0.5">({items.length})</span>
+                          <span className="font-normal text-muted-foreground ml-0.5">({items.length})</span>
                         </button>
-                        <button onClick={() => toggleGroup(items)} className="text-[11px] text-blue-600 hover:text-blue-800 font-medium transition-colors">
+                        <button onClick={() => toggleGroup(items)} className="text-[11px] text-primary hover:text-primary/80 font-medium transition-colors">
                           {allOn ? 'Clear' : 'All'}
                         </button>
                       </div>
@@ -751,17 +751,17 @@ export default function LabelingPage() {
                         const isChecked = itemEntries.length > 0;
                         return (
                           <div key={item.id} className="border-b border-gray-50/60 last:border-0">
-                            <label className="flex items-start gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer">
+                            <label className="flex items-start gap-3 px-4 py-2.5 hover:bg-muted/50 cursor-pointer">
                               <input
                                 type="checkbox"
                                 checked={isChecked}
                                 onChange={() => toggle(item.id)}
-                                className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-gray-300 text-gray-900 cursor-pointer"
+                                className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-border text-foreground cursor-pointer"
                               />
                               <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium text-gray-800 leading-tight">{item.name}</p>
+                                <p className="text-sm font-medium text-foreground leading-tight">{item.name}</p>
                                 {item.description && (
-                                  <p className="text-xs text-gray-400 mt-0.5 line-clamp-2 leading-snug">{item.description}</p>
+                                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-snug">{item.description}</p>
                                 )}
                               </div>
                               {customIdSet.has(item.id) && (
@@ -783,7 +783,7 @@ export default function LabelingPage() {
                                   <div key={entry.instanceId} className="space-y-1.5">
                                     {itemEntries.length > 1 && (
                                       <div className="flex items-center justify-between">
-                                        <span className="text-[10px] text-gray-400 font-medium">
+                                        <span className="text-[10px] text-muted-foreground font-medium">
                                           Card {idx + 1}{entry.protein ? ` · ${entry.protein}` : ''}
                                         </span>
                                         <button
@@ -804,7 +804,7 @@ export default function LabelingPage() {
                                           className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
                                             entry.protein === p
                                               ? 'bg-gray-900 text-white border-gray-900'
-                                              : 'border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700'
+                                              : 'border-border text-muted-foreground hover:border-gray-400 hover:text-muted-foreground'
                                           }`}
                                         >
                                           {p}
@@ -816,7 +816,7 @@ export default function LabelingPage() {
                                 <button
                                   type="button"
                                   onClick={() => addInstance(item.id)}
-                                  className="text-[10px] text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                                  className="text-[10px] text-primary hover:text-primary/80 font-medium transition-colors"
                                 >
                                   + Add another protein
                                 </button>
@@ -834,11 +834,11 @@ export default function LabelingPage() {
           </div>
 
           {/* Right: preview */}
-          <div className="flex-1 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
-            <div className="flex items-center px-4 py-3 border-b border-gray-100">
-              <span className="text-sm font-semibold text-gray-700">Preview</span>
+          <div className="flex-1 bg-card rounded-xl border border-border flex flex-col overflow-hidden">
+            <div className="flex items-center px-4 py-3 border-b border-border">
+              <span className="text-sm font-semibold text-muted-foreground">Preview</span>
               {labelEntries.length > 0 && (
-                <span className="ml-2 text-xs text-gray-400">
+                <span className="ml-2 text-xs text-muted-foreground">
                   {labelEntries.length} card{labelEntries.length !== 1 ? 's' : ''} · {pages.length} page{pages.length !== 1 ? 's' : ''}
                 </span>
               )}
@@ -846,19 +846,19 @@ export default function LabelingPage() {
 
             {labelEntries.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                  <Printer className="w-6 h-6 text-gray-400" />
+                <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3">
+                  <Printer className="w-6 h-6 text-muted-foreground" />
                 </div>
-                <p className="text-sm font-medium text-gray-600">No items selected</p>
-                <p className="text-xs text-gray-400 mt-1 max-w-[200px]">
+                <p className="text-sm font-medium text-muted-foreground">No items selected</p>
+                <p className="text-xs text-muted-foreground mt-1 max-w-[200px]">
                   Check items on the left to preview tent cards
                 </p>
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto bg-gray-100 p-5 space-y-5">
+              <div className="flex-1 overflow-y-auto bg-muted p-5 space-y-5">
                 {pages.map((group, pi) => (
                   <div key={pi}>
-                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">
+                    <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
                       Page {pi + 1}
                     </p>
                     <div className="grid grid-cols-2 gap-2">
@@ -881,8 +881,8 @@ export default function LabelingPage() {
                                 onClick={() => setEditingInstanceId(isEditing ? null : entry.instanceId)}
                                 className={`absolute top-1.5 right-1.5 p-1 rounded-md transition-all ${
                                   isEditing
-                                    ? 'bg-blue-600 text-white opacity-100'
-                                    : 'bg-white/80 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-blue-600'
+                                    ? 'bg-primary text-white opacity-100'
+                                    : 'bg-card/80 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-primary'
                                 }`}
                                 title={isEditing ? 'Done editing' : 'Edit label text'}
                               >
@@ -897,14 +897,14 @@ export default function LabelingPage() {
                                   value={entry.customName ?? item.name}
                                   onChange={e => updateEntryText(entry.instanceId, 'customName', e.target.value)}
                                   placeholder="Label name"
-                                  className="w-full px-2.5 py-1.5 text-xs border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white"
+                                  className="w-full px-2.5 py-1.5 text-xs border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 bg-card"
                                 />
                                 <textarea
                                   value={entry.customDesc ?? item.description}
                                   onChange={e => updateEntryText(entry.instanceId, 'customDesc', e.target.value)}
                                   placeholder="Description (optional)"
                                   rows={2}
-                                  className="w-full px-2.5 py-1.5 text-xs border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white resize-none"
+                                  className="w-full px-2.5 py-1.5 text-xs border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 bg-card resize-none"
                                 />
                               </div>
                             )}
@@ -914,7 +914,7 @@ export default function LabelingPage() {
                     </div>
                   </div>
                 ))}
-                <p className="text-[11px] text-center text-gray-400 pb-2">
+                <p className="text-[11px] text-center text-muted-foreground pb-2">
                   Fold along the center line · 4 cards per printed page
                 </p>
               </div>

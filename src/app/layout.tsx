@@ -6,7 +6,7 @@ import FloatingContactButton from "@/components/FloatingContactButton";
 import { TimezoneProvider } from "@/contexts/TimezoneContext";
 import Providers from "@/components/Providers";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   title: "Thaiphoon Restaurant - Reservations",
@@ -22,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
         {/* Cache-busting meta tags */}
         <meta
@@ -37,7 +37,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="no" />
         <meta name="format-detection" content="telephone=no" />
       </head>
-      <body className={inter.className} suppressHydrationWarning>
+      <body className="font-sans antialiased" suppressHydrationWarning>
         <Providers>
           <TimezoneProvider>{children}</TimezoneProvider>
         </Providers>

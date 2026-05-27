@@ -64,6 +64,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -108,19 +109,19 @@ interface DashboardMetrics {
 }
 
 // interface Reservation {
-//     id: string;
-//     date: Date;
-//     time: string;
-//     name: string;
-//     guests: number;
-//     phone: string;
-//     email: string;
-//     status: string;
-//     comments?: string;
-//     createdAt?: string;
-//     reminderSent?: boolean;
-//     reminderSentAt?: Timestamp;
-//     marked?: boolean;
+// id: string;
+// date: Date;
+// time: string;
+// name: string;
+// guests: number;
+// phone: string;
+// email: string;
+// status: string;
+// comments?: string;
+// createdAt?: string;
+// reminderSent?: boolean;
+// reminderSentAt?: Timestamp;
+// marked?: boolean;
 // }
 
 interface PendingReservation {
@@ -154,18 +155,18 @@ function MobileNotification({ count, onClose }: MobileNotificationProps) {
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 p-4 md:hidden">
-      <Alert className="bg-yellow-50 border-yellow-400 shadow-lg">
+      <Alert className="bg-card border-border shadow-lg">
         <AlertDescription className="flex items-start justify-between gap-3">
           <div className="flex-1">
-            <p className="text-sm text-yellow-700">
-              You have {count} pending{" "}
-              {count === 1 ? "reservation" : "reservations"} that{" "}
+            <p className="text-sm text-foreground">
+              You have {count} pending{""}
+              {count === 1 ? "reservation" : "reservations"} that{""}
               {count === 1 ? "needs" : "need"} confirmation
             </p>
             <Button
               variant="link"
               size="sm"
-              className="mt-1 h-auto p-0 text-sm font-medium text-yellow-700 hover:text-yellow-600"
+              className="mt-1 h-auto p-0 text-sm font-medium text-muted-foreground hover:text-foreground"
               onClick={() => {
                 const element = document.getElementById("pending-reservations");
                 element?.scrollIntoView({ behavior: "smooth" });
@@ -178,7 +179,7 @@ function MobileNotification({ count, onClose }: MobileNotificationProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 flex-shrink-0 text-yellow-500 hover:text-yellow-700 hover:bg-yellow-100"
+            className="h-6 w-6 flex-shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted"
             onClick={onClose}
           >
             <X className="h-4 w-4" />
@@ -250,7 +251,7 @@ const formatReservationCreatedAt = (value: any) => {
 };
 
 const convertTimeToMinutes = (time: string): number => {
-  const [rawTime, period] = time.split(" ");
+  const [rawTime, period] = time.split("");
   let [hours, minutes] = rawTime.split(":").map(Number);
 
   if (period === "PM" && hours !== 12) {
@@ -264,7 +265,7 @@ const convertTimeToMinutes = (time: string): number => {
 
 // Add this helper function
 const isReservationPassed = (reservationTime: string): boolean => {
-  const [time, period] = reservationTime.split(" ");
+  const [time, period] = reservationTime.split("");
   const [hours, minutes] = time.split(":").map(Number);
   const now = new Date();
 
@@ -917,8 +918,8 @@ export default function AdminHome() {
       {
         label: "Page Views",
         data: dailyViews.map((item) => item.views),
-        borderColor: "rgb(59, 130, 246)", // Blue
-        backgroundColor: "rgba(59, 130, 246, 0.5)",
+
+        backgroundColor: "rgba(140, 140, 140, 0.5)",
         tension: 0.3,
       },
     ],
@@ -1017,7 +1018,7 @@ export default function AdminHome() {
 
   // Helper function to convert time to 24-hour format for sorting
   const convertTo24Hour = (time12h: string) => {
-    const [time, modifier] = time12h.split(" ");
+    const [time, modifier] = time12h.split("");
     let [hours, minutes] = time.split(":");
 
     if (hours === "12") {
@@ -1039,9 +1040,9 @@ export default function AdminHome() {
       case "cancelled":
         return "bg-red-100 text-red-800";
       case "pending":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-muted text-foreground";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-muted text-foreground";
     }
   };
 
@@ -1063,8 +1064,8 @@ export default function AdminHome() {
           toastOptions={{
             duration: 3000,
             style: {
-              background: "#363636",
-              color: "#fff",
+              background: "var(--card)",
+              color: "var(--card-foreground)",
               zIndex: 9999,
             },
             className: "sm:max-w-[90vw] md:max-w-md",
@@ -1076,17 +1077,15 @@ export default function AdminHome() {
           }}
         />
         {/* Header */}
-        <div className="mb-8">
-          <div className="p-7 relative bg-white dark:bg-gray-800">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-              Thaiphoon Restaurant
-            </h1>
-            <p className="mt-1 text-gray-600 dark:text-gray-400">
-              Welcome back! Here's what's happening today.
-            </p>
-            <div className="absolute top-4 right-6 opacity-15 pointer-events-none flex">
-              <Utensils className="w-20 h-20 text-gray-400" />
-            </div>
+        <div className="p-7 mb-6 relative bg-card rounded-2xl ring-1 ring-foreground/10">
+          <h1 className="text-3xl font-bold text-foreground">
+            Thaiphoon Restaurant
+          </h1>
+          <p className="mt-1 text-muted-foreground">
+            Welcome back! Here's what's happening today.
+          </p>
+          <div className="absolute top-4 right-6 opacity-15 pointer-events-none flex">
+            <Utensils className="w-20 h-20 text-muted-foreground" />
           </div>
         </div>
 
@@ -1096,7 +1095,7 @@ export default function AdminHome() {
             {(() => {
               const status = getBusinessStatus();
               return (
-                <Card className="mb-6 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                <Card className="mb-6 shadow-sm">
                   <CardContent className="p-4">
                     <div className="flex flex-wrap items-center justify-between gap-4">
                       {/* Status & Time */}
@@ -1105,26 +1104,26 @@ export default function AdminHome() {
                           {status.isOpen ? (
                             <CheckCircle2 className="w-5 h-5 text-green-600" />
                           ) : (
-                            <XCircle className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                            <XCircle className="w-5 h-5 text-muted-foreground" />
                           )}
-                          <span className="font-semibold text-gray-900 dark:text-gray-100">
+                          <span className="font-semibold text-foreground">
                             {status.isOpen ? "Open" : "Closed"}
                           </span>
                           {status.isOpen && status.currentPeriod && (
                             <Badge
                               variant="outline"
-                              className="text-xs text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600"
+                              className="text-xs text-muted-foreground border-border"
                             >
                               {status.currentPeriod}
                             </Badge>
                           )}
                         </div>
-                        <div className="hidden sm:flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 border-l border-gray-200 dark:border-gray-700 pl-4">
+                        <div className="hidden sm:flex items-center gap-1 text-sm text-muted-foreground border-l border-border pl-4">
                           <Clock className="w-4 h-4" />
-                          <span className="font-mono font-medium text-gray-700 dark:text-gray-300">
+                          <span className="font-mono font-medium text-muted-foreground">
                             {currentTimeDisplay}
                           </span>
-                          <span className="text-gray-400">·</span>
+                          <span className="text-muted-foreground">·</span>
                           <span>{currentDateDisplay}</span>
                         </div>
                       </div>
@@ -1133,58 +1132,56 @@ export default function AdminHome() {
                       <div className="flex items-center gap-6 text-sm">
                         <Link
                           href="/admin/reservation"
-                          className="flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 px-2 py-1 rounded transition-colors"
+                          className="flex items-center gap-2 hover:bg-muted/50 px-2 py-1 rounded transition-colors"
                         >
-                          <CalendarDays className="w-4 h-4 text-gray-400" />
-                          <span className="text-gray-500 dark:text-gray-400">
-                            Today
-                          </span>
-                          <span className="font-bold text-gray-900 dark:text-gray-100">
+                          <CalendarDays className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-muted-foreground">Today</span>
+                          <span className="font-bold text-foreground">
                             {metrics.todayReservations}
                           </span>
                         </Link>
                         <div className="flex items-center gap-2">
-                          <TrendingUp className="w-4 h-4 text-gray-400" />
-                          <span className="text-gray-500 dark:text-gray-400 hidden md:inline">
+                          <TrendingUp className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-muted-foreground hidden md:inline">
                             Total
                           </span>
-                          <span className="font-bold text-gray-900 dark:text-gray-100">
+                          <span className="font-bold text-foreground">
                             {metrics.totalReservations}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Users className="w-4 h-4 text-gray-400" />
-                          <span className="text-gray-500 dark:text-gray-400 hidden md:inline">
+                          <Users className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-muted-foreground hidden md:inline">
                             Customers
                           </span>
-                          <span className="font-bold text-gray-900 dark:text-gray-100">
+                          <span className="font-bold text-foreground">
                             {metrics.uniqueCustomers}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <ChefHat className="w-4 h-4 text-gray-400" />
-                          <span className="text-gray-500 dark:text-gray-400 hidden md:inline">
+                          <ChefHat className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-muted-foreground hidden md:inline">
                             Catering
                           </span>
-                          <span className="font-bold text-gray-900 dark:text-gray-100">
+                          <span className="font-bold text-foreground">
                             {metrics.newCatering}
                           </span>
                           {metrics.newCatering > 0 && (
                             <button
                               onClick={markAllCateringRead}
                               disabled={markingAsRead}
-                              className="text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 underline"
+                              className="text-[10px] text-muted-foreground hover:text-muted-foreground underline"
                             >
                               clear
                             </button>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <Download className="w-4 h-4 text-gray-400" />
-                          <span className="text-gray-500 dark:text-gray-400 hidden md:inline">
+                          <Download className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-muted-foreground hidden md:inline">
                             Menu DLs
                           </span>
-                          <span className="font-bold text-gray-900 dark:text-gray-100">
+                          <span className="font-bold text-foreground">
                             {metrics.menuDownloads}
                           </span>
                         </div>
@@ -1193,13 +1190,13 @@ export default function AdminHome() {
 
                     {/* Today's Hours - Inline */}
                     {status.todayHours && (
-                      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                      <div className="mt-3 pt-3 border-t border-border flex items-center gap-2 text-xs text-muted-foreground">
                         <span className="font-medium">Hours:</span>
                         {formatHoursDisplay(status.todayHours).map(
                           (hourStr: string, idx: number) => (
                             <span
                               key={idx}
-                              className="bg-gray-50 dark:bg-gray-700 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300"
+                              className="bg-muted/50 px-2 py-0.5 rounded text-muted-foreground"
                             >
                               {hourStr}
                             </span>
@@ -1213,17 +1210,17 @@ export default function AdminHome() {
             })()}
 
             {/* Today's Reservations - Enhanced Full Width List */}
-            <Card className="mb-6 border border-gray-200 dark:border-gray-700 shadow-sm dark:bg-gray-800">
-              <CardHeader className="py-3 px-4 border-b border-gray-100 dark:border-gray-700">
+            <Card className="mb-6 shadow-sm">
+              <CardHeader className="py-3 px-4 border-b border-border">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <CalendarDays className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                    <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <CalendarDays className="w-4 h-4 text-muted-foreground" />
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
                       Today&apos;s Reservations
                     </CardTitle>
                     <Badge
                       variant="secondary"
-                      className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                      className="text-xs bg-muted text-muted-foreground"
                     >
                       {todaysReservations.length} total
                     </Badge>
@@ -1232,7 +1229,7 @@ export default function AdminHome() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 h-7 px-2 gap-1"
+                      className="text-xs text-muted-foreground hover:text-muted-foreground h-7 px-2 gap-1"
                     >
                       View All <ArrowRightCircle className="w-3 h-3" />
                     </Button>
@@ -1241,7 +1238,7 @@ export default function AdminHome() {
               </CardHeader>
               <CardContent className="p-0">
                 {todaysReservations.length === 0 ? (
-                  <div className="py-8 text-center text-gray-400 dark:text-gray-500 text-sm">
+                  <div className="py-8 text-center text-muted-foreground text-sm">
                     No reservations for today
                   </div>
                 ) : (
@@ -1250,7 +1247,7 @@ export default function AdminHome() {
                       <div
                         key={reservation.id}
                         onClick={() => setSelectedReservation(reservation)}
-                        className={`bg-white dark:bg-gray-750 dark:bg-gray-700 rounded-lg shadow-sm overflow-hidden border-l-4 transition-all duration-200 cursor-pointer hover:shadow-md ${
+                        className={`bg-card rounded-xl overflow-hidden border-l-4 ring-1 ring-foreground/10 transition-all duration-200 cursor-pointer hover:ring-foreground/20 ${
                           reservation.status?.toLowerCase() === "cancelled"
                             ? "border-red-500"
                             : reservation.attendanceStatus === "show"
@@ -1258,27 +1255,27 @@ export default function AdminHome() {
                               : reservation.attendanceStatus === "no-show"
                                 ? "border-orange-500"
                                 : isReservationPassed(reservation.time)
-                                  ? "border-gray-400"
-                                  : "border-blue-400"
+                                  ? "border-border"
+                                  : "border-border"
                         }`}
                       >
                         <div className="flex items-stretch">
                           <div
-                            className={`w-20 sm:w-24 border-r dark:border-gray-600 flex items-center justify-center px-1.5 ${
+                            className={`w-20 sm:w-24 border-r flex items-center justify-center px-1.5 ${
                               reservation.status?.toLowerCase() === "cancelled"
                                 ? "bg-red-50 dark:bg-red-950"
-                                : "bg-gray-50 dark:bg-gray-600"
+                                : "bg-muted/50"
                             }`}
                           >
                             <div className="text-center leading-none">
                               <div
-                                className={`text-2xl sm:text-3xl font-black tracking-tight ${
+                                className={`text-2xl sm:text-3xl font-black tracking-tight whitespace-nowrap ${
                                   reservation.status?.toLowerCase() ===
                                   "cancelled"
                                     ? "text-red-300 line-through"
                                     : isReservationPassed(reservation.time)
-                                      ? "text-gray-400"
-                                      : "text-gray-900 dark:text-gray-100"
+                                      ? "text-muted-foreground"
+                                      : "text-foreground"
                                 }`}
                               >
                                 {reservation.time.split(" ")[0]}
@@ -1289,11 +1286,9 @@ export default function AdminHome() {
                                   Cancelled
                                 </div>
                               ) : (
-                                reservation.time.split(" ")[1] && (
-                                  <div className="text-[11px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 mt-1 tracking-wide">
-                                    {reservation.time.split(" ")[1]}
-                                  </div>
-                                )
+                                <div className="text-[11px] sm:text-xs font-semibold text-muted-foreground mt-1 tracking-wide uppercase">
+                                  {reservation.time.split(" ")[1] ?? ""}
+                                </div>
                               )}
                             </div>
                           </div>
@@ -1301,23 +1296,23 @@ export default function AdminHome() {
                           <div className="flex-1 p-3">
                             <div className="flex items-start justify-between gap-2 mb-1.5">
                               <div className="min-w-0">
-                                <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate text-sm">
+                                <h3 className="font-semibold text-foreground truncate text-sm">
                                   {reservation.name}
                                 </h3>
-                                <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                                <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-muted-foreground">
                                   <span className="flex items-center">
-                                    <Calendar className="w-3.5 h-3.5 mr-1 text-gray-400" />
+                                    <Calendar className="w-3.5 h-3.5 mr-1 text-muted-foreground" />
                                     {formatReadableDatePST(
                                       reservation.date,
                                       timezone,
                                     )}
                                   </span>
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 px-2 py-0.5">
-                                    <Users className="w-3.5 h-3.5 text-blue-500" />
-                                    <span className="text-base leading-none font-bold text-blue-700 dark:text-blue-300">
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-muted border border-border px-2 py-0.5">
+                                    <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                                    <span className="text-base leading-none font-bold text-foreground">
                                       {reservation.guests}
                                     </span>
-                                    <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
+                                    <span className="text-[11px] font-medium text-muted-foreground">
                                       {reservation.guests === 1
                                         ? "guest"
                                         : "guests"}
@@ -1331,10 +1326,10 @@ export default function AdminHome() {
                                     variant="outline"
                                     className={`text-[10px] ${
                                       reservation.status === "confirmed"
-                                        ? "border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950 dark:text-blue-300"
+                                        ? "border-border text-foreground bg-muted"
                                         : reservation.status === "cancelled"
                                           ? "border-red-300 text-red-700 bg-red-50 dark:bg-red-950 dark:text-red-300"
-                                          : "border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-600"
+                                          : "border-border text-muted-foreground bg-muted/50"
                                     }`}
                                   >
                                     {reservation.status === "confirmed"
@@ -1361,9 +1356,9 @@ export default function AdminHome() {
                               </div>
                             </div>
 
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 dark:text-gray-400 mb-2">
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground mb-2">
                               <span className="flex items-center gap-1.5">
-                                <Phone className="w-3.5 h-3.5 text-gray-400" />
+                                <Phone className="w-3.5 h-3.5 text-muted-foreground" />
                                 {reservation.phone}
                                 {reservation.phoneVerified && (
                                   <span className="inline-flex items-center text-[10px] font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded px-1 py-0.5">
@@ -1373,7 +1368,7 @@ export default function AdminHome() {
                               </span>
                               {reservation.email && (
                                 <span className="flex items-center gap-1">
-                                  <Mail className="w-3.5 h-3.5 text-gray-400" />
+                                  <Mail className="w-3.5 h-3.5 text-muted-foreground" />
                                   <span className="truncate max-w-[220px]">
                                     {reservation.email}
                                   </span>
@@ -1381,10 +1376,10 @@ export default function AdminHome() {
                               )}
                             </div>
 
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500 dark:text-gray-400 mb-2">
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground mb-2">
                               <span className="flex items-center">
-                                <CalendarDays className="w-3.5 h-3.5 mr-1 text-gray-400" />
-                                Reservation made:{" "}
+                                <CalendarDays className="w-3.5 h-3.5 mr-1 text-muted-foreground" />
+                                Reservation made:{""}
                                 {formatReservationCreatedAt(
                                   (reservation as any).createdAt,
                                 )}
@@ -1392,12 +1387,12 @@ export default function AdminHome() {
                               <span
                                 className={`flex items-center ${
                                   reservation.reminderSent
-                                    ? "text-green-600 dark:text-green-400"
-                                    : "text-amber-600 dark:text-amber-400"
+                                    ? "text-muted-foreground"
+                                    : "text-muted-foreground"
                                 }`}
                               >
                                 <Mail className="w-3.5 h-3.5 mr-1" />
-                                Reminder:{" "}
+                                Reminder:{""}
                                 {reservation.reminderSent &&
                                 reservation.reminderSentAt
                                   ? `Sent ${formatReminderTime(reservation.reminderSentAt.toDate())}`
@@ -1406,8 +1401,8 @@ export default function AdminHome() {
                             </div>
 
                             {reservation.comments && (
-                              <div className="text-xs text-gray-700 dark:text-gray-300 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 p-2 rounded-md mb-2">
-                                <span className="font-medium text-xs text-yellow-800 dark:text-yellow-300 mr-1">
+                              <div className="text-xs text-muted-foreground bg-muted/50 border border-border p-2 rounded-md mb-2">
+                                <span className="font-medium text-xs text-foreground mr-1">
                                   Notes:
                                 </span>
                                 {reservation.comments}
@@ -1415,7 +1410,7 @@ export default function AdminHome() {
                             )}
 
                             <div
-                              className="flex flex-wrap items-center justify-between gap-1.5 border-t dark:border-gray-600 pt-2"
+                              className="flex flex-wrap items-center justify-between gap-1.5 border-t pt-2"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <div className="flex items-center gap-2">
@@ -1425,7 +1420,7 @@ export default function AdminHome() {
                                   className={`text-xs ${
                                     reservation.attendanceStatus === "show"
                                       ? "text-green-700 bg-green-100 border-green-300"
-                                      : "text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-green-100 dark:hover:bg-green-900 hover:text-green-700"
+                                      : "text-muted-foreground bg-card hover:bg-green-100 dark:hover:bg-green-900 hover:text-green-700"
                                   } h-7 px-2`}
                                   onClick={() =>
                                     handleAttendanceUpdate(
@@ -1445,7 +1440,7 @@ export default function AdminHome() {
                                   className={`text-xs ${
                                     reservation.attendanceStatus === "no-show"
                                       ? "text-orange-700 bg-orange-100 border-orange-300"
-                                      : "text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-orange-100 dark:hover:bg-orange-900 hover:text-orange-700"
+                                      : "text-muted-foreground bg-card hover:bg-orange-100 dark:hover:bg-orange-900 hover:text-orange-700"
                                   } h-7 px-2`}
                                   onClick={() =>
                                     handleAttendanceUpdate(
@@ -1484,20 +1479,17 @@ export default function AdminHome() {
 
             {/* New Bookings Alert - Compact Rows */}
             {pendingReservations.length > 0 && (
-              <Card
-                id="pending-reservations"
-                className="mb-8 border border-gray-200 dark:border-gray-700 shadow-sm dark:bg-gray-800"
-              >
-                <CardHeader className="py-3 px-4 border-b border-gray-100 dark:border-gray-700">
+              <Card id="pending-reservations" className="mb-8 shadow-sm">
+                <CardHeader className="py-3 px-4 border-b border-border">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Bell className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                      <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      <Bell className="w-4 h-4 text-muted-foreground" />
+                      <CardTitle className="text-sm font-medium text-muted-foreground">
                         New Bookings
                       </CardTitle>
                       <Badge
                         variant="secondary"
-                        className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                        className="text-xs bg-muted text-muted-foreground"
                       >
                         {pendingReservations.length} unread
                       </Badge>
@@ -1513,7 +1505,7 @@ export default function AdminHome() {
                           }
                           toast.success(`${count} reservations acknowledged`);
                         }}
-                        className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 h-7 px-2"
+                        className="text-xs text-muted-foreground hover:text-muted-foreground h-7 px-2"
                       >
                         Acknowledge all
                       </Button>
@@ -1521,46 +1513,47 @@ export default function AdminHome() {
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                  <div className="divide-y divide-gray-100 dark:divide-gray-700 max-h-[300px] overflow-y-auto">
+                  <div className="divide-y divide-border max-h-[300px] overflow-y-auto">
                     {pendingReservations.map((reservation) => (
                       <div
                         key={reservation.id}
                         onClick={() => setSelectedReservation(reservation)}
-                        className="flex flex-col px-4 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer group"
+                        className="flex flex-col px-4 py-2.5 hover:bg-muted transition-colors cursor-pointer group"
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 animate-pulse" />
-                            <span className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate">
+                            <div className="w-2 h-2 rounded-full bg-muted-foreground flex-shrink-0 animate-pulse" />
+                            <span className="font-medium text-foreground text-sm truncate">
                               {reservation.name}
                             </span>
-                            <span className="text-gray-400 text-sm hidden sm:inline">
+                            <span className="text-muted-foreground text-sm hidden sm:inline">
                               ·
                             </span>
-                            <span className="text-gray-500 dark:text-gray-400 text-sm hidden sm:inline">
+                            <span className="text-muted-foreground text-sm hidden sm:inline">
                               {reservation.guests} guests
                             </span>
-                            <span className="text-gray-400 text-sm hidden md:inline">
+                            <span className="text-muted-foreground text-sm hidden md:inline">
                               ·
                             </span>
-                            <span className="text-gray-500 dark:text-gray-400 text-sm hidden md:inline">
+                            <span className="text-muted-foreground text-sm hidden md:inline">
                               {reservation.date.toLocaleDateString("en-US", {
                                 month: "short",
                                 day: "numeric",
-                              })}{" "}
+                              })}
+                              {""}
                               at {reservation.time}
                             </span>
                           </div>
                           <div className="flex items-center gap-4 flex-shrink-0">
                             {reservation.createdAt && (
-                              <span className="text-[10px] text-gray-400 hidden lg:inline">
+                              <span className="text-[10px] text-muted-foreground hidden lg:inline">
                                 {formatTimeAgo(new Date(reservation.createdAt))}
                               </span>
                             )}
                             <Button
                               variant="secondary"
                               size="sm"
-                              className="h-7 px-2 text-xs text-gray-500 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-700"
+                              className="h-7 px-2 text-xs text-muted-foreground bg-muted hover:bg-muted hover:text-muted-foreground"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleMarkReservation(reservation.id);
@@ -1572,7 +1565,7 @@ export default function AdminHome() {
                           </div>
                         </div>
                         {reservation.comments && (
-                          <p className="text-xs text-gray-500 dark:text-gray-400 italic ml-5 mt-1 truncate">
+                          <p className="text-xs text-muted-foreground italic ml-5 mt-1 truncate">
                             "{reservation.comments.slice(0, 50)}
                             {reservation.comments.length > 50 ? "..." : ""}"
                           </p>
@@ -1585,11 +1578,11 @@ export default function AdminHome() {
             )}
           </>
         ) : (
-          <Card className="border border-gray-200 dark:border-gray-700 shadow-sm dark:bg-gray-800">
-            <CardHeader className="border-b border-gray-100 dark:border-gray-700">
+          <Card className="shadow-sm">
+            <CardHeader className="border-b border-border">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-xl">
-                  <Mail className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                <div className="p-2 bg-muted rounded-xl">
+                  <Mail className="w-5 h-5 text-muted-foreground" />
                 </div>
                 <div>
                   <CardTitle className="text-xl">Messages</CardTitle>
@@ -1606,30 +1599,30 @@ export default function AdminHome() {
                     key={message.id}
                     className={`group rounded-xl p-4 transition-all duration-200 ${
                       message.status === "unread"
-                        ? "bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600"
-                        : "bg-gray-50 dark:bg-gray-750 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700"
+                        ? "bg-muted ring-1 ring-foreground/10"
+                        : "bg-muted/50 ring-1 ring-foreground/8"
                     }`}
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex gap-4">
                         <div
-                          className={`p-3 rounded-xl ${message.status === "unread" ? "bg-white dark:bg-gray-600 border border-gray-200 dark:border-gray-500" : "bg-gray-200 dark:bg-gray-600"}`}
+                          className={`p-3 rounded-xl ${message.status === "unread" ? "bg-card ring-1 ring-foreground/10" : "bg-muted"}`}
                         >
-                          <User className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                          <User className="w-5 h-5 text-muted-foreground" />
                         </div>
                         <div>
-                          <p className="font-semibold text-gray-900 dark:text-gray-100">
+                          <p className="font-semibold text-foreground">
                             {message.name}
                           </p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                          <p className="text-sm text-muted-foreground flex items-center gap-1">
                             <Mail className="w-3 h-3" />
                             {message.email}
                           </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {message.timestamp.toLocaleDateString()} at{" "}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {message.timestamp.toLocaleDateString()} at{""}
                             {message.timestamp.toLocaleTimeString()}
                           </p>
-                          <p className="mt-3 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-600 rounded-lg p-3 border border-gray-200 dark:border-gray-500">
+                          <p className="mt-3 text-muted-foreground bg-card rounded-xl p-3 ring-1 ring-foreground/10">
                             {message.message}
                           </p>
                         </div>
@@ -1640,7 +1633,7 @@ export default function AdminHome() {
                           size="sm"
                           onClick={() => handleMarkAsRead(message.id)}
                           disabled={isMarkingRead === message.id}
-                          className="bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600"
+                          className="bg-card hover:bg-muted/50 text-muted-foreground border-border"
                         >
                           {isMarkingRead === message.id
                             ? "Marking..."
@@ -1653,13 +1646,13 @@ export default function AdminHome() {
 
                 {messages.length === 0 && (
                   <div className="text-center py-12">
-                    <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full w-fit mx-auto mb-4">
-                      <Mail className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+                    <div className="p-4 bg-muted rounded-full w-fit mx-auto mb-4">
+                      <Mail className="w-8 h-8 text-muted-foreground" />
                     </div>
-                    <p className="text-gray-500 dark:text-gray-400 font-medium">
+                    <p className="text-muted-foreground font-medium">
                       No messages yet
                     </p>
-                    <p className="text-gray-400 dark:text-gray-500 text-sm">
+                    <p className="text-muted-foreground text-sm">
                       Customer messages will appear here
                     </p>
                   </div>
@@ -1682,25 +1675,22 @@ export default function AdminHome() {
             if (!open) setSelectedReservation(null);
           }}
         >
-          <DialogContent className="w-full sm:max-w-[420px] max-h-[90vh] overflow-y-auto p-0 bg-white dark:bg-gray-900">
+          <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
             {selectedReservation && (
               <>
-                {/* Header */}
-                <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-gray-700">
-                  <DialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                    {selectedReservation.name}
-                  </DialogTitle>
-                  <div className="flex items-center gap-2 mt-1">
+                <DialogHeader>
+                  <DialogTitle>{selectedReservation.name}</DialogTitle>
+                  <div className="flex items-center gap-2 pt-1">
                     <Badge
                       variant="outline"
                       className={`text-xs ${
                         selectedReservation.attendanceStatus === "show"
-                          ? "border-green-300 text-green-700 bg-green-100 dark:bg-green-950 dark:text-green-300"
+                          ? "border-border text-foreground bg-muted"
                           : selectedReservation.attendanceStatus === "no-show"
-                            ? "border-orange-300 text-orange-700 bg-orange-100 dark:bg-orange-950 dark:text-orange-300"
+                            ? "border-border text-muted-foreground bg-muted"
                             : selectedReservation.status === "confirmed"
-                              ? "border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950 dark:text-blue-300"
-                              : "border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700"
+                              ? "border-border text-foreground bg-muted"
+                              : "border-border text-muted-foreground bg-muted"
                       }`}
                     >
                       {selectedReservation.attendanceStatus === "show"
@@ -1712,7 +1702,7 @@ export default function AdminHome() {
                             : "Pending"}
                     </Badge>
                     {selectedReservation.reminderSent && (
-                      <span className="text-xs text-gray-400 dark:text-gray-500">
+                      <span className="text-xs text-muted-foreground">
                         Reminder sent{" "}
                         {selectedReservation.reminderSentAt &&
                           formatReminderTime(
@@ -1723,201 +1713,156 @@ export default function AdminHome() {
                   </div>
                 </DialogHeader>
 
-                {/* Reservation Details */}
-                <div className="px-6 py-4 space-y-4">
+                <div className="space-y-4">
                   {/* Date & Time */}
-                  <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                    <div className="p-3 bg-white dark:bg-gray-700 rounded-lg shadow-sm">
-                      <Calendar className="w-6 h-6 text-gray-600 dark:text-gray-300" />
-                    </div>
+                  <div className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3">
+                    <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Date & Time
-                      </p>
-                      <p className="font-semibold text-gray-900 dark:text-gray-100">
+                      <p className="text-xs text-muted-foreground">Date & Time</p>
+                      <p className="text-sm font-medium text-foreground">
                         {typeof selectedReservation.date === "string"
                           ? selectedReservation.date
-                          : selectedReservation.date.toLocaleDateString(
-                              "en-US",
-                              {
-                                weekday: "short",
-                                month: "short",
-                                day: "numeric",
-                              },
-                            )}
+                          : selectedReservation.date.toLocaleDateString("en-US", {
+                              weekday: "short",
+                              month: "short",
+                              day: "numeric",
+                            })}
                       </p>
-                      <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                      <p className="text-base font-bold text-foreground">
                         {selectedReservation.time}
                       </p>
                     </div>
                   </div>
 
                   {/* Guests */}
-                  <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                    <div className="p-3 bg-white dark:bg-gray-700 rounded-lg shadow-sm">
-                      <Users className="w-6 h-6 text-gray-600 dark:text-gray-300" />
-                    </div>
+                  <div className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3">
+                    <Users className="w-4 h-4 text-muted-foreground shrink-0" />
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Party Size
-                      </p>
-                      <p className="font-semibold text-gray-900 dark:text-gray-100">
+                      <p className="text-xs text-muted-foreground">Party Size</p>
+                      <p className="text-sm font-medium text-foreground">
                         {selectedReservation.guests}{" "}
                         {selectedReservation.guests === 1 ? "Guest" : "Guests"}
                       </p>
                     </div>
                   </div>
 
-                  {/* Contact Info */}
-                  <div className="space-y-3">
-                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {/* Contact */}
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Contact
                     </p>
-
                     <a
                       href={`tel:${selectedReservation.phone}`}
-                      className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3 text-foreground transition-colors hover:bg-muted"
                     >
-                      <Phone className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                      <span className="font-medium text-gray-900 dark:text-gray-100">
-                        {selectedReservation.phone}
-                      </span>
+                      <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <span className="text-sm font-medium">{selectedReservation.phone}</span>
                     </a>
-
                     {selectedReservation.email && (
                       <a
                         href={`mailto:${selectedReservation.email}`}
-                        className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3 text-foreground transition-colors hover:bg-muted"
                       >
-                        <Mail className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                        <span className="font-medium text-gray-900 dark:text-gray-100 break-all">
-                          {selectedReservation.email}
-                        </span>
+                        <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span className="text-sm font-medium break-all">{selectedReservation.email}</span>
                       </a>
                     )}
                   </div>
 
-                  {/* Comments */}
+                  {/* Special Requests */}
                   {selectedReservation.comments && (
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Special Requests
                       </p>
-                      <div className="p-4 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-xl">
-                        <p className="text-gray-700 dark:text-gray-300 italic">
-                          &quot;{selectedReservation.comments}&quot;
-                        </p>
-                      </div>
+                      <p className="rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground italic">
+                        &quot;{selectedReservation.comments}&quot;
+                      </p>
                     </div>
                   )}
                 </div>
 
-                {/* Actions */}
-                <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 space-y-3">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-                    Actions
-                  </p>
-
-                  {/* Send Reminder */}
+                <DialogFooter className="flex-col gap-2 sm:flex-col">
                   <Button
                     className="w-full"
                     onClick={() => handleSendReminder(selectedReservation)}
                     disabled={!canSendReminder(selectedReservation)}
                   >
-                    <Mail className="w-5 h-5 mr-2" />
+                    <Mail className="w-4 h-4 mr-2" />
                     {selectedReservation.reminderSent
                       ? `Reminder Sent ${selectedReservation.reminderSentAt ? formatReminderTime(selectedReservation.reminderSentAt.toDate()) : ""}`
                       : "Send Reminder Email"}
                   </Button>
 
-                  {/* Attendance Buttons */}
-                  <div className="flex gap-3">
+                  <div className="flex gap-2 w-full">
                     <Button
                       variant="outline"
                       className={`flex-1 ${
                         selectedReservation.attendanceStatus === "show"
-                          ? "bg-green-600 text-white hover:bg-green-700 hover:text-white border-green-600"
-                          : "text-gray-700 dark:text-gray-300 hover:bg-green-100 dark:hover:bg-green-900 hover:text-green-700"
+                          ? "bg-muted text-foreground border-foreground/20"
+                          : "text-muted-foreground"
                       }`}
                       onClick={() => {
                         handleAttendanceUpdate(
                           selectedReservation.id,
-                          selectedReservation.attendanceStatus === "show"
-                            ? "default"
-                            : "show",
+                          selectedReservation.attendanceStatus === "show" ? "default" : "show",
                         );
                         setSelectedReservation((prev) =>
                           prev
                             ? {
                                 ...prev,
                                 attendanceStatus:
-                                  prev.attendanceStatus === "show"
-                                    ? undefined
-                                    : "show",
+                                  prev.attendanceStatus === "show" ? undefined : "show",
                               }
                             : null,
                         );
                       }}
                     >
-                      <CheckCircle2 className="w-5 h-5 mr-2" />
-                      {selectedReservation.attendanceStatus === "show"
-                        ? "Showed ✓"
-                        : "Mark Show"}
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                      {selectedReservation.attendanceStatus === "show" ? "Showed ✓" : "Mark Show"}
                     </Button>
 
                     <Button
                       variant="outline"
                       className={`flex-1 ${
                         selectedReservation.attendanceStatus === "no-show"
-                          ? "bg-orange-600 text-white hover:bg-orange-700 hover:text-white border-orange-600"
-                          : "text-gray-700 dark:text-gray-300 hover:bg-orange-100 dark:hover:bg-orange-900 hover:text-orange-700"
+                          ? "bg-muted text-foreground border-foreground/20"
+                          : "text-muted-foreground"
                       }`}
                       onClick={() => {
                         handleAttendanceUpdate(
                           selectedReservation.id,
-                          selectedReservation.attendanceStatus === "no-show"
-                            ? "default"
-                            : "no-show",
+                          selectedReservation.attendanceStatus === "no-show" ? "default" : "no-show",
                         );
                         setSelectedReservation((prev) =>
                           prev
                             ? {
                                 ...prev,
                                 attendanceStatus:
-                                  prev.attendanceStatus === "no-show"
-                                    ? undefined
-                                    : "no-show",
+                                  prev.attendanceStatus === "no-show" ? undefined : "no-show",
                               }
                             : null,
                         );
                       }}
                     >
-                      <XCircle className="w-5 h-5 mr-2" />
-                      {selectedReservation.attendanceStatus === "no-show"
-                        ? "No-Show ✓"
-                        : "Mark No-Show"}
+                      <XCircle className="w-4 h-4 mr-2" />
+                      {selectedReservation.attendanceStatus === "no-show" ? "No-Show ✓" : "Mark No-Show"}
                     </Button>
                   </div>
 
-                  {/* Acknowledge (for new bookings) */}
-                  {pendingReservations.some(
-                    (r) => r.id === selectedReservation.id,
-                  ) && (
+                  {pendingReservations.some((r) => r.id === selectedReservation.id) && (
                     <Button
-                      className="w-full bg-gray-900 hover:bg-gray-800"
+                      className="w-full"
                       onClick={() => {
                         handleMarkReservation(selectedReservation.id);
                         setSelectedReservation(null);
                       }}
                     >
-                      <CheckCircle2 className="w-5 h-5 mr-2" />
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
                       Acknowledge Booking
                     </Button>
                   )}
-                </div>
-
-                {/* Bottom safe area for mobile */}
-                <div className="h-4" />
+                </DialogFooter>
               </>
             )}
           </DialogContent>
