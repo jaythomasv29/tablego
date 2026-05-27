@@ -815,7 +815,7 @@ function App() {
       {/* Trending modal */}
       <AnimatePresence>
         {showTrending && (
-          <TrendingModal onClose={() => setShowTrending(false)} />
+          <TrendingModal onClose={() => setShowTrending(false)} isOpen={isRestaurantOpen ?? false} />
         )}
       </AnimatePresence>
 

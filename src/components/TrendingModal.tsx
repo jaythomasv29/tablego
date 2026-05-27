@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, UtensilsCrossed } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import Link from 'next/link';
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -56,7 +57,7 @@ interface RecentOrder {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function TrendingModal({ onClose }: { onClose: () => void }) {
+export function TrendingModal({ onClose, isOpen = true }: { onClose: () => void; isOpen?: boolean }) {
   const seed = getDailySeed();
 
   const baseCounts = Object.fromEntries(
@@ -148,22 +149,38 @@ export function TrendingModal({ onClose }: { onClose: () => void }) {
         <div className="px-6 pt-5 pb-4 border-b border-zinc-100 shrink-0">
           <div className="flex items-center justify-between mb-0.5">
             <div className="flex items-center gap-2.5">
-              <span className="relative flex h-2.5 w-2.5 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-70" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
-              </span>
-              <span
-                className="text-[10px] font-bold uppercase tracking-[0.14em] text-red-500"
-                style={{ fontFamily: 'Inter, sans-serif' }}
-              >
-                Live
-              </span>
+              {isOpen ? (
+                <>
+                  <span className="relative flex h-2.5 w-2.5 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-70" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+                  </span>
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-[0.14em] text-red-500"
+                    style={{ fontFamily: 'Inter, sans-serif' }}
+                  >
+                    Live
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="relative flex h-2.5 w-2.5 shrink-0">
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-zinc-400" />
+                  </span>
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400"
+                    style={{ fontFamily: 'Inter, sans-serif' }}
+                  >
+                    Closed
+                  </span>
+                </>
+              )}
               <div className="h-3.5 w-px bg-zinc-200" />
               <h2
                 className="text-[1.25rem] font-light text-zinc-900"
                 style={{ fontFamily: "'Cormorant Garamond', serif" }}
               >
-                Trending Now
+                {isOpen ? 'Trending Now' : 'Thaiphoon'}
               </h2>
             </div>
             <button
@@ -173,12 +190,42 @@ export function TrendingModal({ onClose }: { onClose: () => void }) {
               <X className="w-4 h-4" />
             </button>
           </div>
-          <p className="text-sm text-zinc-400" style={{ fontFamily: 'Inter, sans-serif' }}>
-            <span className="font-semibold text-zinc-700">{totalToday}</span> orders today · updating live
-          </p>
+          {isOpen && (
+            <p className="text-sm text-zinc-400" style={{ fontFamily: 'Inter, sans-serif' }}>
+              <span className="font-semibold text-zinc-700">{totalToday}</span> orders today · updating live
+            </p>
+          )}
         </div>
 
-        {/* Items */}
+        {/* Items / Closed state */}
+        {!isOpen ? (
+          <div className="flex-1 flex flex-col items-center justify-center px-8 py-12 text-center">
+            <div className="w-14 h-14 rounded-full bg-zinc-100 flex items-center justify-center mb-5">
+              <UtensilsCrossed className="w-6 h-6 text-zinc-400" />
+            </div>
+            <p
+              className="text-lg font-light text-zinc-800 mb-2"
+              style={{ fontFamily: "'Cormorant Garamond', serif" }}
+            >
+              We're closed right now
+            </p>
+            <p
+              className="text-sm text-zinc-400 leading-relaxed mb-7 max-w-[260px]"
+              style={{ fontFamily: 'Inter, sans-serif' }}
+            >
+              Check back during service hours — in the meantime, explore what's on the menu.
+            </p>
+            <Link
+              href="/menu"
+              onClick={onClose}
+              className="inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-medium text-zinc-900 bg-[#A3B18A] hover:bg-[#8f9e77] transition-colors"
+              style={{ fontFamily: 'Inter, sans-serif' }}
+            >
+              View Menu
+            </Link>
+          </div>
+        ) : (
+        <>
         <div className="px-5 py-4 space-y-2 overflow-y-auto flex-1">
           <AnimatePresence mode="popLayout">
             {sorted.map((item, idx) => {
@@ -296,6 +343,8 @@ export function TrendingModal({ onClose }: { onClose: () => void }) {
             </AnimatePresence>
           </div>
         </div>
+        </>
+        )}
       </motion.div>
     </motion.div>
   );
