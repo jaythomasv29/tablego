@@ -1702,7 +1702,7 @@ export default function AdminHome() {
         )}
 
         {/* Spacer so fixed bottom notification doesn't cover content on mobile */}
-        {showMobileNotification && pendingReservations.length > 0 && (
+        {/* {showMobileNotification && pendingReservations.length > 0 && (
           <div className="h-24 md:hidden" />
         )}
 
@@ -1711,7 +1711,7 @@ export default function AdminHome() {
             count={pendingReservations.length}
             onClose={() => setShowMobileNotification(false)}
           />
-        )}
+        )} */}
 
         {/* Reservation Detail Modal */}
         <Dialog
