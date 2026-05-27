@@ -4,6 +4,7 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/react";
 import FloatingContactButton from "@/components/FloatingContactButton";
 import { TimezoneProvider } from "@/contexts/TimezoneContext";
+import Providers from "@/components/Providers";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -37,7 +38,9 @@ export default function RootLayout({
         <meta name="format-detection" content="telephone=no" />
       </head>
       <body className={inter.className} suppressHydrationWarning>
-        <TimezoneProvider>{children}</TimezoneProvider>
+        <Providers>
+          <TimezoneProvider>{children}</TimezoneProvider>
+        </Providers>
         <Analytics />
         {/* <FloatingContactButton /> */}
 

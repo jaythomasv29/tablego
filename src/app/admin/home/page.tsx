@@ -1,86 +1,110 @@
-'use client';
+"use client";
 
-import AdminLayout from '@/components/AdminLayout';
-import { useEffect, useState } from 'react';
-import { collection, getDocs, getDoc, query, orderBy, limit, where, updateDoc, doc, onSnapshot } from 'firebase/firestore';
-import { db } from '@/firebase';
+import AdminLayout from "@/components/AdminLayout";
+import { useEffect, useState } from "react";
 import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    Title,
-    Tooltip,
-    Legend
-} from 'chart.js';
-import { Line } from 'react-chartjs-2';
-import toast, { Toaster } from 'react-hot-toast';
+  collection,
+  getDocs,
+  getDoc,
+  query,
+  orderBy,
+  limit,
+  where,
+  updateDoc,
+  doc,
+  onSnapshot,
+} from "firebase/firestore";
+import { db } from "@/firebase";
 import {
-    ArrowRightCircle,
-    X,
-    Calendar,
-    Users,
-    Clock,
-    CalendarDays,
-    TrendingUp,
-    Utensils,
-    Bell,
-    CheckCircle2,
-    XCircle,
-    Phone,
-    Mail,
-    User,
-    ChefHat,
-    Download,
-} from 'lucide-react';
-import PageTransition from '@/components/PageTransition';
-import StaggeredList from '@/components/StaggeredList';
-import { Timestamp } from 'firebase/firestore';
-import { formatReadableDatePST } from '@/utils/dateUtils';
-import { Reservation } from '../reservation/page';
-import Link from 'next/link';
-import { useTimezone, TIMEZONE_OPTIONS } from '@/contexts/TimezoneContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Line } from "react-chartjs-2";
+import toast, { Toaster } from "react-hot-toast";
+import {
+  ArrowRightCircle,
+  X,
+  Calendar,
+  Users,
+  Clock,
+  CalendarDays,
+  TrendingUp,
+  Utensils,
+  Bell,
+  CheckCircle2,
+  XCircle,
+  Phone,
+  Mail,
+  User,
+  ChefHat,
+  Download,
+} from "lucide-react";
+import PageTransition from "@/components/PageTransition";
+import StaggeredList from "@/components/StaggeredList";
+import { Timestamp } from "firebase/firestore";
+import { formatReadableDatePST } from "@/utils/dateUtils";
+import { Reservation } from "../reservation/page";
+import Link from "next/link";
+import { useTimezone, TIMEZONE_OPTIONS } from "@/contexts/TimezoneContext";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 // Business Hours interface
 interface DayHours {
-    lunch: {
-        open: string;
-        close: string;
-        isOpen: boolean;
-    };
-    dinner: {
-        open: string;
-        close: string;
-        isOpen: boolean;
-    };
+  lunch: {
+    open: string;
+    close: string;
+    isOpen: boolean;
+  };
+  dinner: {
+    open: string;
+    close: string;
+    isOpen: boolean;
+  };
 }
 
 interface BusinessHours {
-    [key: string]: DayHours;
+  [key: string]: DayHours;
 }
 
 // Register ChartJS components
 ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    Title,
-    Tooltip,
-    Legend
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
 );
 
 interface DashboardMetrics {
-    totalReservations: number;
-    uniqueCustomers: number;
-    todayReservations: number;
-    totalCatering: number;
-    newCatering: number;
-    menuDownloads: number;
+  totalReservations: number;
+  uniqueCustomers: number;
+  todayReservations: number;
+  totalCatering: number;
+  newCatering: number;
+  menuDownloads: number;
 }
 
 // interface Reservation {
@@ -100,1568 +124,1805 @@ interface DashboardMetrics {
 // }
 
 interface PendingReservation {
-    id: string;
-    name: string;
-    date: Date;
-    time: string;
-    guests: number;
-    phone: string;
-    email: string;
-    status: string;
-    phoneVerified?: boolean;
+  id: string;
+  name: string;
+  date: Date;
+  time: string;
+  guests: number;
+  phone: string;
+  email: string;
+  status: string;
+  phoneVerified?: boolean;
 }
 
 interface MobileNotificationProps {
-    count: number;
-    onClose: () => void;
+  count: number;
+  onClose: () => void;
 }
 
 interface Message {
-    id: string;
-    name: string;
-    email: string;
-    message: string;
-    timestamp: Date;
-    status: 'read' | 'unread';
+  id: string;
+  name: string;
+  email: string;
+  message: string;
+  timestamp: Date;
+  status: "read" | "unread";
 }
 
 function MobileNotification({ count, onClose }: MobileNotificationProps) {
-    if (count === 0) return null;
+  if (count === 0) return null;
 
-    return (
-        <div className="fixed inset-x-0 bottom-0 z-50 p-4 md:hidden">
-            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg shadow-lg">
-                <div className="flex items-start">
-                    <div className="flex-shrink-0">
-                        <svg
-                            className="h-5 w-5 text-yellow-400"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                            />
-                        </svg>
-                    </div>
-                    <div className="ml-3 flex-1">
-                        <p className="text-sm text-yellow-700">
-                            You have {count} pending {count === 1 ? 'reservation' : 'reservations'} that {count === 1 ? 'needs' : 'need'} confirmation
-                        </p>
-                        <div className="mt-2">
-                            <button
-                                onClick={() => {
-                                    const element = document.getElementById('pending-reservations');
-                                    element?.scrollIntoView({ behavior: 'smooth' });
-                                    onClose();
-                                }}
-                                className="text-sm font-medium text-yellow-700 hover:text-yellow-600"
-                            >
-                                View Reservations →
-                            </button>
-                        </div>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="flex-shrink-0 ml-4"
-                    >
-                        <X className="h-4 w-4 text-yellow-500" />
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-50 p-4 md:hidden">
+      <Alert className="bg-yellow-50 border-yellow-400 shadow-lg">
+        <AlertDescription className="flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <p className="text-sm text-yellow-700">
+              You have {count} pending{" "}
+              {count === 1 ? "reservation" : "reservations"} that{" "}
+              {count === 1 ? "needs" : "need"} confirmation
+            </p>
+            <Button
+              variant="link"
+              size="sm"
+              className="mt-1 h-auto p-0 text-sm font-medium text-yellow-700 hover:text-yellow-600"
+              onClick={() => {
+                const element = document.getElementById("pending-reservations");
+                element?.scrollIntoView({ behavior: "smooth" });
+                onClose();
+              }}
+            >
+              View Reservations →
+            </Button>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 flex-shrink-0 text-yellow-500 hover:text-yellow-700 hover:bg-yellow-100"
+            onClick={onClose}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </AlertDescription>
+      </Alert>
+    </div>
+  );
 }
 
 // Add this helper function after the imports
 const formatTimeAgo = (date: Date) => {
-    const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+  const now = new Date();
+  const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
 
-    if (diffInHours < 1) {
-        const minutes = Math.floor(diffInHours * 60);
-        return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
-    }
-    if (diffInHours < 24) {
-        const hours = Math.floor(diffInHours);
-        return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
-    }
-    const days = Math.floor(diffInHours / 24);
-    return `${days} day${days !== 1 ? 's' : ''} ago`;
+  if (diffInHours < 1) {
+    const minutes = Math.floor(diffInHours * 60);
+    return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
+  }
+  if (diffInHours < 24) {
+    const hours = Math.floor(diffInHours);
+    return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
+  }
+  const days = Math.floor(diffInHours / 24);
+  return `${days} day${days !== 1 ? "s" : ""} ago`;
 };
 
 // Short format for reminder sent time
 const formatReminderTime = (date: Date) => {
-    const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+  const now = new Date();
+  const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
 
-    if (diffInHours < 1) {
-        const minutes = Math.floor(diffInHours * 60);
-        return `${minutes}m ago`;
-    }
-    if (diffInHours < 24) {
-        const hours = Math.floor(diffInHours);
-        return `${hours}h ago`;
-    }
-    const days = Math.floor(diffInHours / 24);
-    return `${days}d ago`;
+  if (diffInHours < 1) {
+    const minutes = Math.floor(diffInHours * 60);
+    return `${minutes}m ago`;
+  }
+  if (diffInHours < 24) {
+    const hours = Math.floor(diffInHours);
+    return `${hours}h ago`;
+  }
+  const days = Math.floor(diffInHours / 24);
+  return `${days}d ago`;
 };
 
 const formatReservationCreatedAt = (value: any) => {
-    if (!value) return 'N/A';
-    try {
-        if (typeof value === 'object' && value?.toDate) {
-            return value.toDate().toLocaleString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: 'numeric',
-                minute: '2-digit',
-            });
-        }
-        const parsed = new Date(value);
-        if (Number.isNaN(parsed.getTime())) return 'N/A';
-        return parsed.toLocaleString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-        });
-    } catch {
-        return 'N/A';
+  if (!value) return "N/A";
+  try {
+    if (typeof value === "object" && value?.toDate) {
+      return value.toDate().toLocaleString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
     }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "N/A";
+    return parsed.toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return "N/A";
+  }
 };
 
 const convertTimeToMinutes = (time: string): number => {
-    const [rawTime, period] = time.split(' ');
-    let [hours, minutes] = rawTime.split(':').map(Number);
+  const [rawTime, period] = time.split(" ");
+  let [hours, minutes] = rawTime.split(":").map(Number);
 
-    if (period === 'PM' && hours !== 12) {
-        hours += 12;
-    } else if (period === 'AM' && hours === 12) {
-        hours = 0;
-    }
+  if (period === "PM" && hours !== 12) {
+    hours += 12;
+  } else if (period === "AM" && hours === 12) {
+    hours = 0;
+  }
 
-    return hours * 60 + minutes;
+  return hours * 60 + minutes;
 };
 
 // Add this helper function
 const isReservationPassed = (reservationTime: string): boolean => {
-    const [time, period] = reservationTime.split(' ');
-    const [hours, minutes] = time.split(':').map(Number);
-    const now = new Date();
+  const [time, period] = reservationTime.split(" ");
+  const [hours, minutes] = time.split(":").map(Number);
+  const now = new Date();
 
-    let compareHours = hours;
-    if (period === 'PM' && hours !== 12) compareHours += 12;
-    if (period === 'AM' && hours === 12) compareHours = 0;
+  let compareHours = hours;
+  if (period === "PM" && hours !== 12) compareHours += 12;
+  if (period === "AM" && hours === 12) compareHours = 0;
 
-    const reservationDate = new Date();
-    reservationDate.setHours(compareHours, minutes);
+  const reservationDate = new Date();
+  reservationDate.setHours(compareHours, minutes);
 
-    return now > reservationDate;
+  return now > reservationDate;
 };
 
 // Check if reminder can be sent (not within 24 hours of last reminder)
 const canSendReminder = (reservation: Reservation) => {
-    if (!reservation.reminderSent) return true;
-    if (!reservation.reminderSentAt) return true;
+  if (!reservation.reminderSent) return true;
+  if (!reservation.reminderSentAt) return true;
 
-    const lastSent = reservation.reminderSentAt.toDate();
-    const hoursSinceLastReminder = (Date.now() - lastSent.getTime()) / (1000 * 60 * 60);
+  const lastSent = reservation.reminderSentAt.toDate();
+  const hoursSinceLastReminder =
+    (Date.now() - lastSent.getTime()) / (1000 * 60 * 60);
 
-    return hoursSinceLastReminder >= 24;
+  return hoursSinceLastReminder >= 24;
 };
 
 export default function AdminHome() {
-    const { timezone } = useTimezone();
-    const [totalViews, setTotalViews] = useState<number>(0);
-    const [dailyViews, setDailyViews] = useState<{ date: string; views: number }[]>([]);
-    const [metrics, setMetrics] = useState<DashboardMetrics>({
-        totalReservations: 0,
-        uniqueCustomers: 0,
-        todayReservations: 0,
-        totalCatering: 0,
-        newCatering: 0,
-        menuDownloads: 0,
+  const { timezone } = useTimezone();
+  const [totalViews, setTotalViews] = useState<number>(0);
+  const [dailyViews, setDailyViews] = useState<
+    { date: string; views: number }[]
+  >([]);
+  const [metrics, setMetrics] = useState<DashboardMetrics>({
+    totalReservations: 0,
+    uniqueCustomers: 0,
+    todayReservations: 0,
+    totalCatering: 0,
+    newCatering: 0,
+    menuDownloads: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [todaysReservations, setTodaysReservations] = useState<Reservation[]>(
+    [],
+  );
+  const [pendingReservations, setPendingReservations] = useState<Reservation[]>(
+    [],
+  );
+  const [isConfirming, setIsConfirming] = useState<string>("");
+  const [showMobileNotification, setShowMobileNotification] = useState(true);
+  const [activeTab, setActiveTab] = useState<"dashboard" | "messages">(
+    "dashboard",
+  );
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isMarkingRead, setIsMarkingRead] = useState<string>("");
+  const [todayReservations, setTodayReservations] = useState<Reservation[]>([]);
+  const [businessHours, setBusinessHours] = useState<BusinessHours | null>(
+    null,
+  );
+  const [currentTimeDisplay, setCurrentTimeDisplay] = useState<string>("");
+  const [currentDateDisplay, setCurrentDateDisplay] = useState<string>("");
+  const [selectedReservation, setSelectedReservation] =
+    useState<Reservation | null>(null);
+
+  useEffect(() => {
+    async function fetchAnalytics() {
+      try {
+        const response = await fetch("/api/analytics");
+        const data = await response.json();
+
+        setTotalViews(data.pageViews?.value || 0);
+        setDailyViews(data.dailyViews || []);
+      } catch (error) {
+        console.error("Error fetching analytics:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchAnalytics();
+  }, []);
+
+  // Fetch business hours
+  useEffect(() => {
+    const fetchBusinessHours = async () => {
+      try {
+        const hoursDoc = await getDoc(doc(db, "settings", "businessHours"));
+        if (hoursDoc.exists()) {
+          setBusinessHours(hoursDoc.data() as BusinessHours);
+        }
+      } catch (error) {
+        console.error("Error fetching business hours:", error);
+      }
+    };
+
+    fetchBusinessHours();
+  }, []);
+
+  // Update current time display every second
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString("en-US", {
+        timeZone: timezone,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      });
+      const dateString = now.toLocaleDateString("en-US", {
+        timeZone: timezone,
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      setCurrentTimeDisplay(timeString);
+      setCurrentDateDisplay(dateString);
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, [timezone]);
+
+  // Helper function to get timezone label
+  const getTimezoneLabel = (value: string) => {
+    const option = TIMEZONE_OPTIONS.find((opt) => opt.value === value);
+    return option ? option.label : value;
+  };
+
+  // Helper function to check if restaurant is currently open
+  const getBusinessStatus = () => {
+    if (!businessHours)
+      return {
+        isOpen: false,
+        currentPeriod: null,
+        closingTime: null,
+        todayHours: null,
+      };
+
+    const now = new Date();
+    const days = [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+    ];
+
+    // Get the current day in the restaurant's timezone
+    const restaurantNow = new Date(
+      now.toLocaleString("en-US", { timeZone: timezone }),
+    );
+    const currentDay = days[restaurantNow.getDay()];
+    const todayHours = businessHours[currentDay];
+
+    if (!todayHours)
+      return {
+        isOpen: false,
+        currentPeriod: null,
+        closingTime: null,
+        todayHours: null,
+      };
+
+    const currentMinutes =
+      restaurantNow.getHours() * 60 + restaurantNow.getMinutes();
+
+    // Helper to convert time string to minutes
+    const timeToMinutes = (timeStr: string): number => {
+      const [hours, minutes] = timeStr.split(":").map(Number);
+      return hours * 60 + minutes;
+    };
+
+    // Helper to format time for display
+    const formatTime = (timeStr: string): string => {
+      const [hours, minutes] = timeStr.split(":").map(Number);
+      const period = hours >= 12 ? "PM" : "AM";
+      const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+      return `${displayHours}:${minutes.toString().padStart(2, "0")} ${period}`;
+    };
+
+    // Check lunch hours
+    if (todayHours.lunch?.isOpen) {
+      const lunchOpen = timeToMinutes(todayHours.lunch.open);
+      const lunchClose = timeToMinutes(todayHours.lunch.close);
+
+      if (currentMinutes >= lunchOpen && currentMinutes < lunchClose) {
+        return {
+          isOpen: true,
+          currentPeriod: "Lunch",
+          closingTime: formatTime(todayHours.lunch.close),
+          todayHours,
+        };
+      }
+    }
+
+    // Check dinner hours
+    if (todayHours.dinner?.isOpen) {
+      const dinnerOpen = timeToMinutes(todayHours.dinner.open);
+      const dinnerClose = timeToMinutes(todayHours.dinner.close);
+
+      if (currentMinutes >= dinnerOpen && currentMinutes < dinnerClose) {
+        return {
+          isOpen: true,
+          currentPeriod: "Dinner",
+          closingTime: formatTime(todayHours.dinner.close),
+          todayHours,
+        };
+      }
+    }
+
+    return {
+      isOpen: false,
+      currentPeriod: null,
+      closingTime: null,
+      todayHours,
+    };
+  };
+
+  // Helper to format hours for display
+  const formatHoursDisplay = (hours: DayHours | null): string[] => {
+    if (!hours) return ["Closed"];
+
+    const formatTime = (timeStr: string): string => {
+      const [hoursNum, minutes] = timeStr.split(":").map(Number);
+      const period = hoursNum >= 12 ? "PM" : "AM";
+      const displayHours =
+        hoursNum > 12 ? hoursNum - 12 : hoursNum === 0 ? 12 : hoursNum;
+      return `${displayHours}:${minutes.toString().padStart(2, "0")} ${period}`;
+    };
+
+    const parts: string[] = [];
+    if (hours.lunch?.isOpen) {
+      parts.push(
+        `Lunch: ${formatTime(hours.lunch.open)} - ${formatTime(hours.lunch.close)}`,
+      );
+    }
+    if (hours.dinner?.isOpen) {
+      parts.push(
+        `Dinner: ${formatTime(hours.dinner.open)} - ${formatTime(hours.dinner.close)}`,
+      );
+    }
+
+    return parts.length > 0 ? parts : ["Closed"];
+  };
+
+  const fetchMetrics = async () => {
+    try {
+      // Get today's date in restaurant's timezone and format as YYYY-MM-DD
+      const todayLocal = new Date().toLocaleDateString("en-CA", {
+        timeZone: timezone,
+      });
+
+      const reservationsRef = collection(db, "reservations");
+      const snapshot = await getDocs(reservationsRef);
+
+      const uniqueEmails = new Set();
+      const uniquePhones = new Set();
+      let todayCount = 0;
+      const todaysList: Reservation[] = [];
+
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+
+        // Handle different date formats consistently
+        let reservationDate: string;
+        if (
+          typeof data.date === "string" &&
+          /^\d{4}-\d{2}-\d{2}$/.test(data.date)
+        ) {
+          // Already in YYYY-MM-DD format
+          reservationDate = data.date;
+        } else if (data.date instanceof Timestamp) {
+          // Firestore Timestamp
+          reservationDate = data.date.toDate().toLocaleDateString("en-CA", {
+            timeZone: timezone,
+          });
+        } else {
+          // ISO string or other format
+          reservationDate = new Date(data.date).toLocaleDateString("en-CA", {
+            timeZone: timezone,
+          });
+        }
+
+        // Compare just the date parts
+        if (reservationDate === todayLocal) {
+          todayCount++;
+          todaysList.push({
+            id: doc.id,
+            date:
+              data.date instanceof Timestamp
+                ? data.date.toDate()
+                : new Date(data.date + "T12:00:00"),
+            time: data.time,
+            name: data.name,
+            guests: data.guests,
+            phone: data.phone,
+            email: data.email,
+            status: data.status || "pending",
+            comments: data.comments || "",
+            createdAt: data.createdAt,
+            reminderSent: data.reminderSent,
+            reminderSentAt: data.reminderSentAt,
+            phoneVerified: data.phoneVerified ?? false,
+          });
+        }
+
+        if (data.email) uniqueEmails.add(data.email);
+        if (data.phone) uniquePhones.add(data.phone);
+      });
+
+      // Sort today's reservations by time
+      todaysList.sort((a, b) => {
+        const timeA = convertTimeToMinutes(a.time);
+        const timeB = convertTimeToMinutes(b.time);
+        return timeA - timeB;
+      });
+
+      setTodaysReservations(todaysList);
+      const cateringSnap = await getDocs(collection(db, "catering"));
+      const newCateringCount = cateringSnap.docs.filter(
+        (d) => d.data().status === "pending",
+      ).length;
+
+      const downloadsSnap = await getDocs(collection(db, "menuDownloads"));
+
+      setMetrics({
+        totalReservations: snapshot.size,
+        uniqueCustomers: uniqueEmails.size + uniquePhones.size,
+        todayReservations: todayCount,
+        totalCatering: cateringSnap.size,
+        newCatering: newCateringCount,
+        menuDownloads: downloadsSnap.size,
+      });
+    } catch (error) {
+      console.error("Error fetching metrics:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Real-time listener for new reservations (unacknowledged)
+  useEffect(() => {
+    const reservationsRef = collection(db, "reservations");
+    const q = query(
+      reservationsRef,
+      orderBy("createdAt", "desc"),
+      limit(50), // Check last 50 reservations
+    );
+
+    let isInitialLoad = true;
+    let previousIds: Set<string> = new Set();
+
+    // Set up real-time listener
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const reservations = snapshot.docs
+          .filter((doc) => {
+            const data = doc.data();
+            // Include if marked is false OR if marked field doesn't exist
+            return data.marked === false || data.marked === undefined;
+          })
+          .map((doc) => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              // Convert Firestore Timestamp to JavaScript Date
+              date:
+                data.date instanceof Timestamp
+                  ? data.date.toDate()
+                  : new Date(data.date + "T12:00:00"),
+              // Convert createdAt Timestamp to ISO string for proper parsing
+              createdAt:
+                data.createdAt instanceof Timestamp
+                  ? data.createdAt.toDate().toISOString()
+                  : data.createdAt,
+            };
+          }) as Reservation[];
+
+        // Check for new reservations (not on initial load)
+        if (!isInitialLoad) {
+          const currentIds = new Set(reservations.map((r) => r.id));
+          const newReservations = reservations.filter(
+            (r) => !previousIds.has(r.id),
+          );
+
+          if (newReservations.length > 0) {
+            // Show toast for new reservation
+            toast.success(
+              `🔔 New reservation from ${newReservations[0].name}!`,
+              { duration: 5000 },
+            );
+          }
+          previousIds = currentIds;
+        } else {
+          previousIds = new Set(reservations.map((r) => r.id));
+          isInitialLoad = false;
+        }
+
+        setPendingReservations(reservations);
+      },
+      (error) => {
+        console.error("Error listening to reservations:", error);
+      },
+    );
+
+    // Cleanup listener on unmount
+    return () => unsubscribe();
+  }, []);
+
+  // Real-time listener for today's reservations (status updates, confirmations, etc.)
+  useEffect(() => {
+    if (!timezone) return;
+
+    const todayLocal = new Date().toLocaleDateString("en-CA", {
+      timeZone: timezone,
     });
-    const [loading, setLoading] = useState(true);
-    const [todaysReservations, setTodaysReservations] = useState<Reservation[]>([]);
-    const [pendingReservations, setPendingReservations] = useState<Reservation[]>([]);
-    const [isConfirming, setIsConfirming] = useState<string>('');
-    const [showMobileNotification, setShowMobileNotification] = useState(true);
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'messages'>('dashboard');
-    const [messages, setMessages] = useState<Message[]>([]);
-    const [isMarkingRead, setIsMarkingRead] = useState<string>('');
-    const [todayReservations, setTodayReservations] = useState<Reservation[]>([]);
-    const [businessHours, setBusinessHours] = useState<BusinessHours | null>(null);
-    const [currentTimeDisplay, setCurrentTimeDisplay] = useState<string>('');
-    const [currentDateDisplay, setCurrentDateDisplay] = useState<string>('');
-    const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
 
-    useEffect(() => {
-        async function fetchAnalytics() {
-            try {
-                const response = await fetch('/api/analytics');
-                const data = await response.json();
+    const reservationsRef = collection(db, "reservations");
 
+    // Set up real-time listener for all reservations
+    const unsubscribe = onSnapshot(
+      reservationsRef,
+      (snapshot) => {
+        const todaysList: Reservation[] = [];
 
-                setTotalViews(data.pageViews?.value || 0);
-                setDailyViews(data.dailyViews || []);
-            } catch (error) {
-                console.error('Error fetching analytics:', error);
-            } finally {
-                setLoading(false);
-            }
-        }
+        snapshot.forEach((doc) => {
+          const data = doc.data();
 
-        fetchAnalytics();
-    }, []);
-
-    // Fetch business hours
-    useEffect(() => {
-        const fetchBusinessHours = async () => {
-            try {
-                const hoursDoc = await getDoc(doc(db, 'settings', 'businessHours'));
-                if (hoursDoc.exists()) {
-                    setBusinessHours(hoursDoc.data() as BusinessHours);
-                }
-            } catch (error) {
-                console.error('Error fetching business hours:', error);
-            }
-        };
-
-        fetchBusinessHours();
-    }, []);
-
-    // Update current time display every second
-    useEffect(() => {
-        const updateTime = () => {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('en-US', {
-                timeZone: timezone,
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: true,
+          // Handle different date formats consistently
+          let reservationDate: string;
+          if (
+            typeof data.date === "string" &&
+            /^\d{4}-\d{2}-\d{2}$/.test(data.date)
+          ) {
+            reservationDate = data.date;
+          } else if (data.date instanceof Timestamp) {
+            reservationDate = data.date.toDate().toLocaleDateString("en-CA", {
+              timeZone: timezone,
             });
-            const dateString = now.toLocaleDateString('en-US', {
-                timeZone: timezone,
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
+          } else {
+            reservationDate = new Date(data.date).toLocaleDateString("en-CA", {
+              timeZone: timezone,
             });
-            setCurrentTimeDisplay(timeString);
-            setCurrentDateDisplay(dateString);
-        };
+          }
 
-        updateTime();
-        const interval = setInterval(updateTime, 1000);
-        return () => clearInterval(interval);
-    }, [timezone]);
-
-    // Helper function to get timezone label
-    const getTimezoneLabel = (value: string) => {
-        const option = TIMEZONE_OPTIONS.find(opt => opt.value === value);
-        return option ? option.label : value;
-    };
-
-    // Helper function to check if restaurant is currently open
-    const getBusinessStatus = () => {
-        if (!businessHours) return { isOpen: false, currentPeriod: null, closingTime: null, todayHours: null };
-
-        const now = new Date();
-        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-
-        // Get the current day in the restaurant's timezone
-        const restaurantNow = new Date(now.toLocaleString("en-US", { timeZone: timezone }));
-        const currentDay = days[restaurantNow.getDay()];
-        const todayHours = businessHours[currentDay];
-
-        if (!todayHours) return { isOpen: false, currentPeriod: null, closingTime: null, todayHours: null };
-
-        const currentMinutes = restaurantNow.getHours() * 60 + restaurantNow.getMinutes();
-
-        // Helper to convert time string to minutes
-        const timeToMinutes = (timeStr: string): number => {
-            const [hours, minutes] = timeStr.split(':').map(Number);
-            return hours * 60 + minutes;
-        };
-
-        // Helper to format time for display
-        const formatTime = (timeStr: string): string => {
-            const [hours, minutes] = timeStr.split(':').map(Number);
-            const period = hours >= 12 ? 'PM' : 'AM';
-            const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
-            return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
-        };
-
-        // Check lunch hours
-        if (todayHours.lunch?.isOpen) {
-            const lunchOpen = timeToMinutes(todayHours.lunch.open);
-            const lunchClose = timeToMinutes(todayHours.lunch.close);
-
-            if (currentMinutes >= lunchOpen && currentMinutes < lunchClose) {
-                return {
-                    isOpen: true,
-                    currentPeriod: 'Lunch',
-                    closingTime: formatTime(todayHours.lunch.close),
-                    todayHours
-                };
-            }
-        }
-
-        // Check dinner hours
-        if (todayHours.dinner?.isOpen) {
-            const dinnerOpen = timeToMinutes(todayHours.dinner.open);
-            const dinnerClose = timeToMinutes(todayHours.dinner.close);
-
-            if (currentMinutes >= dinnerOpen && currentMinutes < dinnerClose) {
-                return {
-                    isOpen: true,
-                    currentPeriod: 'Dinner',
-                    closingTime: formatTime(todayHours.dinner.close),
-                    todayHours
-                };
-            }
-        }
-
-        return { isOpen: false, currentPeriod: null, closingTime: null, todayHours };
-    };
-
-    // Helper to format hours for display
-    const formatHoursDisplay = (hours: DayHours | null): string[] => {
-        if (!hours) return ['Closed'];
-
-        const formatTime = (timeStr: string): string => {
-            const [hoursNum, minutes] = timeStr.split(':').map(Number);
-            const period = hoursNum >= 12 ? 'PM' : 'AM';
-            const displayHours = hoursNum > 12 ? hoursNum - 12 : hoursNum === 0 ? 12 : hoursNum;
-            return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
-        };
-
-        const parts: string[] = [];
-        if (hours.lunch?.isOpen) {
-            parts.push(`Lunch: ${formatTime(hours.lunch.open)} - ${formatTime(hours.lunch.close)}`);
-        }
-        if (hours.dinner?.isOpen) {
-            parts.push(`Dinner: ${formatTime(hours.dinner.open)} - ${formatTime(hours.dinner.close)}`);
-        }
-
-        return parts.length > 0 ? parts : ['Closed'];
-    };
-
-    const fetchMetrics = async () => {
-        try {
-            // Get today's date in restaurant's timezone and format as YYYY-MM-DD
-            const todayLocal = new Date().toLocaleDateString('en-CA', {
-                timeZone: timezone
+          // Only include today's reservations
+          if (reservationDate === todayLocal) {
+            todaysList.push({
+              id: doc.id,
+              date:
+                data.date instanceof Timestamp
+                  ? data.date.toDate()
+                  : new Date(data.date + "T12:00:00"),
+              time: data.time,
+              name: data.name,
+              guests: data.guests,
+              phone: data.phone,
+              email: data.email,
+              status: data.status || "pending",
+              comments: data.comments || "",
+              createdAt: data.createdAt,
+              reminderSent: data.reminderSent,
+              reminderSentAt: data.reminderSentAt,
+              attendanceStatus: data.attendanceStatus,
+              phoneVerified: data.phoneVerified ?? false,
             });
+          }
+        });
 
-            const reservationsRef = collection(db, 'reservations');
-            const snapshot = await getDocs(reservationsRef);
+        // Sort by time
+        todaysList.sort((a, b) => {
+          const timeA = convertTimeToMinutes(a.time);
+          const timeB = convertTimeToMinutes(b.time);
+          return timeA - timeB;
+        });
 
-            const uniqueEmails = new Set();
-            const uniquePhones = new Set();
-            let todayCount = 0;
-            const todaysList: Reservation[] = [];
+        setTodaysReservations(todaysList);
+      },
+      (error) => {
+        console.error("Error listening to today's reservations:", error);
+      },
+    );
 
-            snapshot.forEach((doc) => {
-                const data = doc.data();
+    // Cleanup listener on unmount
+    return () => unsubscribe();
+  }, [timezone]);
 
-                // Handle different date formats consistently
-                let reservationDate: string;
-                if (typeof data.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
-                    // Already in YYYY-MM-DD format
-                    reservationDate = data.date;
-                } else if (data.date instanceof Timestamp) {
-                    // Firestore Timestamp
-                    reservationDate = data.date.toDate().toLocaleDateString('en-CA', {
-                        timeZone: timezone
-                    });
-                } else {
-                    // ISO string or other format
-                    reservationDate = new Date(data.date).toLocaleDateString('en-CA', {
-                        timeZone: timezone
-                    });
-                }
+  const fetchMessages = async () => {
+    try {
+      const messagesRef = collection(db, "messages");
+      const q = query(messagesRef, orderBy("timestamp", "desc"));
+      const snapshot = await getDocs(q);
+      const messagesList = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp?.toDate() || new Date(),
+      })) as Message[];
+      setMessages(messagesList);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+    }
+  };
 
-                // Compare just the date parts
-                if (reservationDate === todayLocal) {
-                    todayCount++;
-                    todaysList.push({
-                        id: doc.id,
-                        date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date + 'T12:00:00'),
-                        time: data.time,
-                        name: data.name,
-                        guests: data.guests,
-                        phone: data.phone,
-                        email: data.email,
-                        status: data.status || 'pending',
-                        comments: data.comments || '',
-                        createdAt: data.createdAt,
-                        reminderSent: data.reminderSent,
-                        reminderSentAt: data.reminderSentAt,
-                        phoneVerified: data.phoneVerified ?? false,
-                    });
-                }
+  // Send reminder email
+  const handleSendReminder = async (reservation: Reservation) => {
+    if (!canSendReminder(reservation)) {
+      toast.error("Reminder already sent recently");
+      return;
+    }
 
-                if (data.email) uniqueEmails.add(data.email);
-                if (data.phone) uniquePhones.add(data.phone);
-            });
+    try {
+      toast.loading("Sending reminder...", { id: reservation.id });
+      const response = await fetch("/api/send-reminder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reservationId: reservation.id,
+          email: reservation.email,
+          name: reservation.name,
+          date: reservation.date,
+          time: reservation.time,
+          guests: reservation.guests,
+        }),
+      });
 
-            // Sort today's reservations by time
-            todaysList.sort((a, b) => {
-                const timeA = convertTimeToMinutes(a.time);
-                const timeB = convertTimeToMinutes(b.time);
-                return timeA - timeB;
-            });
+      if (!response.ok) throw new Error("Failed to send reminder");
 
-            setTodaysReservations(todaysList);
-            const cateringSnap = await getDocs(collection(db, 'catering'));
-            const newCateringCount = cateringSnap.docs.filter(d => d.data().status === 'pending').length;
+      // Update local state
+      setTodaysReservations((prev) =>
+        prev.map((r) =>
+          r.id === reservation.id
+            ? { ...r, reminderSent: true, reminderSentAt: Timestamp.now() }
+            : r,
+        ),
+      );
 
-            const downloadsSnap = await getDocs(collection(db, 'menuDownloads'));
+      toast.success("Reminder sent successfully", { id: reservation.id });
+    } catch (error) {
+      console.error("Error sending reminder:", error);
+      toast.error("Failed to send reminder", { id: reservation.id });
+    }
+  };
 
-            setMetrics({
-                totalReservations: snapshot.size,
-                uniqueCustomers: uniqueEmails.size + uniquePhones.size,
-                todayReservations: todayCount,
-                totalCatering: cateringSnap.size,
-                newCatering: newCateringCount,
-                menuDownloads: downloadsSnap.size,
-            });
+  // Update attendance status (show/no-show)
+  const handleAttendanceUpdate = async (
+    reservationId: string,
+    status: "show" | "no-show" | "default",
+  ) => {
+    try {
+      const reservationRef = doc(db, "reservations", reservationId);
+      await updateDoc(reservationRef, {
+        attendanceStatus: status === "default" ? null : status,
+      });
 
-        } catch (error) {
-            console.error('Error fetching metrics:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+      // Update local state
+      setTodaysReservations((prev) =>
+        prev.map((res) =>
+          res.id === reservationId
+            ? {
+                ...res,
+                attendanceStatus: status === "default" ? undefined : status,
+              }
+            : res,
+        ),
+      );
 
-    // Real-time listener for new reservations (unacknowledged)
-    useEffect(() => {
-        const reservationsRef = collection(db, 'reservations');
+      toast.success(
+        status === "show"
+          ? "Marked as showed"
+          : status === "no-show"
+            ? "Marked as no-show"
+            : "Status cleared",
+      );
+    } catch (error) {
+      console.error("Error updating attendance status:", error);
+      toast.error("Failed to update status");
+    }
+  };
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        await Promise.all([fetchMetrics(), fetchMessages()]);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, [timezone]);
+
+  // console.log(totalViews)
+
+  // Add new state for loading
+  const [markingAsRead, setMarkingAsRead] = useState(false);
+
+  const markAllCateringRead = async () => {
+    setMarkingAsRead(true);
+    try {
+      const cateringRef = collection(db, "catering");
+      const unreadQuery = query(cateringRef, where("status", "==", "pending"));
+      const snapshot = await getDocs(unreadQuery);
+
+      const updatePromises = snapshot.docs.map((doc) =>
+        updateDoc(doc.ref, { status: "completed" }),
+      );
+
+      await Promise.all(updatePromises);
+      await fetchMetrics();
+    } catch (error) {
+      console.error("Error marking catering as read:", error);
+    } finally {
+      setMarkingAsRead(false);
+    }
+  };
+
+  // Chart options
+  const options = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: "top" as const,
+      },
+      title: {
+        display: true,
+        text: "Daily Page Views",
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          precision: 0,
+        },
+      },
+    },
+  };
+
+  // Chart data
+  const chartData = {
+    labels: dailyViews.map((item) => new Date(item.date).toLocaleDateString()),
+    datasets: [
+      {
+        label: "Page Views",
+        data: dailyViews.map((item) => item.views),
+        borderColor: "rgb(59, 130, 246)", // Blue
+        backgroundColor: "rgba(59, 130, 246, 0.5)",
+        tension: 0.3,
+      },
+    ],
+  };
+
+  const handleMarkReservation = async (
+    reservationId: string,
+    showToast = true,
+  ) => {
+    try {
+      const reservationRef = doc(db, "reservations", reservationId);
+      await updateDoc(reservationRef, {
+        marked: true,
+        markedAt: new Date(),
+      });
+
+      setPendingReservations((prev) =>
+        prev.filter((reservation) => reservation.id !== reservationId),
+      );
+
+      if (showToast) {
+        toast.success("Reservation acknowledged");
+      }
+    } catch (error) {
+      console.error("Error marking reservation:", error);
+      toast.error("Failed to acknowledge reservation");
+    }
+  };
+
+  useEffect(() => {
+    if (pendingReservations.length > 0) {
+      setShowMobileNotification(true);
+    }
+  }, [pendingReservations]);
+
+  const handleMarkAsRead = async (messageId: string) => {
+    setIsMarkingRead(messageId);
+    try {
+      const messageRef = doc(db, "messages", messageId);
+      await updateDoc(messageRef, {
+        status: "read",
+      });
+      await fetchMessages();
+      toast.success("Message marked as read");
+    } catch (error) {
+      console.error("Error marking message as read:", error);
+      toast.error("Failed to mark message as read");
+    } finally {
+      setIsMarkingRead("");
+    }
+  };
+
+  useEffect(() => {
+    const fetchTodayReservations = async () => {
+      try {
+        // Get today's date range in local timezone
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        // Convert to UTC for Firestore query
+        const todayUTC = new Date(today.toUTCString());
+        const tomorrowUTC = new Date(tomorrow.toUTCString());
+
+        const reservationsRef = collection(db, "reservations");
         const q = query(
-            reservationsRef,
-            orderBy('createdAt', 'desc'),
-            limit(50) // Check last 50 reservations
+          reservationsRef,
+          where("date", ">=", Timestamp.fromDate(todayUTC)),
+          where("date", "<", Timestamp.fromDate(tomorrowUTC)),
         );
 
-        let isInitialLoad = true;
-        let previousIds: Set<string> = new Set();
+        const querySnapshot = await getDocs(q);
+        const reservations = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Reservation[];
 
-        // Set up real-time listener
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const reservations = snapshot.docs
-                .filter(doc => {
-                    const data = doc.data();
-                    // Include if marked is false OR if marked field doesn't exist
-                    return data.marked === false || data.marked === undefined;
-                })
-                .map(doc => {
-                    const data = doc.data();
-                    return {
-                        id: doc.id,
-                        ...data,
-                        // Convert Firestore Timestamp to JavaScript Date
-                        date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date + 'T12:00:00'),
-                        // Convert createdAt Timestamp to ISO string for proper parsing
-                        createdAt: data.createdAt instanceof Timestamp
-                            ? data.createdAt.toDate().toISOString()
-                            : data.createdAt
-                    };
-                }) as Reservation[];
-
-            // Check for new reservations (not on initial load)
-            if (!isInitialLoad) {
-                const currentIds = new Set(reservations.map(r => r.id));
-                const newReservations = reservations.filter(r => !previousIds.has(r.id));
-
-                if (newReservations.length > 0) {
-                    // Show toast for new reservation
-                    toast.success(
-                        `🔔 New reservation from ${newReservations[0].name}!`,
-                        { duration: 5000 }
-                    );
-                }
-                previousIds = currentIds;
-            } else {
-                previousIds = new Set(reservations.map(r => r.id));
-                isInitialLoad = false;
-            }
-
-            setPendingReservations(reservations);
-        }, (error) => {
-            console.error('Error listening to reservations:', error);
+        // Sort by time
+        reservations.sort((a, b) => {
+          const timeA = convertTo24Hour(a.time);
+          const timeB = convertTo24Hour(b.time);
+          return timeA.localeCompare(timeB);
         });
 
-        // Cleanup listener on unmount
-        return () => unsubscribe();
-    }, []);
-
-    // Real-time listener for today's reservations (status updates, confirmations, etc.)
-    useEffect(() => {
-        if (!timezone) return;
-
-        const todayLocal = new Date().toLocaleDateString('en-CA', {
-            timeZone: timezone
-        });
-
-        const reservationsRef = collection(db, 'reservations');
-
-        // Set up real-time listener for all reservations
-        const unsubscribe = onSnapshot(reservationsRef, (snapshot) => {
-            const todaysList: Reservation[] = [];
-
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-
-                // Handle different date formats consistently
-                let reservationDate: string;
-                if (typeof data.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
-                    reservationDate = data.date;
-                } else if (data.date instanceof Timestamp) {
-                    reservationDate = data.date.toDate().toLocaleDateString('en-CA', {
-                        timeZone: timezone
-                    });
-                } else {
-                    reservationDate = new Date(data.date).toLocaleDateString('en-CA', {
-                        timeZone: timezone
-                    });
-                }
-
-                // Only include today's reservations
-                if (reservationDate === todayLocal) {
-                    todaysList.push({
-                        id: doc.id,
-                        date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date + 'T12:00:00'),
-                        time: data.time,
-                        name: data.name,
-                        guests: data.guests,
-                        phone: data.phone,
-                        email: data.email,
-                        status: data.status || 'pending',
-                        comments: data.comments || '',
-                        createdAt: data.createdAt,
-                        reminderSent: data.reminderSent,
-                        reminderSentAt: data.reminderSentAt,
-                        attendanceStatus: data.attendanceStatus,
-                        phoneVerified: data.phoneVerified ?? false,
-                    });
-                }
-            });
-
-            // Sort by time
-            todaysList.sort((a, b) => {
-                const timeA = convertTimeToMinutes(a.time);
-                const timeB = convertTimeToMinutes(b.time);
-                return timeA - timeB;
-            });
-
-            setTodaysReservations(todaysList);
-        }, (error) => {
-            console.error('Error listening to today\'s reservations:', error);
-        });
-
-        // Cleanup listener on unmount
-        return () => unsubscribe();
-    }, [timezone]);
-
-    const fetchMessages = async () => {
-        try {
-            const messagesRef = collection(db, 'messages');
-            const q = query(messagesRef, orderBy('timestamp', 'desc'));
-            const snapshot = await getDocs(q);
-            const messagesList = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                timestamp: doc.data().timestamp?.toDate() || new Date()
-            })) as Message[];
-            setMessages(messagesList);
-        } catch (error) {
-            console.error('Error fetching messages:', error);
-        }
+        setTodayReservations(reservations);
+      } catch (error) {
+        console.error("Error fetching today reservations:", error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    // Send reminder email
-    const handleSendReminder = async (reservation: Reservation) => {
-        if (!canSendReminder(reservation)) {
-            toast.error('Reminder already sent recently');
-            return;
-        }
+    fetchTodayReservations();
+  }, []);
 
-        try {
-            toast.loading('Sending reminder...', { id: reservation.id });
-            const response = await fetch('/api/send-reminder', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    reservationId: reservation.id,
-                    email: reservation.email,
-                    name: reservation.name,
-                    date: reservation.date,
-                    time: reservation.time,
-                    guests: reservation.guests
-                }),
-            });
+  // Helper function to convert time to 24-hour format for sorting
+  const convertTo24Hour = (time12h: string) => {
+    const [time, modifier] = time12h.split(" ");
+    let [hours, minutes] = time.split(":");
 
-            if (!response.ok) throw new Error('Failed to send reminder');
+    if (hours === "12") {
+      hours = "00";
+    }
 
-            // Update local state
-            setTodaysReservations(prev =>
-                prev.map(r =>
-                    r.id === reservation.id
-                        ? { ...r, reminderSent: true, reminderSentAt: Timestamp.now() }
-                        : r
-                )
-            );
+    if (modifier === "PM") {
+      hours = String(parseInt(hours, 10) + 12);
+    }
 
-            toast.success('Reminder sent successfully', { id: reservation.id });
-        } catch (error) {
-            console.error('Error sending reminder:', error);
-            toast.error('Failed to send reminder', { id: reservation.id });
-        }
-    };
+    return `${hours}:${minutes}`;
+  };
 
-    // Update attendance status (show/no-show)
-    const handleAttendanceUpdate = async (reservationId: string, status: 'show' | 'no-show' | 'default') => {
-        try {
-            const reservationRef = doc(db, 'reservations', reservationId);
-            await updateDoc(reservationRef, {
-                attendanceStatus: status === 'default' ? null : status
-            });
+  // Helper function to get status badge styles
+  const getStatusBadge = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case "confirmed":
+        return "bg-green-100 text-green-800";
+      case "cancelled":
+        return "bg-red-100 text-red-800";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
 
-            // Update local state
-            setTodaysReservations(prev =>
-                prev.map(res =>
-                    res.id === reservationId
-                        ? { ...res, attendanceStatus: status === 'default' ? undefined : status }
-                        : res
-                )
-            );
-
-            toast.success(status === 'show' ? 'Marked as showed' : status === 'no-show' ? 'Marked as no-show' : 'Status cleared');
-        } catch (error) {
-            console.error('Error updating attendance status:', error);
-            toast.error('Failed to update status');
-        }
-    };
-
-    useEffect(() => {
-        async function fetchData() {
-            try {
-                setLoading(true);
-                await Promise.all([
-                    fetchMetrics(),
-                    fetchMessages()
-                ]);
-            } catch (error) {
-                console.error('Error fetching data:', error);
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        fetchData();
-    }, [timezone]);
-
-    // console.log(totalViews)
-
-    // Add new state for loading
-    const [markingAsRead, setMarkingAsRead] = useState(false);
-
-    const markAllCateringRead = async () => {
-        setMarkingAsRead(true);
-        try {
-            const cateringRef = collection(db, 'catering');
-            const unreadQuery = query(cateringRef, where('status', '==', 'pending'));
-            const snapshot = await getDocs(unreadQuery);
-
-            const updatePromises = snapshot.docs.map(doc =>
-                updateDoc(doc.ref, { status: 'completed' })
-            );
-
-            await Promise.all(updatePromises);
-            await fetchMetrics();
-        } catch (error) {
-            console.error('Error marking catering as read:', error);
-        } finally {
-            setMarkingAsRead(false);
-        }
-    };
-
-    // Chart options
-    const options = {
-        responsive: true,
-        plugins: {
-            legend: {
-                position: 'top' as const,
-            },
-            title: {
-                display: true,
-                text: 'Daily Page Views',
-            },
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: {
-                    precision: 0
-                }
-            }
-        }
-    };
-
-    // Chart data
-    const chartData = {
-        labels: dailyViews.map(item => new Date(item.date).toLocaleDateString()),
-        datasets: [
-            {
-                label: 'Page Views',
-                data: dailyViews.map(item => item.views),
-                borderColor: 'rgb(59, 130, 246)', // Blue
-                backgroundColor: 'rgba(59, 130, 246, 0.5)',
-                tension: 0.3
-            }
-        ]
-    };
-
-    const handleMarkReservation = async (reservationId: string, showToast = true) => {
-        try {
-            const reservationRef = doc(db, 'reservations', reservationId);
-            await updateDoc(reservationRef, {
-                marked: true,
-                markedAt: new Date()
-            });
-
-            setPendingReservations(prev =>
-                prev.filter(reservation => reservation.id !== reservationId)
-            );
-
-            if (showToast) {
-                toast.success('Reservation acknowledged');
-            }
-        } catch (error) {
-            console.error('Error marking reservation:', error);
-            toast.error('Failed to acknowledge reservation');
-        }
-    };
-
-    useEffect(() => {
-        if (pendingReservations.length > 0) {
-            setShowMobileNotification(true);
-        }
-    }, [pendingReservations]);
-
-    const handleMarkAsRead = async (messageId: string) => {
-        setIsMarkingRead(messageId);
-        try {
-            const messageRef = doc(db, 'messages', messageId);
-            await updateDoc(messageRef, {
-                status: 'read'
-            });
-            await fetchMessages();
-            toast.success('Message marked as read');
-        } catch (error) {
-            console.error('Error marking message as read:', error);
-            toast.error('Failed to mark message as read');
-        } finally {
-            setIsMarkingRead('');
-        }
-    };
-
-    useEffect(() => {
-        const fetchTodayReservations = async () => {
-            try {
-                // Get today's date range in local timezone
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const tomorrow = new Date(today);
-                tomorrow.setDate(tomorrow.getDate() + 1);
-
-                // Convert to UTC for Firestore query
-                const todayUTC = new Date(today.toUTCString());
-                const tomorrowUTC = new Date(tomorrow.toUTCString());
-
-                const reservationsRef = collection(db, 'reservations');
-                const q = query(
-                    reservationsRef,
-                    where('date', '>=', Timestamp.fromDate(todayUTC)),
-                    where('date', '<', Timestamp.fromDate(tomorrowUTC))
-                );
-
-                const querySnapshot = await getDocs(q);
-                const reservations = querySnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                })) as Reservation[];
-
-                // Sort by time
-                reservations.sort((a, b) => {
-                    const timeA = convertTo24Hour(a.time);
-                    const timeB = convertTo24Hour(b.time);
-                    return timeA.localeCompare(timeB);
-                });
-
-                setTodayReservations(reservations);
-            } catch (error) {
-                console.error('Error fetching today reservations:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchTodayReservations();
-    }, []);
-
-    // Helper function to convert time to 24-hour format for sorting
-    const convertTo24Hour = (time12h: string) => {
-        const [time, modifier] = time12h.split(' ');
-        let [hours, minutes] = time.split(':');
-
-        if (hours === '12') {
-            hours = '00';
-        }
-
-        if (modifier === 'PM') {
-            hours = String(parseInt(hours, 10) + 12);
-        }
-
-        return `${hours}:${minutes}`;
-    };
-
-    // Helper function to get status badge styles
-    const getStatusBadge = (status: string) => {
-        switch (status?.toLowerCase()) {
-            case 'confirmed':
-                return 'bg-green-100 text-green-800';
-            case 'cancelled':
-                return 'bg-red-100 text-red-800';
-            case 'pending':
-                return 'bg-yellow-100 text-yellow-800';
-            default:
-                return 'bg-gray-100 text-gray-800';
-        }
-    };
-
-    // Function to check if a reservation is for today (in local time)
-    const isToday = (date: Date) => {
-        const today = new Date();
-        return date.getDate() === today.getDate() &&
-            date.getMonth() === today.getMonth() &&
-            date.getFullYear() === today.getFullYear();
-    };
-
+  // Function to check if a reservation is for today (in local time)
+  const isToday = (date: Date) => {
+    const today = new Date();
     return (
-        <AdminLayout>
-            <PageTransition>
-                <Toaster
-                    position="top-center"
-                    toastOptions={{
-                        duration: 3000,
-                        style: {
-                            background: '#363636',
-                            color: '#fff',
-                            zIndex: 9999,
-                        },
-                        className: 'sm:max-w-[90vw] md:max-w-md',
-                    }}
-                    containerStyle={{
-                        top: 40,
-                        left: 20,
-                        right: 20,
-                    }}
-                />
-                {/* Header */}
-                <div className="mb-8">
-                    <div className="p-7 relative bg-white">
-                        <h1 className="text-3xl font-bold">
-                            Thaiphoon Restaurant
-                        </h1>
-                        <p className="mt-1">
-                            Welcome back! Here's what's happening today.
-                        </p>
-                        <div className="absolute top-4 right-6 opacity-15 pointer-events-none flex">
-                            <Utensils className="w-20 h-20 text-gray-400" />
+      date.getDate() === today.getDate() &&
+      date.getMonth() === today.getMonth() &&
+      date.getFullYear() === today.getFullYear()
+    );
+  };
+
+  return (
+    <AdminLayout>
+      <PageTransition>
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            duration: 3000,
+            style: {
+              background: "#363636",
+              color: "#fff",
+              zIndex: 9999,
+            },
+            className: "sm:max-w-[90vw] md:max-w-md",
+          }}
+          containerStyle={{
+            top: 40,
+            left: 20,
+            right: 20,
+          }}
+        />
+        {/* Header */}
+        <div className="mb-8">
+          <div className="p-7 relative bg-white dark:bg-gray-800">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+              Thaiphoon Restaurant
+            </h1>
+            <p className="mt-1 text-gray-600 dark:text-gray-400">
+              Welcome back! Here's what's happening today.
+            </p>
+            <div className="absolute top-4 right-6 opacity-15 pointer-events-none flex">
+              <Utensils className="w-20 h-20 text-gray-400" />
+            </div>
+          </div>
+        </div>
+
+        {activeTab === "dashboard" ? (
+          <>
+            {/* Compact Status & Stats Bar */}
+            {(() => {
+              const status = getBusinessStatus();
+              return (
+                <Card className="mb-6 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                  <CardContent className="p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      {/* Status & Time */}
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          {status.isOpen ? (
+                            <CheckCircle2 className="w-5 h-5 text-green-600" />
+                          ) : (
+                            <XCircle className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                          )}
+                          <span className="font-semibold text-gray-900 dark:text-gray-100">
+                            {status.isOpen ? "Open" : "Closed"}
+                          </span>
+                          {status.isOpen && status.currentPeriod && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600"
+                            >
+                              {status.currentPeriod}
+                            </Badge>
+                          )}
                         </div>
+                        <div className="hidden sm:flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 border-l border-gray-200 dark:border-gray-700 pl-4">
+                          <Clock className="w-4 h-4" />
+                          <span className="font-mono font-medium text-gray-700 dark:text-gray-300">
+                            {currentTimeDisplay}
+                          </span>
+                          <span className="text-gray-400">·</span>
+                          <span>{currentDateDisplay}</span>
+                        </div>
+                      </div>
+
+                      {/* Stats Row */}
+                      <div className="flex items-center gap-6 text-sm">
+                        <Link
+                          href="/admin/reservation"
+                          className="flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 px-2 py-1 rounded transition-colors"
+                        >
+                          <CalendarDays className="w-4 h-4 text-gray-400" />
+                          <span className="text-gray-500 dark:text-gray-400">
+                            Today
+                          </span>
+                          <span className="font-bold text-gray-900 dark:text-gray-100">
+                            {metrics.todayReservations}
+                          </span>
+                        </Link>
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4 text-gray-400" />
+                          <span className="text-gray-500 dark:text-gray-400 hidden md:inline">
+                            Total
+                          </span>
+                          <span className="font-bold text-gray-900 dark:text-gray-100">
+                            {metrics.totalReservations}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Users className="w-4 h-4 text-gray-400" />
+                          <span className="text-gray-500 dark:text-gray-400 hidden md:inline">
+                            Customers
+                          </span>
+                          <span className="font-bold text-gray-900 dark:text-gray-100">
+                            {metrics.uniqueCustomers}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <ChefHat className="w-4 h-4 text-gray-400" />
+                          <span className="text-gray-500 dark:text-gray-400 hidden md:inline">
+                            Catering
+                          </span>
+                          <span className="font-bold text-gray-900 dark:text-gray-100">
+                            {metrics.newCatering}
+                          </span>
+                          {metrics.newCatering > 0 && (
+                            <button
+                              onClick={markAllCateringRead}
+                              disabled={markingAsRead}
+                              className="text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 underline"
+                            >
+                              clear
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Download className="w-4 h-4 text-gray-400" />
+                          <span className="text-gray-500 dark:text-gray-400 hidden md:inline">
+                            Menu DLs
+                          </span>
+                          <span className="font-bold text-gray-900 dark:text-gray-100">
+                            {metrics.menuDownloads}
+                          </span>
+                        </div>
+                      </div>
                     </div>
+
+                    {/* Today's Hours - Inline */}
+                    {status.todayHours && (
+                      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                        <span className="font-medium">Hours:</span>
+                        {formatHoursDisplay(status.todayHours).map(
+                          (hourStr: string, idx: number) => (
+                            <span
+                              key={idx}
+                              className="bg-gray-50 dark:bg-gray-700 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300"
+                            >
+                              {hourStr}
+                            </span>
+                          ),
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
+            {/* Today's Reservations - Enhanced Full Width List */}
+            <Card className="mb-6 border border-gray-200 dark:border-gray-700 shadow-sm dark:bg-gray-800">
+              <CardHeader className="py-3 px-4 border-b border-gray-100 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                    <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Today&apos;s Reservations
+                    </CardTitle>
+                    <Badge
+                      variant="secondary"
+                      className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                    >
+                      {todaysReservations.length} total
+                    </Badge>
+                  </div>
+                  <Link href="/admin/reservation">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 h-7 px-2 gap-1"
+                    >
+                      View All <ArrowRightCircle className="w-3 h-3" />
+                    </Button>
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {todaysReservations.length === 0 ? (
+                  <div className="py-8 text-center text-gray-400 dark:text-gray-500 text-sm">
+                    No reservations for today
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 max-h-[520px] overflow-y-auto p-1.5">
+                    {todaysReservations.map((reservation) => (
+                      <div
+                        key={reservation.id}
+                        onClick={() => setSelectedReservation(reservation)}
+                        className={`bg-white dark:bg-gray-750 dark:bg-gray-700 rounded-lg shadow-sm overflow-hidden border-l-4 transition-all duration-200 cursor-pointer hover:shadow-md ${
+                          reservation.status?.toLowerCase() === "cancelled"
+                            ? "border-red-500"
+                            : reservation.attendanceStatus === "show"
+                              ? "border-green-500"
+                              : reservation.attendanceStatus === "no-show"
+                                ? "border-orange-500"
+                                : isReservationPassed(reservation.time)
+                                  ? "border-gray-400"
+                                  : "border-blue-400"
+                        }`}
+                      >
+                        <div className="flex items-stretch">
+                          <div
+                            className={`w-20 sm:w-24 border-r dark:border-gray-600 flex items-center justify-center px-1.5 ${
+                              reservation.status?.toLowerCase() === "cancelled"
+                                ? "bg-red-50 dark:bg-red-950"
+                                : "bg-gray-50 dark:bg-gray-600"
+                            }`}
+                          >
+                            <div className="text-center leading-none">
+                              <div
+                                className={`text-2xl sm:text-3xl font-black tracking-tight ${
+                                  reservation.status?.toLowerCase() ===
+                                  "cancelled"
+                                    ? "text-red-300 line-through"
+                                    : isReservationPassed(reservation.time)
+                                      ? "text-gray-400"
+                                      : "text-gray-900 dark:text-gray-100"
+                                }`}
+                              >
+                                {reservation.time.split(" ")[0]}
+                              </div>
+                              {reservation.status?.toLowerCase() ===
+                              "cancelled" ? (
+                                <div className="text-[10px] font-bold text-red-500 mt-1 tracking-wide uppercase">
+                                  Cancelled
+                                </div>
+                              ) : (
+                                reservation.time.split(" ")[1] && (
+                                  <div className="text-[11px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 mt-1 tracking-wide">
+                                    {reservation.time.split(" ")[1]}
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex-1 p-3">
+                            <div className="flex items-start justify-between gap-2 mb-1.5">
+                              <div className="min-w-0">
+                                <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate text-sm">
+                                  {reservation.name}
+                                </h3>
+                                <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                                  <span className="flex items-center">
+                                    <Calendar className="w-3.5 h-3.5 mr-1 text-gray-400" />
+                                    {formatReadableDatePST(
+                                      reservation.date,
+                                      timezone,
+                                    )}
+                                  </span>
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 px-2 py-0.5">
+                                    <Users className="w-3.5 h-3.5 text-blue-500" />
+                                    <span className="text-base leading-none font-bold text-blue-700 dark:text-blue-300">
+                                      {reservation.guests}
+                                    </span>
+                                    <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
+                                      {reservation.guests === 1
+                                        ? "guest"
+                                        : "guests"}
+                                    </span>
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                {!reservation.attendanceStatus && (
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[10px] ${
+                                      reservation.status === "confirmed"
+                                        ? "border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950 dark:text-blue-300"
+                                        : reservation.status === "cancelled"
+                                          ? "border-red-300 text-red-700 bg-red-50 dark:bg-red-950 dark:text-red-300"
+                                          : "border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-600"
+                                    }`}
+                                  >
+                                    {reservation.status === "confirmed"
+                                      ? "Confirmed"
+                                      : reservation.status === "cancelled"
+                                        ? "Cancelled"
+                                        : "Pending"}
+                                  </Badge>
+                                )}
+                                {reservation.attendanceStatus && (
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[10px] ${
+                                      reservation.attendanceStatus === "show"
+                                        ? "border-green-300 text-green-700 bg-green-100 dark:bg-green-950 dark:text-green-300"
+                                        : "border-orange-300 text-orange-700 bg-orange-100 dark:bg-orange-950 dark:text-orange-300"
+                                    }`}
+                                  >
+                                    {reservation.attendanceStatus === "show"
+                                      ? "Showed"
+                                      : "No-Show"}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 dark:text-gray-400 mb-2">
+                              <span className="flex items-center gap-1.5">
+                                <Phone className="w-3.5 h-3.5 text-gray-400" />
+                                {reservation.phone}
+                                {reservation.phoneVerified && (
+                                  <span className="inline-flex items-center text-[10px] font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded px-1 py-0.5">
+                                    ✓ Verified
+                                  </span>
+                                )}
+                              </span>
+                              {reservation.email && (
+                                <span className="flex items-center gap-1">
+                                  <Mail className="w-3.5 h-3.5 text-gray-400" />
+                                  <span className="truncate max-w-[220px]">
+                                    {reservation.email}
+                                  </span>
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500 dark:text-gray-400 mb-2">
+                              <span className="flex items-center">
+                                <CalendarDays className="w-3.5 h-3.5 mr-1 text-gray-400" />
+                                Reservation made:{" "}
+                                {formatReservationCreatedAt(
+                                  (reservation as any).createdAt,
+                                )}
+                              </span>
+                              <span
+                                className={`flex items-center ${
+                                  reservation.reminderSent
+                                    ? "text-green-600 dark:text-green-400"
+                                    : "text-amber-600 dark:text-amber-400"
+                                }`}
+                              >
+                                <Mail className="w-3.5 h-3.5 mr-1" />
+                                Reminder:{" "}
+                                {reservation.reminderSent &&
+                                reservation.reminderSentAt
+                                  ? `Sent ${formatReminderTime(reservation.reminderSentAt.toDate())}`
+                                  : "Not sent"}
+                              </span>
+                            </div>
+
+                            {reservation.comments && (
+                              <div className="text-xs text-gray-700 dark:text-gray-300 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 p-2 rounded-md mb-2">
+                                <span className="font-medium text-xs text-yellow-800 dark:text-yellow-300 mr-1">
+                                  Notes:
+                                </span>
+                                {reservation.comments}
+                              </div>
+                            )}
+
+                            <div
+                              className="flex flex-wrap items-center justify-between gap-1.5 border-t dark:border-gray-600 pt-2"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className={`text-xs ${
+                                    reservation.attendanceStatus === "show"
+                                      ? "text-green-700 bg-green-100 border-green-300"
+                                      : "text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-green-100 dark:hover:bg-green-900 hover:text-green-700"
+                                  } h-7 px-2`}
+                                  onClick={() =>
+                                    handleAttendanceUpdate(
+                                      reservation.id,
+                                      reservation.attendanceStatus === "show"
+                                        ? "default"
+                                        : "show",
+                                    )
+                                  }
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                                  Show
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className={`text-xs ${
+                                    reservation.attendanceStatus === "no-show"
+                                      ? "text-orange-700 bg-orange-100 border-orange-300"
+                                      : "text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-orange-100 dark:hover:bg-orange-900 hover:text-orange-700"
+                                  } h-7 px-2`}
+                                  onClick={() =>
+                                    handleAttendanceUpdate(
+                                      reservation.id,
+                                      reservation.attendanceStatus === "no-show"
+                                        ? "default"
+                                        : "no-show",
+                                    )
+                                  }
+                                >
+                                  <XCircle className="w-3.5 h-3.5 mr-1" />
+                                  No-show
+                                </Button>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleSendReminder(reservation)}
+                                disabled={!canSendReminder(reservation)}
+                                className="text-xs h-7 px-2 text-white"
+                              >
+                                <Mail className="w-3.5 h-3.5 mr-1" />
+                                {canSendReminder(reservation)
+                                  ? "Send Reminder"
+                                  : "Reminder Sent"}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* New Bookings Alert - Compact Rows */}
+            {pendingReservations.length > 0 && (
+              <Card
+                id="pending-reservations"
+                className="mb-8 border border-gray-200 dark:border-gray-700 shadow-sm dark:bg-gray-800"
+              >
+                <CardHeader className="py-3 px-4 border-b border-gray-100 dark:border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Bell className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                      <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        New Bookings
+                      </CardTitle>
+                      <Badge
+                        variant="secondary"
+                        className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                      >
+                        {pendingReservations.length} unread
+                      </Badge>
+                    </div>
+                    {pendingReservations.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={async () => {
+                          const count = pendingReservations.length;
+                          for (const res of pendingReservations) {
+                            await handleMarkReservation(res.id, false);
+                          }
+                          toast.success(`${count} reservations acknowledged`);
+                        }}
+                        className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 h-7 px-2"
+                      >
+                        Acknowledge all
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="divide-y divide-gray-100 dark:divide-gray-700 max-h-[300px] overflow-y-auto">
+                    {pendingReservations.map((reservation) => (
+                      <div
+                        key={reservation.id}
+                        onClick={() => setSelectedReservation(reservation)}
+                        className="flex flex-col px-4 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer group"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 animate-pulse" />
+                            <span className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate">
+                              {reservation.name}
+                            </span>
+                            <span className="text-gray-400 text-sm hidden sm:inline">
+                              ·
+                            </span>
+                            <span className="text-gray-500 dark:text-gray-400 text-sm hidden sm:inline">
+                              {reservation.guests} guests
+                            </span>
+                            <span className="text-gray-400 text-sm hidden md:inline">
+                              ·
+                            </span>
+                            <span className="text-gray-500 dark:text-gray-400 text-sm hidden md:inline">
+                              {reservation.date.toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                              })}{" "}
+                              at {reservation.time}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-4 flex-shrink-0">
+                            {reservation.createdAt && (
+                              <span className="text-[10px] text-gray-400 hidden lg:inline">
+                                {formatTimeAgo(new Date(reservation.createdAt))}
+                              </span>
+                            )}
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="h-7 px-2 text-xs text-gray-500 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-700"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkReservation(reservation.id);
+                              }}
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Acknowledge
+                            </Button>
+                          </div>
+                        </div>
+                        {reservation.comments && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 italic ml-5 mt-1 truncate">
+                            "{reservation.comments.slice(0, 50)}
+                            {reservation.comments.length > 50 ? "..." : ""}"
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </>
+        ) : (
+          <Card className="border border-gray-200 dark:border-gray-700 shadow-sm dark:bg-gray-800">
+            <CardHeader className="border-b border-gray-100 dark:border-gray-700">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-xl">
+                  <Mail className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl">Messages</CardTitle>
+                  <CardDescription>
+                    Customer inquiries and feedback
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`group rounded-xl p-4 transition-all duration-200 ${
+                      message.status === "unread"
+                        ? "bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600"
+                        : "bg-gray-50 dark:bg-gray-750 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700"
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex gap-4">
+                        <div
+                          className={`p-3 rounded-xl ${message.status === "unread" ? "bg-white dark:bg-gray-600 border border-gray-200 dark:border-gray-500" : "bg-gray-200 dark:bg-gray-600"}`}
+                        >
+                          <User className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900 dark:text-gray-100">
+                            {message.name}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                            <Mail className="w-3 h-3" />
+                            {message.email}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {message.timestamp.toLocaleDateString()} at{" "}
+                            {message.timestamp.toLocaleTimeString()}
+                          </p>
+                          <p className="mt-3 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-600 rounded-lg p-3 border border-gray-200 dark:border-gray-500">
+                            {message.message}
+                          </p>
+                        </div>
+                      </div>
+                      {message.status === "unread" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleMarkAsRead(message.id)}
+                          disabled={isMarkingRead === message.id}
+                          className="bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600"
+                        >
+                          {isMarkingRead === message.id
+                            ? "Marking..."
+                            : "Mark Read"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {messages.length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full w-fit mx-auto mb-4">
+                      <Mail className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <p className="text-gray-500 dark:text-gray-400 font-medium">
+                      No messages yet
+                    </p>
+                    <p className="text-gray-400 dark:text-gray-500 text-sm">
+                      Customer messages will appear here
+                    </p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Add Mobile Notification */}
+        <MobileNotification
+          count={pendingReservations.length}
+          onClose={() => setShowMobileNotification(false)}
+        />
+
+        {/* Reservation Detail Modal */}
+        <Dialog
+          open={!!selectedReservation}
+          onOpenChange={(open) => {
+            if (!open) setSelectedReservation(null);
+          }}
+        >
+          <DialogContent className="w-full sm:max-w-[420px] max-h-[90vh] overflow-y-auto p-0 bg-white dark:bg-gray-900">
+            {selectedReservation && (
+              <>
+                {/* Header */}
+                <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-gray-700">
+                  <DialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                    {selectedReservation.name}
+                  </DialogTitle>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge
+                      variant="outline"
+                      className={`text-xs ${
+                        selectedReservation.attendanceStatus === "show"
+                          ? "border-green-300 text-green-700 bg-green-100 dark:bg-green-950 dark:text-green-300"
+                          : selectedReservation.attendanceStatus === "no-show"
+                            ? "border-orange-300 text-orange-700 bg-orange-100 dark:bg-orange-950 dark:text-orange-300"
+                            : selectedReservation.status === "confirmed"
+                              ? "border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950 dark:text-blue-300"
+                              : "border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700"
+                      }`}
+                    >
+                      {selectedReservation.attendanceStatus === "show"
+                        ? "Showed"
+                        : selectedReservation.attendanceStatus === "no-show"
+                          ? "No-Show"
+                          : selectedReservation.status === "confirmed"
+                            ? "Confirmed"
+                            : "Pending"}
+                    </Badge>
+                    {selectedReservation.reminderSent && (
+                      <span className="text-xs text-gray-400 dark:text-gray-500">
+                        Reminder sent{" "}
+                        {selectedReservation.reminderSentAt &&
+                          formatReminderTime(
+                            selectedReservation.reminderSentAt.toDate(),
+                          )}
+                      </span>
+                    )}
+                  </div>
+                </DialogHeader>
+
+                {/* Reservation Details */}
+                <div className="px-6 py-4 space-y-4">
+                  {/* Date & Time */}
+                  <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                    <div className="p-3 bg-white dark:bg-gray-700 rounded-lg shadow-sm">
+                      <Calendar className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Date & Time
+                      </p>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100">
+                        {typeof selectedReservation.date === "string"
+                          ? selectedReservation.date
+                          : selectedReservation.date.toLocaleDateString(
+                              "en-US",
+                              {
+                                weekday: "short",
+                                month: "short",
+                                day: "numeric",
+                              },
+                            )}
+                      </p>
+                      <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                        {selectedReservation.time}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Guests */}
+                  <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                    <div className="p-3 bg-white dark:bg-gray-700 rounded-lg shadow-sm">
+                      <Users className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Party Size
+                      </p>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100">
+                        {selectedReservation.guests}{" "}
+                        {selectedReservation.guests === 1 ? "Guest" : "Guests"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Contact Info */}
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Contact
+                    </p>
+
+                    <a
+                      href={`tel:${selectedReservation.phone}`}
+                      className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <Phone className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {selectedReservation.phone}
+                      </span>
+                    </a>
+
+                    {selectedReservation.email && (
+                      <a
+                        href={`mailto:${selectedReservation.email}`}
+                        className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        <Mail className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                        <span className="font-medium text-gray-900 dark:text-gray-100 break-all">
+                          {selectedReservation.email}
+                        </span>
+                      </a>
+                    )}
+                  </div>
+
+                  {/* Comments */}
+                  {selectedReservation.comments && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Special Requests
+                      </p>
+                      <div className="p-4 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-xl">
+                        <p className="text-gray-700 dark:text-gray-300 italic">
+                          &quot;{selectedReservation.comments}&quot;
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {activeTab === 'dashboard' ? (
-                    <>
-                        {/* Compact Status & Stats Bar */}
-                        {(() => {
-                            const status = getBusinessStatus();
-                            return (
-                                <Card className="mb-6 border border-gray-200 bg-white">
-                                    <CardContent className="p-4">
-                                        <div className="flex flex-wrap items-center justify-between gap-4">
-                                            {/* Status & Time */}
-                                            <div className="flex items-center gap-4">
-                                                <div className="flex items-center gap-2">
-                                                    {status.isOpen ? (
-                                                        <CheckCircle2 className="w-5 h-5 text-green-600" />
-                                                    ) : (
-                                                        <XCircle className="w-5 h-5 text-gray-400" />
-                                                    )}
-                                                    <span className="font-semibold text-gray-900">
-                                                        {status.isOpen ? 'Open' : 'Closed'}
-                                                    </span>
-                                                    {status.isOpen && status.currentPeriod && (
-                                                        <Badge variant="outline" className="text-xs text-gray-500 border-gray-300">
-                                                            {status.currentPeriod}
-                                                        </Badge>
-                                                    )}
-                                                </div>
-                                                <div className="hidden sm:flex items-center gap-1 text-sm text-gray-500 border-l border-gray-200 pl-4">
-                                                    <Clock className="w-4 h-4" />
-                                                    <span className="font-mono font-medium text-gray-700">{currentTimeDisplay}</span>
-                                                    <span className="text-gray-400">·</span>
-                                                    <span>{currentDateDisplay}</span>
-                                                </div>
-                                            </div>
+                {/* Actions */}
+                <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 space-y-3">
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                    Actions
+                  </p>
 
-                                            {/* Stats Row */}
-                                            <div className="flex items-center gap-6 text-sm">
-                                                <Link href="/admin/reservation" className="flex items-center gap-2 hover:bg-gray-50 px-2 py-1 rounded transition-colors">
-                                                    <CalendarDays className="w-4 h-4 text-gray-400" />
-                                                    <span className="text-gray-500">Today</span>
-                                                    <span className="font-bold text-gray-900">{metrics.todayReservations}</span>
-                                                </Link>
-                                                <div className="flex items-center gap-2">
-                                                    <TrendingUp className="w-4 h-4 text-gray-400" />
-                                                    <span className="text-gray-500 hidden md:inline">Total</span>
-                                                    <span className="font-bold text-gray-900">{metrics.totalReservations}</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Users className="w-4 h-4 text-gray-400" />
-                                                    <span className="text-gray-500 hidden md:inline">Customers</span>
-                                                    <span className="font-bold text-gray-900">{metrics.uniqueCustomers}</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <ChefHat className="w-4 h-4 text-gray-400" />
-                                                    <span className="text-gray-500 hidden md:inline">Catering</span>
-                                                    <span className="font-bold text-gray-900">{metrics.newCatering}</span>
-                                                    {metrics.newCatering > 0 && (
-                                                        <button
-                                                            onClick={markAllCateringRead}
-                                                            disabled={markingAsRead}
-                                                            className="text-[10px] text-gray-400 hover:text-gray-600 underline"
-                                                        >
-                                                            clear
-                                                        </button>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Download className="w-4 h-4 text-gray-400" />
-                                                    <span className="text-gray-500 hidden md:inline">Menu DLs</span>
-                                                    <span className="font-bold text-gray-900">{metrics.menuDownloads}</span>
-                                                </div>
-                                            </div>
-                                        </div>
+                  {/* Send Reminder */}
+                  <Button
+                    className="w-full"
+                    onClick={() => handleSendReminder(selectedReservation)}
+                    disabled={!canSendReminder(selectedReservation)}
+                  >
+                    <Mail className="w-5 h-5 mr-2" />
+                    {selectedReservation.reminderSent
+                      ? `Reminder Sent ${selectedReservation.reminderSentAt ? formatReminderTime(selectedReservation.reminderSentAt.toDate()) : ""}`
+                      : "Send Reminder Email"}
+                  </Button>
 
-                                        {/* Today's Hours - Inline */}
-                                        {status.todayHours && (
-                                            <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2 text-xs text-gray-500">
-                                                <span className="font-medium">Hours:</span>
-                                                {formatHoursDisplay(status.todayHours).map((hourStr: string, idx: number) => (
-                                                    <span key={idx} className="bg-gray-50 px-2 py-0.5 rounded text-gray-600">
-                                                        {hourStr}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            );
-                        })()}
-
-                        {/* Today's Reservations - Enhanced Full Width List */}
-                        <Card className="mb-6 border border-gray-200 shadow-sm">
-                            <CardHeader className="py-3 px-4 border-b border-gray-100">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <CalendarDays className="w-4 h-4 text-gray-500" />
-                                        <CardTitle className="text-sm font-medium text-gray-700">
-                                            Today&apos;s Reservations
-                                        </CardTitle>
-                                        <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-600">
-                                            {todaysReservations.length} total
-                                        </Badge>
-                                    </div>
-                                    <Link href="/admin/reservation">
-                                        <Button size="sm" variant="ghost" className="text-xs text-gray-500 hover:text-gray-700 h-7 px-2 gap-1">
-                                            View All <ArrowRightCircle className="w-3 h-3" />
-                                        </Button>
-                                    </Link>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="p-0">
-                                {todaysReservations.length === 0 ? (
-                                    <div className="py-8 text-center text-gray-400 text-sm">
-                                        No reservations for today
-                                    </div>
-                                ) : (
-                                    <div className="space-y-1.5 max-h-[520px] overflow-y-auto p-1.5">
-                                        {todaysReservations.map((reservation) => (
-                                            <div
-                                                key={reservation.id}
-                                                onClick={() => setSelectedReservation(reservation)}
-                                                className={`bg-white rounded-lg shadow-sm overflow-hidden border-l-4 transition-all duration-200 cursor-pointer hover:shadow-md ${
-                                                    reservation.status?.toLowerCase() === 'cancelled'
-                                                        ? 'border-red-500'
-                                                        : reservation.attendanceStatus === 'show'
-                                                            ? 'border-green-500'
-                                                            : reservation.attendanceStatus === 'no-show'
-                                                                ? 'border-orange-500'
-                                                                : isReservationPassed(reservation.time)
-                                                                    ? 'border-gray-400'
-                                                                    : 'border-blue-400'
-                                                }`}
-                                            >
-                                                <div className="flex items-stretch">
-                                                    <div className={`w-20 sm:w-24 border-r flex items-center justify-center px-1.5 ${
-                                                        reservation.status?.toLowerCase() === 'cancelled' ? 'bg-red-50' : 'bg-gray-50'
-                                                    }`}>
-                                                        <div className="text-center leading-none">
-                                                            <div className={`text-2xl sm:text-3xl font-black tracking-tight ${
-                                                                reservation.status?.toLowerCase() === 'cancelled'
-                                                                    ? 'text-red-300 line-through'
-                                                                    : isReservationPassed(reservation.time) ? 'text-gray-400' : 'text-gray-900'
-                                                            }`}>
-                                                                {reservation.time.split(' ')[0]}
-                                                            </div>
-                                                            {reservation.status?.toLowerCase() === 'cancelled' ? (
-                                                                <div className="text-[10px] font-bold text-red-500 mt-1 tracking-wide uppercase">
-                                                                    Cancelled
-                                                                </div>
-                                                            ) : reservation.time.split(' ')[1] && (
-                                                                <div className="text-[11px] sm:text-xs font-semibold text-gray-500 mt-1 tracking-wide">
-                                                                    {reservation.time.split(' ')[1]}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex-1 p-3">
-                                                        <div className="flex items-start justify-between gap-2 mb-1.5">
-                                                            <div className="min-w-0">
-                                                                <h3 className="font-semibold text-gray-900 truncate text-sm">{reservation.name}</h3>
-                                                                <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-gray-600">
-                                                                    <span className="flex items-center">
-                                                                        <Calendar className="w-3.5 h-3.5 mr-1 text-gray-400" />
-                                                                        {formatReadableDatePST(reservation.date, timezone)}
-                                                                    </span>
-                                                                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5">
-                                                                        <Users className="w-3.5 h-3.5 text-blue-500" />
-                                                                        <span className="text-base leading-none font-bold text-blue-700">{reservation.guests}</span>
-                                                                        <span className="text-[11px] font-medium text-blue-600">{reservation.guests === 1 ? 'guest' : 'guests'}</span>
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex items-center gap-2 flex-shrink-0">
-                                                                {!reservation.attendanceStatus && (
-                                                                    <Badge
-                                                                        variant="outline"
-                                                                        className={`text-[10px] ${reservation.status === 'confirmed'
-                                                                            ? 'border-blue-300 text-blue-700 bg-blue-50'
-                                                                            : reservation.status === 'cancelled'
-                                                                            ? 'border-red-300 text-red-700 bg-red-50'
-                                                                            : 'border-gray-300 text-gray-500 bg-gray-50'
-                                                                            }`}
-                                                                    >
-                                                                        {reservation.status === 'confirmed' ? 'Confirmed' : reservation.status === 'cancelled' ? 'Cancelled' : 'Pending'}
-                                                                    </Badge>
-                                                                )}
-                                                                {reservation.attendanceStatus && (
-                                                                    <Badge
-                                                                        variant="outline"
-                                                                        className={`text-[10px] ${reservation.attendanceStatus === 'show'
-                                                                            ? 'border-green-300 text-green-700 bg-green-100'
-                                                                            : 'border-orange-300 text-orange-700 bg-orange-100'
-                                                                            }`}
-                                                                    >
-                                                                        {reservation.attendanceStatus === 'show' ? 'Showed' : 'No-Show'}
-                                                                    </Badge>
-                                                                )}
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 mb-2">
-                                                            <span className="flex items-center gap-1.5">
-                                                                <Phone className="w-3.5 h-3.5 text-gray-400" />
-                                                                {reservation.phone}
-                                                                {reservation.phoneVerified && (
-                                                                    <span className="inline-flex items-center text-[10px] font-medium text-green-700 bg-green-50 border border-green-200 rounded px-1 py-0.5">
-                                                                        ✓ Verified
-                                                                    </span>
-                                                                )}
-                                                            </span>
-                                                            {reservation.email && (
-                                                                <span className="flex items-center gap-1">
-                                                                    <Mail className="w-3.5 h-3.5 text-gray-400" />
-                                                                    <span className="truncate max-w-[220px]">{reservation.email}</span>
-                                                                </span>
-                                                            )}
-                                                        </div>
-
-                                                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500 mb-2">
-                                                            <span className="flex items-center">
-                                                                <CalendarDays className="w-3.5 h-3.5 mr-1 text-gray-400" />
-                                                                Reservation made: {formatReservationCreatedAt((reservation as any).createdAt)}
-                                                            </span>
-                                                            <span className={`flex items-center ${
-                                                                reservation.reminderSent ? 'text-green-600' : 'text-amber-600'
-                                                            }`}>
-                                                                <Mail className="w-3.5 h-3.5 mr-1" />
-                                                                Reminder: {reservation.reminderSent && reservation.reminderSentAt
-                                                                    ? `Sent ${formatReminderTime(reservation.reminderSentAt.toDate())}`
-                                                                    : 'Not sent'}
-                                                            </span>
-                                                        </div>
-
-                                                        {reservation.comments && (
-                                                            <div className="text-xs text-gray-700 bg-yellow-50 border border-yellow-200 p-2 rounded-md mb-2">
-                                                                <span className="font-medium text-xs text-yellow-800 mr-1">Notes:</span>
-                                                                {reservation.comments}
-                                                            </div>
-                                                        )}
-
-                                                        <div className="flex flex-wrap items-center justify-between gap-1.5 border-t pt-2" onClick={(e) => e.stopPropagation()}>
-                                                            <div className="flex items-center gap-2">
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    className={`text-xs ${reservation.attendanceStatus === 'show'
-                                                                        ? 'text-green-700 bg-green-100 border-green-300'
-                                                                        : 'text-gray-600 bg-white hover:bg-green-100 hover:text-green-700'
-                                                                        } h-7 px-2`}
-                                                                    onClick={() => handleAttendanceUpdate(
-                                                                        reservation.id,
-                                                                        reservation.attendanceStatus === 'show' ? 'default' : 'show'
-                                                                    )}
-                                                                >
-                                                                    <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                                                                    Show
-                                                                </Button>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    className={`text-xs ${reservation.attendanceStatus === 'no-show'
-                                                                        ? 'text-orange-700 bg-orange-100 border-orange-300'
-                                                                        : 'text-gray-600 bg-white hover:bg-orange-100 hover:text-orange-700'
-                                                                        } h-7 px-2`}
-                                                                    onClick={() => handleAttendanceUpdate(
-                                                                        reservation.id,
-                                                                        reservation.attendanceStatus === 'no-show' ? 'default' : 'no-show'
-                                                                    )}
-                                                                >
-                                                                    <XCircle className="w-3.5 h-3.5 mr-1" />
-                                                                    No-show
-                                                                </Button>
-                                                            </div>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => handleSendReminder(reservation)}
-                                                                disabled={!canSendReminder(reservation)}
-                                                                className="text-xs h-7 px-2"
-                                                            >
-                                                                <Mail className="w-3.5 h-3.5 mr-1" />
-                                                                {canSendReminder(reservation) ? 'Send Reminder' : 'Reminder Sent'}
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        {/* New Bookings Alert - Compact Rows */}
-                        {pendingReservations.length > 0 && (
-                            <Card id="pending-reservations" className="mb-8 border border-gray-200 shadow-sm">
-                                <CardHeader className="py-3 px-4 border-b border-gray-100">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <Bell className="w-4 h-4 text-gray-500" />
-                                            <CardTitle className="text-sm font-medium text-gray-700">
-                                                New Bookings
-                                            </CardTitle>
-                                            <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-600">
-                                                {pendingReservations.length} unread
-                                            </Badge>
-                                        </div>
-                                        {pendingReservations.length > 1 && (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={async () => {
-                                                    const count = pendingReservations.length;
-                                                    for (const res of pendingReservations) {
-                                                        await handleMarkReservation(res.id, false);
-                                                    }
-                                                    toast.success(`${count} reservations acknowledged`);
-                                                }}
-                                                className="text-xs text-gray-500 hover:text-gray-700 h-7 px-2"
-                                            >
-                                                Acknowledge all
-                                            </Button>
-                                        )}
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="p-0">
-                                    <div className="divide-y divide-gray-100 max-h-[300px] overflow-y-auto">
-                                        {pendingReservations.map((reservation) => (
-                                            <div
-                                                key={reservation.id}
-                                                onClick={() => setSelectedReservation(reservation)}
-                                                className="flex flex-col px-4 py-2.5 hover:bg-gray-100 transition-colors cursor-pointer group"
-                                            >
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                                                        <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 animate-pulse" />
-                                                        <span className="font-medium text-gray-900 text-sm truncate">
-                                                            {reservation.name}
-                                                        </span>
-                                                        <span className="text-gray-400 text-sm hidden sm:inline">·</span>
-                                                        <span className="text-gray-500 text-sm hidden sm:inline">
-                                                            {reservation.guests} guests
-                                                        </span>
-                                                        <span className="text-gray-400 text-sm hidden md:inline">·</span>
-                                                        <span className="text-gray-500 text-sm hidden md:inline">
-                                                            {reservation.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at {reservation.time}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex items-center gap-4 flex-shrink-0">
-                                                        {reservation.createdAt && (
-                                                            <span className="text-[10px] text-gray-400 hidden lg:inline">
-                                                                {formatTimeAgo(new Date(reservation.createdAt))}
-                                                            </span>
-                                                        )}
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleMarkReservation(reservation.id);
-                                                            }}
-                                                            className="flex items-center gap-1.5 px-2 py-1 rounded text-gray-500 bg-gray-100 hover:bg-gray-200 hover:text-gray-700 transition-colors text-xs font-medium"
-                                                        >
-                                                            <CheckCircle2 className="w-3.5 h-3.5" />
-                                                            <span>Acknowledge</span>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                {reservation.comments && (
-                                                    <p className="text-xs text-gray-500 italic ml-5 mt-1 truncate">
-                                                        "{reservation.comments.slice(0, 50)}{reservation.comments.length > 50 ? '...' : ''}"
-                                                    </p>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
-                    </>
-                ) : (
-                    <Card className="border border-gray-200 shadow-sm">
-                        <CardHeader className="border-b border-gray-100">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-gray-100 rounded-xl">
-                                    <Mail className="w-5 h-5 text-gray-600" />
-                                </div>
-                                <div>
-                                    <CardTitle className="text-xl">Messages</CardTitle>
-                                    <CardDescription>Customer inquiries and feedback</CardDescription>
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-4">
-                                {messages.map((message) => (
-                                    <div
-                                        key={message.id}
-                                        className={`group rounded-xl p-4 transition-all duration-200 ${message.status === 'unread'
-                                            ? 'bg-gray-100 border border-gray-300'
-                                            : 'bg-gray-50 border border-gray-200'
-                                            }`}
-                                    >
-                                        <div className="flex justify-between items-start">
-                                            <div className="flex gap-4">
-                                                <div className={`p-3 rounded-xl ${message.status === 'unread' ? 'bg-white border border-gray-200' : 'bg-gray-200'}`}>
-                                                    <User className="w-5 h-5 text-gray-600" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-semibold text-gray-900">{message.name}</p>
-                                                    <p className="text-sm text-gray-600 flex items-center gap-1">
-                                                        <Mail className="w-3 h-3" />
-                                                        {message.email}
-                                                    </p>
-                                                    <p className="text-xs text-gray-400 mt-1">
-                                                        {message.timestamp.toLocaleDateString()} at {message.timestamp.toLocaleTimeString()}
-                                                    </p>
-                                                    <p className="mt-3 text-gray-700 bg-white rounded-lg p-3 border border-gray-200">
-                                                        {message.message}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            {message.status === 'unread' && (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => handleMarkAsRead(message.id)}
-                                                    disabled={isMarkingRead === message.id}
-                                                    className="bg-white hover:bg-gray-50 text-gray-700 border-gray-300"
-                                                >
-                                                    {isMarkingRead === message.id ? 'Marking...' : 'Mark Read'}
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-
-                                {messages.length === 0 && (
-                                    <div className="text-center py-12">
-                                        <div className="p-4 bg-gray-100 rounded-full w-fit mx-auto mb-4">
-                                            <Mail className="w-8 h-8 text-gray-400" />
-                                        </div>
-                                        <p className="text-gray-500 font-medium">No messages yet</p>
-                                        <p className="text-gray-400 text-sm">Customer messages will appear here</p>
-                                    </div>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
-
-                {/* Add Mobile Notification */}
-                <MobileNotification
-                    count={pendingReservations.length}
-                    onClose={() => setShowMobileNotification(false)}
-                />
-
-                {/* Reservation Detail Modal */}
-                {selectedReservation && (
-                    <div
-                        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-                        onClick={() => setSelectedReservation(null)}
+                  {/* Attendance Buttons */}
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      className={`flex-1 ${
+                        selectedReservation.attendanceStatus === "show"
+                          ? "bg-green-600 text-white hover:bg-green-700 hover:text-white border-green-600"
+                          : "text-gray-700 dark:text-gray-300 hover:bg-green-100 dark:hover:bg-green-900 hover:text-green-700"
+                      }`}
+                      onClick={() => {
+                        handleAttendanceUpdate(
+                          selectedReservation.id,
+                          selectedReservation.attendanceStatus === "show"
+                            ? "default"
+                            : "show",
+                        );
+                        setSelectedReservation((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                attendanceStatus:
+                                  prev.attendanceStatus === "show"
+                                    ? undefined
+                                    : "show",
+                              }
+                            : null,
+                        );
+                      }}
                     >
-                        {/* Backdrop */}
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                      <CheckCircle2 className="w-5 h-5 mr-2" />
+                      {selectedReservation.attendanceStatus === "show"
+                        ? "Showed ✓"
+                        : "Mark Show"}
+                    </Button>
 
-                        {/* Modal Content */}
-                        <div
-                            className="relative bg-white w-full sm:w-[420px] sm:max-w-[95vw] max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl shadow-2xl"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            {/* Handle bar for mobile */}
-                            <div className="sm:hidden flex justify-center pt-3 pb-1">
-                                <div className="w-10 h-1 bg-gray-300 rounded-full" />
-                            </div>
+                    <Button
+                      variant="outline"
+                      className={`flex-1 ${
+                        selectedReservation.attendanceStatus === "no-show"
+                          ? "bg-orange-600 text-white hover:bg-orange-700 hover:text-white border-orange-600"
+                          : "text-gray-700 dark:text-gray-300 hover:bg-orange-100 dark:hover:bg-orange-900 hover:text-orange-700"
+                      }`}
+                      onClick={() => {
+                        handleAttendanceUpdate(
+                          selectedReservation.id,
+                          selectedReservation.attendanceStatus === "no-show"
+                            ? "default"
+                            : "no-show",
+                        );
+                        setSelectedReservation((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                attendanceStatus:
+                                  prev.attendanceStatus === "no-show"
+                                    ? undefined
+                                    : "no-show",
+                              }
+                            : null,
+                        );
+                      }}
+                    >
+                      <XCircle className="w-5 h-5 mr-2" />
+                      {selectedReservation.attendanceStatus === "no-show"
+                        ? "No-Show ✓"
+                        : "Mark No-Show"}
+                    </Button>
+                  </div>
 
-                            {/* Close button */}
-                            <button
-                                onClick={() => setSelectedReservation(null)}
-                                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
+                  {/* Acknowledge (for new bookings) */}
+                  {pendingReservations.some(
+                    (r) => r.id === selectedReservation.id,
+                  ) && (
+                    <Button
+                      className="w-full bg-gray-900 hover:bg-gray-800"
+                      onClick={() => {
+                        handleMarkReservation(selectedReservation.id);
+                        setSelectedReservation(null);
+                      }}
+                    >
+                      <CheckCircle2 className="w-5 h-5 mr-2" />
+                      Acknowledge Booking
+                    </Button>
+                  )}
+                </div>
 
-                            {/* Header */}
-                            <div className="px-6 pt-4 pb-4 border-b border-gray-100">
-                                <h2 className="text-xl font-bold text-gray-900">{selectedReservation.name}</h2>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <Badge
-                                        variant="outline"
-                                        className={`text-xs ${selectedReservation.attendanceStatus === 'show'
-                                            ? 'border-green-300 text-green-700 bg-green-100'
-                                            : selectedReservation.attendanceStatus === 'no-show'
-                                                ? 'border-orange-300 text-orange-700 bg-orange-100'
-                                                : selectedReservation.status === 'confirmed'
-                                                    ? 'border-blue-300 text-blue-700 bg-blue-50'
-                                                    : 'border-gray-300 text-gray-500 bg-gray-50'
-                                            }`}
-                                    >
-                                        {selectedReservation.attendanceStatus === 'show'
-                                            ? 'Showed'
-                                            : selectedReservation.attendanceStatus === 'no-show'
-                                                ? 'No-Show'
-                                                : selectedReservation.status === 'confirmed'
-                                                    ? 'Confirmed'
-                                                    : 'Pending'}
-                                    </Badge>
-                                    {selectedReservation.reminderSent && (
-                                        <span className="text-xs text-gray-400">
-                                            Reminder sent {selectedReservation.reminderSentAt && formatReminderTime(selectedReservation.reminderSentAt.toDate())}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Reservation Details */}
-                            <div className="px-6 py-4 space-y-4">
-                                {/* Date & Time */}
-                                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                                    <div className="p-3 bg-white rounded-lg shadow-sm">
-                                        <Calendar className="w-6 h-6 text-gray-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-gray-500">Date & Time</p>
-                                        <p className="font-semibold text-gray-900">
-                                            {typeof selectedReservation.date === 'string'
-                                                ? selectedReservation.date
-                                                : selectedReservation.date.toLocaleDateString('en-US', {
-                                                    weekday: 'short',
-                                                    month: 'short',
-                                                    day: 'numeric'
-                                                })}
-                                        </p>
-                                        <p className="text-lg font-bold text-gray-900">{selectedReservation.time}</p>
-                                    </div>
-                                </div>
-
-                                {/* Guests */}
-                                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                                    <div className="p-3 bg-white rounded-lg shadow-sm">
-                                        <Users className="w-6 h-6 text-gray-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-gray-500">Party Size</p>
-                                        <p className="font-semibold text-gray-900">
-                                            {selectedReservation.guests} {selectedReservation.guests === 1 ? 'Guest' : 'Guests'}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Contact Info */}
-                                <div className="space-y-3">
-                                    <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Contact</p>
-
-                                    <a
-                                        href={`tel:${selectedReservation.phone}`}
-                                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
-                                    >
-                                        <Phone className="w-5 h-5 text-gray-500" />
-                                        <span className="font-medium text-gray-900">{selectedReservation.phone}</span>
-                                    </a>
-
-                                    {selectedReservation.email && (
-                                        <a
-                                            href={`mailto:${selectedReservation.email}`}
-                                            className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
-                                        >
-                                            <Mail className="w-5 h-5 text-gray-500" />
-                                            <span className="font-medium text-gray-900 break-all">{selectedReservation.email}</span>
-                                        </a>
-                                    )}
-                                </div>
-
-                                {/* Comments */}
-                                {selectedReservation.comments && (
-                                    <div className="space-y-2">
-                                        <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Special Requests</p>
-                                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                                            <p className="text-gray-700 italic">&quot;{selectedReservation.comments}&quot;</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Actions */}
-                            <div className="px-6 py-4 border-t border-gray-100 space-y-3">
-                                <p className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Actions</p>
-
-                                {/* Send Reminder */}
-                                <button
-                                    onClick={() => {
-                                        handleSendReminder(selectedReservation);
-                                    }}
-                                    disabled={!canSendReminder(selectedReservation)}
-                                    className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-colors ${canSendReminder(selectedReservation)
-                                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                        : 'bg-blue-100 text-blue-400 cursor-not-allowed'
-                                        }`}
-                                >
-                                    <Mail className="w-5 h-5" />
-                                    {selectedReservation.reminderSent
-                                        ? `Reminder Sent ${selectedReservation.reminderSentAt ? formatReminderTime(selectedReservation.reminderSentAt.toDate()) : ''}`
-                                        : 'Send Reminder Email'
-                                    }
-                                </button>
-
-                                {/* Attendance Buttons */}
-                                <div className="flex gap-3">
-                                    <button
-                                        onClick={() => {
-                                            handleAttendanceUpdate(
-                                                selectedReservation.id,
-                                                selectedReservation.attendanceStatus === 'show' ? 'default' : 'show'
-                                            );
-                                            // Update the selected reservation state
-                                            setSelectedReservation(prev => prev ? {
-                                                ...prev,
-                                                attendanceStatus: prev.attendanceStatus === 'show' ? undefined : 'show'
-                                            } : null);
-                                        }}
-                                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-colors ${selectedReservation.attendanceStatus === 'show'
-                                            ? 'bg-green-600 text-white'
-                                            : 'bg-gray-100 text-gray-700 hover:bg-green-100 hover:text-green-700'
-                                            }`}
-                                    >
-                                        <CheckCircle2 className="w-5 h-5" />
-                                        {selectedReservation.attendanceStatus === 'show' ? 'Showed ✓' : 'Mark Show'}
-                                    </button>
-
-                                    <button
-                                        onClick={() => {
-                                            handleAttendanceUpdate(
-                                                selectedReservation.id,
-                                                selectedReservation.attendanceStatus === 'no-show' ? 'default' : 'no-show'
-                                            );
-                                            // Update the selected reservation state
-                                            setSelectedReservation(prev => prev ? {
-                                                ...prev,
-                                                attendanceStatus: prev.attendanceStatus === 'no-show' ? undefined : 'no-show'
-                                            } : null);
-                                        }}
-                                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-colors ${selectedReservation.attendanceStatus === 'no-show'
-                                            ? 'bg-orange-600 text-white'
-                                            : 'bg-gray-100 text-gray-700 hover:bg-orange-100 hover:text-orange-700'
-                                            }`}
-                                    >
-                                        <XCircle className="w-5 h-5" />
-                                        {selectedReservation.attendanceStatus === 'no-show' ? 'No-Show ✓' : 'Mark No-Show'}
-                                    </button>
-                                </div>
-
-                                {/* Acknowledge (for new bookings) */}
-                                {pendingReservations.some(r => r.id === selectedReservation.id) && (
-                                    <button
-                                        onClick={() => {
-                                            handleMarkReservation(selectedReservation.id);
-                                            setSelectedReservation(null);
-                                        }}
-                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 transition-colors"
-                                    >
-                                        <CheckCircle2 className="w-5 h-5" />
-                                        Acknowledge Booking
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* Bottom safe area for mobile */}
-                            <div className="h-6 sm:h-4" />
-                        </div>
-                    </div>
-                )}
-            </PageTransition>
-        </AdminLayout>
-    );
+                {/* Bottom safe area for mobile */}
+                <div className="h-4" />
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+      </PageTransition>
+    </AdminLayout>
+  );
 }

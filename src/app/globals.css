@@ -106,6 +106,13 @@ textarea,
     color: black !important;
 }
 
+.dark input,
+.dark select,
+.dark textarea {
+    background-color: hsl(var(--input)) !important;
+    color: hsl(var(--foreground)) !important;
+}
+
 /* Remove black focus border and customize focus state */
 input:focus,
 select:focus,
@@ -147,6 +154,12 @@ select,
 select option {
     color: black !important;
     background-color: white !important;
+}
+
+.dark select,
+.dark select option {
+    color: hsl(var(--foreground)) !important;
+    background-color: hsl(var(--input)) !important;
 }
 
 .animate-slide-up {
@@ -207,3 +220,41 @@ select::-webkit-scrollbar-thumb {
 /* Hide scrollbar for category pill strips */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ============================================================
+   Admin panel — global dark-mode overrides
+   Written outside @layer so they cascade above Tailwind
+   utilities without needing !important.
+   Scoped to .admin-main (the <main> element in AdminLayout).
+   ============================================================ */
+
+/* Backgrounds */
+.dark .admin-main .bg-white,
+.dark .admin-main .hover\:bg-white:hover  { background-color: hsl(217.2 32.6% 17.5%); }
+.dark .admin-main .bg-gray-50             { background-color: hsl(222.2 47% 11%); }
+.dark .admin-main .hover\:bg-gray-50:hover { background-color: hsl(222.2 47% 14%); }
+.dark .admin-main .bg-gray-100            { background-color: hsl(217.2 32.6% 17.5%); }
+.dark .admin-main .hover\:bg-gray-100:hover { background-color: hsl(217.2 32.6% 22%); }
+.dark .admin-main .bg-gray-200            { background-color: hsl(217.2 32.6% 22%); }
+.dark .admin-main .hover\:bg-gray-200:hover { background-color: hsl(217.2 32.6% 26%); }
+
+/* Text */
+.dark .admin-main .text-gray-900 { color: hsl(210 40% 98%); }
+.dark .admin-main .text-gray-800 { color: hsl(210 30% 88%); }
+.dark .admin-main .text-gray-700 { color: hsl(215 20% 75%); }
+.dark .admin-main .text-gray-600 { color: hsl(215 20% 65%); }
+.dark .admin-main .text-gray-500 { color: hsl(215 20% 52%); }
+
+/* Borders */
+.dark .admin-main .border-gray-100,
+.dark .admin-main .border-gray-200 { border-color: hsl(217.2 32.6% 22%); }
+.dark .admin-main .border-gray-300 { border-color: hsl(217.2 32.6% 28%); }
+
+/* Divide lines */
+.dark .admin-main .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+.dark .admin-main .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: hsl(217.2 32.6% 22%);
+}
+
+/* Ring / focus outlines on inputs */
+.dark .admin-main .ring-gray-300 { --tw-ring-color: hsl(217.2 32.6% 28%); }
