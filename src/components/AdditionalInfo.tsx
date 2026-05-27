@@ -4,9 +4,10 @@ import { MessageSquare } from 'lucide-react';
 type Props = {
   comments: string;
   onUpdate: (data: { comments: string }) => void;
+  disabled?: boolean;
 };
 
-const AdditionalInfo: React.FC<Props> = ({ comments, onUpdate }) => {
+const AdditionalInfo: React.FC<Props> = ({ comments, onUpdate, disabled = false }) => {
   return (
     <div className="space-y-8">
       <h2 className="text-2xl font-semibold text-gray-900 mb-6">
@@ -25,7 +26,8 @@ const AdditionalInfo: React.FC<Props> = ({ comments, onUpdate }) => {
           onChange={(e) => onUpdate({ comments: e.target.value })}
           placeholder="Any dietary restrictions, special occasions, or seating preferences?"
           rows={4}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+          disabled={disabled}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
         />
       </div>
     </div>

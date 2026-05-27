@@ -1026,10 +1026,12 @@ function App() {
                     smsOptIn={smsOptIn}
                     onSmsOptIn={setSmsOptIn}
                     otpEnabled={otpEnabled}
+                    disabled={isSubmitting}
                   />
                   <AdditionalInfo
                     comments={formData.comments}
                     onUpdate={updateFormData}
+                    disabled={isSubmitting}
                   />
                 </div>
               )}
@@ -1070,14 +1072,12 @@ function App() {
                     }
                     disabled={isSubmitting}
                   >
-                    {isSubmitting ? (
-                      <span className="inline-flex items-center gap-2">
+                    <span className="inline-flex items-center gap-2">
+                      {isSubmitting && (
                         <span className="inline-block w-4 h-4 rounded-full border-2 border-zinc-900/30 border-t-zinc-900 animate-spin" />
-                        Confirming...
-                      </span>
-                    ) : (
-                      "Confirm Table"
-                    )}
+                      )}
+                      Confirm Table
+                    </span>
                   </MagneticButton>
                 )}
               </div>

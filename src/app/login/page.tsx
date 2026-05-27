@@ -6,7 +6,7 @@ import { useState, Suspense } from 'react';
 function LoginForm() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const [remember, setRemember] = useState(false);
+    const [remember, setRemember] = useState(true);
     const [error, setError] = useState(false);
     const [loading, setLoading] = useState(false);
     const router = useRouter();

@@ -10,11 +10,12 @@ type Props = {
   smsOptIn: boolean;
   onSmsOptIn: (v: boolean) => void;
   otpEnabled: boolean;
+  disabled?: boolean;
 };
 
 const OTP_LENGTH = 4;
 
-const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhoneVerified, smsOptIn, onSmsOptIn, otpEnabled }) => {
+const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhoneVerified, smsOptIn, onSmsOptIn, otpEnabled, disabled = false }) => {
   const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [otpSent, setOtpSent] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -164,7 +165,8 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
               value={formData.name}
               onChange={(e) => onUpdate({ name: e.target.value })}
               placeholder="John Doe"
-              className="w-full px-3 py-2 border-0 bg-white focus:outline-none"
+              disabled={disabled}
+              className="w-full px-3 py-2 border-0 bg-white focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
         </div>
@@ -182,7 +184,8 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
               value={formData.email}
               onChange={(e) => onUpdate({ email: e.target.value })}
               placeholder="john@example.com"
-              className="w-full px-3 py-2 border-0 bg-white focus:outline-none"
+              disabled={disabled}
+              className="w-full px-3 py-2 border-0 bg-white focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
         </div>
@@ -193,7 +196,8 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
               type="checkbox"
               checked={smsOptIn}
               onChange={(e) => onSmsOptIn(e.target.checked)}
-              className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              disabled={disabled}
+              className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-xs text-gray-500 leading-relaxed">
               I agree to receive SMS messages from Thaiphoon Restaurant for reservation verification and reminders. Message frequency varies. Message &amp; data rates may apply. Reply <strong className="font-semibold text-gray-600">STOP</strong> to cancel, <strong className="font-semibold text-gray-600">HELP</strong> for help.
@@ -218,7 +222,8 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
               value={formData.phone}
               onChange={(e) => handlePhoneChange(e.target.value)}
               placeholder="(123)-456-7890"
-              className="w-full px-3 py-2 border-0 focus:outline-none"
+              disabled={disabled}
+              className="w-full px-3 py-2 border-0 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             />
             {otpEnabled && phoneVerified && (
               <CheckCircle2 className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
@@ -281,7 +286,7 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
               <button
                 type="button"
                 onClick={handleSendCode}
-                disabled={isSending || !smsOptIn}
+                disabled={isSending || !smsOptIn || disabled}
                 title={!smsOptIn ? 'Please agree to SMS terms on the previous step' : undefined}
                 className="text-xs text-indigo-600 hover:text-indigo-800 underline underline-offset-2 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
               >
