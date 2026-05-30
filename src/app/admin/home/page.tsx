@@ -49,6 +49,7 @@ import PageTransition from "@/components/PageTransition";
 import StaggeredList from "@/components/StaggeredList";
 import { Timestamp } from "firebase/firestore";
 import { formatReadableDatePST } from "@/utils/dateUtils";
+import { playNotificationSound } from "@/utils/soundUtils";
 import { Reservation } from "../reservation/page";
 import Link from "next/link";
 import { useTimezone, TIMEZONE_OPTIONS } from "@/contexts/TimezoneContext";
@@ -657,6 +658,7 @@ export default function AdminHome() {
           );
 
           if (newReservations.length > 0) {
+            playNotificationSound();
             // Show toast for new reservation
             toast.success(
               `🔔 New reservation from ${newReservations[0].name}!`,
