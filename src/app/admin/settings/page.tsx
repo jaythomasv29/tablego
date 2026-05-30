@@ -5,9 +5,16 @@ import { useEffect, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import toast, { Toaster } from 'react-hot-toast';
-import { Globe, Save, RefreshCw, Clock, Mail, Send, Trash2 } from 'lucide-react';
+import { Globe, Save, RefreshCw, Clock, Mail, Send, Trash2, Bell } from 'lucide-react';
 import PageTransition from '@/components/PageTransition';
 import { TIMEZONE_OPTIONS, useTimezone } from '@/contexts/TimezoneContext';
+import {
+    SOUND_OPTIONS,
+    getSoundPreference,
+    setSoundPreference,
+    playNotificationSound,
+    type SoundType,
+} from '@/utils/soundUtils';
 
 export default function AdminSettings() {
     const [selectedTimezone, setSelectedTimezone] = useState<string>('America/Los_Angeles');
@@ -18,10 +25,15 @@ export default function AdminSettings() {
     const [testEmail, setTestEmail] = useState('');
     const [sendingTest, setSendingTest] = useState(false);
     const [deletingTest, setDeletingTest] = useState(false);
+    const [notificationSound, setNotificationSound] = useState<SoundType>('chime');
     const { refreshTimezone } = useTimezone();
 
     // Current time display in selected timezone
     const [currentTime, setCurrentTime] = useState<string>('');
+
+    useEffect(() => {
+        setNotificationSound(getSoundPreference());
+    }, []);
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -415,6 +427,49 @@ export default function AdminSettings() {
                             )}
                         </button>
                     </div>
+                </div>
+
+                {/* Notification Sound Card */}
+                <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-3 bg-indigo-50 rounded-full">
+                            <Bell className="w-6 h-6 text-indigo-500" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold">Notification Sound</h2>
+                            <p className="text-sm text-gray-500">
+                                Choose the sound that plays when a new reservation comes in. Saved to this browser.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3 mb-5">
+                        {SOUND_OPTIONS.map((option) => (
+                            <button
+                                key={option.value}
+                                onClick={() => {
+                                    setNotificationSound(option.value);
+                                    setSoundPreference(option.value);
+                                }}
+                                className={`flex-1 flex flex-col items-center gap-1 px-4 py-4 rounded-xl border-2 transition-all ${
+                                    notificationSound === option.value
+                                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                                }`}
+                            >
+                                <span className="font-semibold text-sm">{option.label}</span>
+                                <span className="text-xs text-gray-400">{option.description}</span>
+                            </button>
+                        ))}
+                    </div>
+
+                    <button
+                        onClick={() => playNotificationSound(notificationSound)}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors text-sm"
+                    >
+                        <Bell className="w-4 h-4" />
+                        Preview Sound
+                    </button>
                 </div>
 
                 {/* Additional Info */}
