@@ -35,17 +35,22 @@ export function playNotificationSound(type?: SoundType) {
       osc.stop(ctx.currentTime + startAt + duration);
     };
 
-    if (tone === 'chime') {
-      playTone(880, 0, 0.25);
-      playTone(1100, 0.15, 0.25);
-    } else if (tone === 'bell') {
-      playTone(523, 0, 0.6);
-      playTone(1046, 0.05, 0.5, 0.25);
-    } else if (tone === 'ping') {
-      playTone(660, 0, 0.1);
-      playTone(660, 0.12, 0.1);
-      playTone(880, 0.24, 0.15);
-    }
+    const play = (offset: number) => {
+      if (tone === 'chime') {
+        playTone(880, offset, 0.25);
+        playTone(1100, offset + 0.15, 0.25);
+      } else if (tone === 'bell') {
+        playTone(523, offset, 0.6);
+        playTone(1046, offset + 0.05, 0.5, 0.25);
+      } else if (tone === 'ping') {
+        playTone(660, offset, 0.1);
+        playTone(660, offset + 0.12, 0.1);
+        playTone(880, offset + 0.24, 0.15);
+      }
+    };
+
+    play(0);
+    play(0.7);
   } catch {
     // silently ignore — AudioContext blocked before user gesture
   }
