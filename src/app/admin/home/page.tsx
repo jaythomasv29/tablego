@@ -1471,7 +1471,7 @@ export default function AdminHome() {
                                 variant="outline"
                                 onClick={() => handleSendReminder(reservation)}
                                 disabled={!canSendReminder(reservation)}
-                                className="text-xs h-7 px-2 text-white"
+                                className="text-xs h-7 px-2 text-muted-foreground"
                               >
                                 <Mail className="w-3.5 h-3.5 mr-1" />
                                 {canSendReminder(reservation)
