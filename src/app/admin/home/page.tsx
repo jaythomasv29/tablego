@@ -49,7 +49,7 @@ import PageTransition from "@/components/PageTransition";
 import StaggeredList from "@/components/StaggeredList";
 import { Timestamp } from "firebase/firestore";
 import { formatReadableDatePST } from "@/utils/dateUtils";
-import { playNotificationSound } from "@/utils/soundUtils";
+import { playNotificationSound, unlockAudio } from "@/utils/soundUtils";
 import { Reservation } from "../reservation/page";
 import Link from "next/link";
 import { useTimezone, TIMEZONE_OPTIONS } from "@/contexts/TimezoneContext";
@@ -1062,6 +1062,8 @@ export default function AdminHome() {
   return (
     <AdminLayout>
       <PageTransition>
+        {/* Invisible layer — unlocks AudioContext on iOS on first tap */}
+        <div className="fixed inset-0 z-[-1]" onClick={unlockAudio} onTouchStart={unlockAudio} />
         <Toaster
           position="top-center"
           toastOptions={{

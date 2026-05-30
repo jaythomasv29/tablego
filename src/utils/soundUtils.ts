@@ -17,10 +17,28 @@ export function setSoundPreference(type: SoundType) {
   localStorage.setItem(STORAGE_KEY, type);
 }
 
+// Singleton AudioContext — created once, unlocked on first user gesture for iOS
+let _ctx: AudioContext | null = null;
+
+function getContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null;
+  if (!_ctx) _ctx = new AudioContext();
+  // iOS starts contexts suspended; resume is a no-op on already-running contexts
+  if (_ctx.state === 'suspended') _ctx.resume();
+  return _ctx;
+}
+
+// Call this on any user interaction (e.g. a click on the page) to unlock audio on iOS
+export function unlockAudio() {
+  getContext();
+}
+
 export function playNotificationSound(type?: SoundType) {
   try {
+    const ctx = getContext();
+    if (!ctx) return;
+
     const tone = type ?? getSoundPreference();
-    const ctx = new AudioContext();
 
     const playTone = (freq: number, startAt: number, duration: number, volume = 0.4) => {
       const osc = ctx.createOscillator();
@@ -52,6 +70,6 @@ export function playNotificationSound(type?: SoundType) {
     play(0);
     play(0.7);
   } catch {
-    // silently ignore — AudioContext blocked before user gesture
+    // silently ignore
   }
 }
