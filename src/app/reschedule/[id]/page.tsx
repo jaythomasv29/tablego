@@ -8,7 +8,10 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Banner from '@/components/Banner';
+import DatePicker from '@/components/DatePicker';
 import { BusinessHours } from '@/components/ReservationForm';
+import { useTimezone } from '@/contexts/TimezoneContext';
+import { TimeSlot } from '@/types/TimeSlot';
 import { CheckCircle2, CalendarDays, Clock, Users } from 'lucide-react';
 
 interface Reservation {
@@ -22,9 +25,10 @@ interface Reservation {
     status: string;
 }
 
-interface TimeSlot {
-    time: string;
-    period: 'lunch' | 'dinner';
+interface SpecialDate {
+    date: string;
+    reason: string;
+    closureType?: 'full' | 'lunch' | 'dinner';
 }
 
 interface PageProps {
@@ -60,6 +64,7 @@ const formatReadableDate = (date: Date | string): string => {
     return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 };
 
+// Handles both 24-hour "HH:MM" (business hours) and 12-hour "h:mm AM/PM" (slot) formats.
 const timeToMinutes = (timeStr: string): number => {
     const [time, period] = timeStr.split(' ');
     let [hours, minutes] = time.split(':').map(Number);
@@ -76,90 +81,155 @@ const minutesToTime = (minutes: number): string => {
     return `${displayHours}:${mins.toString().padStart(2, '0')} ${period}`;
 };
 
-const generateTimeSlots = async (date: Date, reservationId: string): Promise<string[]> => {
-    try {
-        const pstDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
-        const dayName = pstDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'America/Los_Angeles' }).toLowerCase();
+const isSameMonthAndDay = (d1: Date, d2: Date): boolean =>
+    d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
 
-        const hoursDoc = await getDoc(doc(db, 'settings', 'businessHours'));
-        if (!hoursDoc.exists()) return [];
-        const businessHours = hoursDoc.data() as BusinessHours;
-        const dayHours = businessHours[dayName];
-        if (!dayHours) return [];
+const getClosureType = (specialDate?: SpecialDate): 'full' | 'lunch' | 'dinner' | null => {
+    if (!specialDate) return null;
+    return specialDate.closureType || 'full';
+};
 
-        const pstNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
-        const isToday = pstDate.toDateString() === pstNow.toDateString();
-        const currentMinutes = isToday ? pstNow.getHours() * 60 + pstNow.getMinutes() : 0;
-
-        const slots: string[] = [];
-        const addSlots = (open: string, close: string) => {
-            const start = timeToMinutes(open);
-            const end = timeToMinutes(close) - 30;
-            const adjustedStart = isToday ? Math.max(start, currentMinutes + 30) : start;
-            for (let t = adjustedStart; t <= end; t += 30) {
-                slots.push(minutesToTime(t));
-            }
-        };
-
-        if (dayHours.lunch?.isOpen) addSlots(dayHours.lunch.open, dayHours.lunch.close);
-        if (dayHours.dinner?.isOpen) addSlots(dayHours.dinner.open, dayHours.dinner.close);
-
-        // Filter out already-booked times
-        const targetDate = date.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-        const q = query(collection(db, 'reservations'), where('date', '==', targetDate), where('status', '!=', 'cancelled'));
-        const snap = await getDocs(q);
-        const booked = snap.docs.filter(d => d.id !== reservationId).map(d => d.data().time);
-
-        return slots.filter(t => !booked.includes(t)).sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
-    } catch {
-        return [];
-    }
+// YYYY-MM-DD using the date's local calendar components (what the user picked on the calendar)
+const toDateKey = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 };
 
 export default function ReschedulePage({ params }: PageProps) {
     const { id } = use(params);
+    const { timezone } = useTimezone();
     const [reservation, setReservation] = useState<Reservation | null>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
-    const [selectedDate, setSelectedDate] = useState<string>('');
+
+    const [businessHours, setBusinessHours] = useState<BusinessHours | null>(null);
+    const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
+    const [reservationCutoffMinutes, setReservationCutoffMinutes] = useState(60);
+    const [minimumLeadTimeMinutes, setMinimumLeadTimeMinutes] = useState(50);
+
+    const [selectedDate, setSelectedDate] = useState<Date>(() => {
+        const d = new Date();
+        d.setHours(12, 0, 0, 0);
+        return d;
+    });
     const [selectedTime, setSelectedTime] = useState<string>('');
-    const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
+    const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlot[]>([]);
 
     useEffect(() => {
-        const fetchReservation = async () => {
+        const load = async () => {
             try {
                 const snap = await getDoc(doc(db, 'reservations', id));
                 if (!snap.exists()) { setError('Reservation not found.'); return; }
                 const data = { id: snap.id, ...snap.data() } as Reservation;
                 setReservation(data);
-
-                const date = getDateFromTimestamp(data.date);
-                const dateStr = date.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-                setSelectedDate(dateStr);
                 setSelectedTime(data.time);
 
-                const slots = await generateTimeSlots(date, id);
-                setAvailableTimeSlots(slots);
+                const dateObj = getDateFromTimestamp(data.date);
+                dateObj.setHours(12, 0, 0, 0);
+                setSelectedDate(dateObj);
+
+                const [hoursDoc, generalDoc, specialSnap] = await Promise.all([
+                    getDoc(doc(db, 'settings', 'businessHours')),
+                    getDoc(doc(db, 'settings', 'general')),
+                    getDocs(collection(db, 'specialDates')),
+                ]);
+
+                if (hoursDoc.exists()) setBusinessHours(hoursDoc.data() as BusinessHours);
+                if (generalDoc.exists()) {
+                    const g = generalDoc.data();
+                    if (g.reservationCutoffMinutes !== undefined) setReservationCutoffMinutes(g.reservationCutoffMinutes);
+                    if (g.minimumLeadTimeMinutes !== undefined) setMinimumLeadTimeMinutes(g.minimumLeadTimeMinutes);
+                }
+                setSpecialDates(specialSnap.docs.map((d) => d.data() as SpecialDate));
             } catch {
                 setError('Failed to load reservation.');
             } finally {
                 setLoading(false);
             }
         };
-        fetchReservation();
+        load();
     }, [id]);
 
-    const handleDateChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = e.target.value;
-        setSelectedDate(val);
+    const generateTimeSlots = (date: Date, hours: BusinessHours): TimeSlot[] => {
+        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const dayHours = hours[days[date.getDay()]];
+        if (!dayHours) return [];
+
+        const matchingSpecialDate = specialDates.find((sd) => isSameMonthAndDay(date, new Date(sd.date)));
+        const closureType = getClosureType(matchingSpecialDate);
+        const lunchClosed = closureType === 'full' || closureType === 'lunch';
+        const dinnerClosed = closureType === 'full' || closureType === 'dinner';
+
+        const restaurantNow = new Date(new Date().toLocaleString('en-US', { timeZone: timezone }));
+        const isToday = date.toDateString() === restaurantNow.toDateString();
+        const currentMinutes = isToday ? restaurantNow.getHours() * 60 + restaurantNow.getMinutes() : 0;
+
+        const slots: TimeSlot[] = [];
+        const addPeriodSlots = (
+            period: { isOpen: boolean; open: string; close: string; customRanges?: { start: string; end: string }[] },
+            label: 'lunch' | 'dinner',
+            closedBySpecialDate: boolean
+        ) => {
+            if (!period.isOpen || closedBySpecialDate) return;
+            const ranges = period.customRanges?.length ? period.customRanges : [{ start: period.open, end: period.close }];
+            ranges.forEach((range) => {
+                let start = timeToMinutes(range.start);
+                const end = timeToMinutes(range.end);
+                if (isToday && end <= currentMinutes + reservationCutoffMinutes) return;
+                if (isToday && start < currentMinutes) {
+                    start = Math.ceil((currentMinutes + minimumLeadTimeMinutes) / 30) * 30;
+                }
+                for (let t = start; t <= end - reservationCutoffMinutes; t += 30) {
+                    if (!isToday || t >= currentMinutes + minimumLeadTimeMinutes) {
+                        slots.push({ time: minutesToTime(t), period: label });
+                    }
+                }
+            });
+        };
+
+        addPeriodSlots(dayHours.lunch, 'lunch', lunchClosed);
+        addPeriodSlots(dayHours.dinner, 'dinner', dinnerClosed);
+
+        return slots.sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+    };
+
+    const filterBookedSlots = async (date: Date, slots: TimeSlot[]): Promise<TimeSlot[]> => {
+        try {
+            const targetDate = toDateKey(date);
+            const q = query(collection(db, 'reservations'), where('date', '==', targetDate), where('status', '!=', 'cancelled'));
+            const snap = await getDocs(q);
+            const booked = snap.docs.filter((d) => d.id !== id).map((d) => d.data().time);
+            return slots.filter((s) => !booked.includes(s.time));
+        } catch {
+            return slots;
+        }
+    };
+
+    // Recompute slots whenever the selected date or scheduling settings change
+    useEffect(() => {
+        if (!businessHours) return;
+        let active = true;
+        (async () => {
+            const base = generateTimeSlots(selectedDate, businessHours);
+            const filtered = await filterBookedSlots(selectedDate, base);
+            if (active) setAvailableTimeSlots(filtered);
+        })();
+        return () => { active = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedDate, businessHours, specialDates, reservationCutoffMinutes, minimumLeadTimeMinutes, timezone]);
+
+    const handleUpdate = (date: Date, time: string) => {
+        setSelectedDate(date);
+        setSelectedTime(time);
+    };
+
+    const handleDateChange = (date: Date) => {
+        setSelectedDate(date);
         setSelectedTime('');
-        if (!val) { setAvailableTimeSlots([]); return; }
-        const [y, m, d] = val.split('-').map(Number);
-        const date = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
-        const slots = await generateTimeSlots(date, id);
-        setAvailableTimeSlots(slots);
     };
 
     const handleReschedule = async () => {
@@ -167,8 +237,9 @@ export default function ReschedulePage({ params }: PageProps) {
         setSubmitting(true);
         setError(null);
         try {
+            const dateStr = toDateKey(selectedDate);
             await updateDoc(doc(db, 'reservations', id), {
-                date: selectedDate,
+                date: dateStr,
                 time: selectedTime,
                 updatedAt: new Date().toISOString(),
                 status: 'confirmed',
@@ -181,7 +252,7 @@ export default function ReschedulePage({ params }: PageProps) {
                     reservationId: reservation?.id,
                     email: reservation?.email,
                     name: reservation?.name,
-                    date: selectedDate,
+                    date: dateStr,
                     time: selectedTime,
                     guests: reservation?.guests,
                     phone: reservation?.phone,
@@ -195,8 +266,6 @@ export default function ReschedulePage({ params }: PageProps) {
             setSubmitting(false);
         }
     };
-
-    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
 
     if (loading) {
         return (
@@ -326,58 +395,14 @@ export default function ReschedulePage({ params }: PageProps) {
 
                     {/* Form */}
                     <div className="space-y-5">
-                        {/* Date picker */}
-                        <div>
-                            <label className="block text-xs uppercase tracking-[0.12em] mb-2" style={{ fontFamily: 'Inter, sans-serif', color: '#6b6b6b' }}>
-                                New date
-                            </label>
-                            <input
-                                type="date"
-                                value={selectedDate}
-                                min={todayStr}
-                                onChange={handleDateChange}
-                                className="w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all"
-                                style={{
-                                    fontFamily: 'Inter, sans-serif',
-                                    backgroundColor: '#ffffff',
-                                    borderColor: '#e4e4e4',
-                                    color: SIAM_PALETTE.text,
-                                }}
-                                onFocus={e => (e.target.style.borderColor = SIAM_PALETTE.accent)}
-                                onBlur={e => (e.target.style.borderColor = '#e4e4e4')}
-                            />
-                        </div>
-
-                        {/* Time slots */}
-                        <div>
-                            <label className="block text-xs uppercase tracking-[0.12em] mb-2" style={{ fontFamily: 'Inter, sans-serif', color: '#6b6b6b' }}>
-                                New time
-                            </label>
-                            {selectedDate && availableTimeSlots.length === 0 ? (
-                                <p className="text-sm text-zinc-400 py-3" style={{ fontFamily: 'Inter, sans-serif' }}>
-                                    No available slots for this date. Please try another day.
-                                </p>
-                            ) : (
-                                <div className="grid grid-cols-4 gap-2">
-                                    {availableTimeSlots.map(time => (
-                                        <button
-                                            key={time}
-                                            type="button"
-                                            onClick={() => setSelectedTime(time)}
-                                            className="rounded-lg py-2 text-xs font-medium transition-all"
-                                            style={{
-                                                fontFamily: 'Inter, sans-serif',
-                                                backgroundColor: selectedTime === time ? SIAM_PALETTE.accent : '#ffffff',
-                                                color: selectedTime === time ? SIAM_PALETTE.text : '#4b4b4b',
-                                                border: `1px solid ${selectedTime === time ? SIAM_PALETTE.accent : '#e4e4e4'}`,
-                                            }}
-                                        >
-                                            {time}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                        <DatePicker
+                            date={selectedDate}
+                            time={selectedTime}
+                            onUpdate={handleUpdate}
+                            onDateChange={handleDateChange}
+                            availableTimeSlots={availableTimeSlots}
+                            specialDates={specialDates}
+                        />
 
                         {error && (
                             <p className="text-sm text-red-500" style={{ fontFamily: 'Inter, sans-serif' }}>{error}</p>

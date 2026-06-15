@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Home, Calendar, Clock, CalendarDays, Utensils, BookText,
-  MessageSquare, Flag, Settings, Users, Package, Eye, EyeOff, Printer,
+  MessageSquare, Flag, Settings, Users, Package, Eye, EyeOff, Printer, UserX, MessageSquareHeart,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -46,6 +46,8 @@ const NAV_GROUPS = [
       { id: 'labeling',      href: '/admin/labeling',      label: 'Food Labels',        icon: Printer },
       { id: 'menu',          href: '/admin/menu',          label: 'Restaurant Menu',    icon: BookText },
       { id: 'messages',      href: '/admin/messages',      label: 'Messages',           icon: MessageSquare },
+      { id: 'no-shows',      href: '/admin/no-shows',      label: 'No-Shows',           icon: UserX },
+      { id: 'follow-ups',    href: '/admin/follow-ups',    label: 'Follow-Ups',         icon: MessageSquareHeart },
     ],
   },
   {

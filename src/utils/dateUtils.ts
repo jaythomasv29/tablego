@@ -121,9 +121,11 @@ export const getDateInTimezone = (date?: Date, timezone: string = DEFAULT_TIMEZO
     );
 };
 
-// Get today's date string (YYYY-MM-DD) in a specific timezone
-export const getTodayInTimezone = (timezone: string = DEFAULT_TIMEZONE): string => {
-    return new Date().toLocaleDateString('en-CA', { timeZone: timezone });
+// Get today's date string (YYYY-MM-DD) in a specific timezone, optionally offset by a number of days
+export const getTodayInTimezone = (timezone: string = DEFAULT_TIMEZONE, dayOffset: number = 0): string => {
+    const date = new Date();
+    date.setUTCDate(date.getUTCDate() + dayOffset);
+    return date.toLocaleDateString('en-CA', { timeZone: timezone });
 };
 
 // Get current time in a specific timezone
@@ -163,4 +165,39 @@ export const isToday = (date: Date | string, timezone: string = DEFAULT_TIMEZONE
     const dateString = typeof date === 'string' ? date : getLocalDateString(date, timezone);
     const todayString = getTodayInTimezone(timezone);
     return dateString === todayString;
+};
+
+// Convert a stored "YYYY-MM-DD" date + "h:mm AM/PM" time (wall-clock in the
+// restaurant's timezone) into the actual UTC instant it represents.
+export const getReservationDateTime = (dateStr: string, timeStr: string, timezone: string = DEFAULT_TIMEZONE): Date => {
+    const [, rawHour, rawMinute, meridiem] = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i) || [];
+    let hour = parseInt(rawHour || '0', 10);
+    const minute = parseInt(rawMinute || '0', 10);
+    if (meridiem?.toUpperCase() === 'PM' && hour !== 12) hour += 12;
+    if (meridiem?.toUpperCase() === 'AM' && hour === 12) hour = 0;
+
+    const [year, month, day] = dateStr.split('-').map(Number);
+
+    // First guess: treat the wall-clock time as if it were UTC.
+    const guess = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
+
+    // Find what that UTC instant looks like in the target timezone, then
+    // adjust by the difference to land on the correct UTC instant.
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false,
+    }).formatToParts(guess).reduce((acc, part) => {
+        acc[part.type] = part.value;
+        return acc;
+    }, {} as Record<string, string>);
+
+    const tzAsUtc = Date.UTC(
+        Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+        Number(parts.hour) === 24 ? 0 : Number(parts.hour), Number(parts.minute), Number(parts.second)
+    );
+
+    const offset = guess.getTime() - tzAsUtc;
+    return new Date(guess.getTime() + offset);
 };

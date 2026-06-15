@@ -129,7 +129,7 @@ export default function SpecialDatesAdmin() {
                         <h2 className="text-lg font-semibold text-foreground">Special Dates</h2>
                         <button
                             onClick={() => { setAddError(''); setNewDate(null); setReason(''); setClosureType('full'); setIsAddModalOpen(true); }}
-                            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors text-sm font-medium"
+                            className="bg-primary text-primary-foreground px-4 py-2 rounded-md border border-primary hover:bg-primary/90 transition-colors text-sm font-medium"
                         >
                             Add Special Date
                         </button>
@@ -185,10 +185,10 @@ export default function SpecialDatesAdmin() {
             {/* Add modal */}
             {isAddModalOpen && (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
                     onClick={() => setIsAddModalOpen(false)}
                 >
-                    <div className="bg-card rounded-xl border border-border shadow-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-gray-100 dark:bg-neutral-800 rounded-xl border-2 border-gray-300 dark:border-neutral-600 shadow-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="px-5 py-4 border-b border-border">
                             <h3 className="text-lg font-semibold text-foreground">Add New Special Date</h3>
                         </div>
@@ -243,10 +243,10 @@ export default function SpecialDatesAdmin() {
             {/* Edit modal */}
             {editingDateId && (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
                     onClick={cancelEditModal}
                 >
-                    <div className="bg-card rounded-xl border border-border shadow-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-gray-100 dark:bg-neutral-800 rounded-xl border-2 border-gray-300 dark:border-neutral-600 shadow-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="px-5 py-4 border-b border-border">
                             <h3 className="text-lg font-semibold text-foreground">Edit Special Date</h3>
                         </div>

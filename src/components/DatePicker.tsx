@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { Calendar } from '@/components/ui/calendar';
+import { Badge } from '@/components/ui/badge';
+import { Info } from 'lucide-react';
 import { TimeSlot } from '@/types/TimeSlot';
 
 interface SpecialDate {
@@ -52,6 +54,15 @@ const DatePickerComponent: React.FC<DatePickerProps> = ({
 
   const lunchSlots = availableTimeSlots.filter((s) => s.period === 'lunch');
   const dinnerSlots = availableTimeSlots.filter((s) => s.period === 'dinner');
+
+  const specialDateForSelectedDay = specialDates.find((sd) =>
+    isSameMonthAndDay(date, new Date(sd.date))
+  );
+  const partialClosure =
+    specialDateForSelectedDay?.closureType === 'lunch' ||
+    specialDateForSelectedDay?.closureType === 'dinner'
+      ? specialDateForSelectedDay
+      : null;
 
   return (
     <div className="space-y-6">
@@ -116,6 +127,22 @@ const DatePickerComponent: React.FC<DatePickerProps> = ({
           />
         </div>
       </div>
+
+      {/* Partial closure notice */}
+      {partialClosure && (
+        <Badge
+          variant="outline"
+          className="h-auto w-full items-start justify-start gap-2 whitespace-normal rounded-lg border-[#A3B18A]/40 bg-[#A3B18A]/10 px-3 py-2.5 text-left text-sm font-normal text-zinc-700"
+        >
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#A3B18A]" />
+          <span>
+            {partialClosure.closureType === 'lunch' ? 'Lunch service' : 'Dinner service'}{' '}
+            is unavailable on this date
+            {partialClosure.reason ? ` (${partialClosure.reason})` : ''}. We&apos;d love to
+            have you for {partialClosure.closureType === 'lunch' ? 'dinner' : 'lunch'} instead!
+          </span>
+        </Badge>
+      )}
 
       {/* Time Slots */}
       {availableTimeSlots.length === 0 ? (
