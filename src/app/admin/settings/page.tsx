@@ -48,7 +48,6 @@ export default function AdminSettings() {
   );
   const [notificationSound, setNotificationSound] =
     useState<SoundType>("chime");
-  const [followUpEnabled, setFollowUpEnabled] = useState(false);
   const [followUpDelayMinutes, setFollowUpDelayMinutes] = useState<number>(90);
   const [reviewUrl, setReviewUrl] = useState("");
   const [testFollowUpEmail, setTestFollowUpEmail] = useState("");
@@ -81,9 +80,6 @@ export default function AdminSettings() {
           }
           if (data.minimumLeadTimeMinutes !== undefined) {
             setMinimumLeadTimeMinutes(data.minimumLeadTimeMinutes);
-          }
-          if (data.followUpEnabled !== undefined) {
-            setFollowUpEnabled(data.followUpEnabled);
           }
           if (data.followUpDelayMinutes !== undefined) {
             setFollowUpDelayMinutes(data.followUpDelayMinutes);
@@ -138,7 +134,6 @@ export default function AdminSettings() {
           timezone: selectedTimezone,
           reservationCutoffMinutes: reservationCutoffMinutes,
           minimumLeadTimeMinutes: minimumLeadTimeMinutes,
-          followUpEnabled: followUpEnabled,
           followUpDelayMinutes: followUpDelayMinutes,
           reviewUrl: reviewUrl.trim(),
           updatedAt: new Date(),
@@ -505,40 +500,15 @@ export default function AdminSettings() {
             <div>
               <h2 className="text-lg font-semibold">Post-Visit Follow-Up</h2>
               <p className="text-sm text-gray-500">
-                Automatically email guests after their visit to ask how it went,
-                and route negative feedback to your team instead of public
-                review sites.
+                Email guests after their visit to ask how it went, and route
+                negative feedback to your team instead of public review
+                sites. Sent manually from{" "}
+                <Link href="/admin/follow-ups" className="underline">
+                  Follow-Ups
+                </Link>
+                .
               </p>
             </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 mb-5">
-            <button
-              onClick={() => setFollowUpEnabled(true)}
-              className={`flex-1 flex flex-col items-center gap-1 px-4 py-4 rounded-xl border-2 transition-all ${
-                followUpEnabled
-                  ? "border-rose-500 bg-rose-50 text-rose-700"
-                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
-              }`}
-            >
-              <span className="font-semibold text-sm">Enabled</span>
-              <span className="text-xs text-gray-700">
-                Send follow-up emails automatically
-              </span>
-            </button>
-            <button
-              onClick={() => setFollowUpEnabled(false)}
-              className={`flex-1 flex flex-col items-center gap-1 px-4 py-4 rounded-xl border-2 transition-all ${
-                !followUpEnabled
-                  ? "border-rose-500 bg-rose-50 text-rose-700"
-                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
-              }`}
-            >
-              <span className="font-semibold text-sm">Disabled</span>
-              <span className="text-xs text-gray-700">
-                Don&apos;t send follow-up emails
-              </span>
-            </button>
           </div>
 
           <div className="mb-6">
@@ -546,7 +516,8 @@ export default function AdminSettings() {
               htmlFor="followUpDelay"
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              Send follow-up this long after the reservation time
+              Mark follow-ups as &quot;ready to send&quot; this long after the
+              reservation time
             </label>
             <select
               id="followUpDelay"

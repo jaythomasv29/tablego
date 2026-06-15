@@ -37,6 +37,9 @@ export interface Reservation {
     smsSent?: boolean;
     smsSentAt?: Timestamp;
     phoneVerified?: boolean;
+    followUpSent?: boolean;
+    followUpSentAt?: Timestamp;
+    feedbackSentiment?: 'good' | 'bad' | null;
 }
 
 // Add new helper functions

@@ -48,7 +48,12 @@ import {
 import PageTransition from "@/components/PageTransition";
 import StaggeredList from "@/components/StaggeredList";
 import { Timestamp } from "firebase/firestore";
-import { formatReadableDatePST } from "@/utils/dateUtils";
+import {
+  formatReadableDatePST,
+  getLocalDateString,
+  getReservationDateTime,
+  formatTimeInTimezone,
+} from "@/utils/dateUtils";
 import { playNotificationSound, unlockAudio } from "@/utils/soundUtils";
 import { Reservation } from "../reservation/page";
 import Link from "next/link";
@@ -293,6 +298,30 @@ const canSendReminder = (reservation: Reservation) => {
   return hoursSinceLastReminder >= 24;
 };
 
+// Compute the follow-up email chip label for a reservation, or null if N/A
+const getFollowUpChipLabel = (
+  reservation: Reservation,
+  timezone: string,
+  followUpSettings: { delayMinutes: number },
+): string | null => {
+  if (reservation.status?.toLowerCase() === "cancelled") return null;
+  if (reservation.followUpSent) return "Follow-up sent";
+
+  const dateStr = getLocalDateString(reservation.date, timezone);
+  const reservationTime = getReservationDateTime(
+    dateStr,
+    reservation.time,
+    timezone,
+  );
+  const dueAt = new Date(
+    reservationTime.getTime() + followUpSettings.delayMinutes * 60 * 1000,
+  );
+
+  if (new Date() >= dueAt) return "Follow-up ready to send";
+
+  return `Follow-up ready @ ${formatTimeInTimezone(dueAt, timezone)}`;
+};
+
 export default function AdminHome() {
   const { timezone } = useTimezone();
   const [totalViews, setTotalViews] = useState<number>(0);
@@ -329,6 +358,9 @@ export default function AdminHome() {
   const [currentDateDisplay, setCurrentDateDisplay] = useState<string>("");
   const [selectedReservation, setSelectedReservation] =
     useState<Reservation | null>(null);
+  const [followUpSettings, setFollowUpSettings] = useState<{
+    delayMinutes: number;
+  }>({ delayMinutes: 90 });
 
   useEffect(() => {
     async function fetchAnalytics() {
@@ -362,6 +394,25 @@ export default function AdminHome() {
     };
 
     fetchBusinessHours();
+  }, []);
+
+  // Fetch follow-up settings
+  useEffect(() => {
+    const fetchFollowUpSettings = async () => {
+      try {
+        const settingsDoc = await getDoc(doc(db, "settings", "general"));
+        if (settingsDoc.exists()) {
+          const data = settingsDoc.data();
+          setFollowUpSettings({
+            delayMinutes: data.followUpDelayMinutes ?? 90,
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching follow-up settings:", error);
+      }
+    };
+
+    fetchFollowUpSettings();
   }, []);
 
   // Update current time display every second
@@ -1368,6 +1419,21 @@ export default function AdminHome() {
                                       : "No-Show"}
                                   </Badge>
                                 )}
+                                {(() => {
+                                  const followUpLabel = getFollowUpChipLabel(
+                                    reservation,
+                                    timezone,
+                                    followUpSettings,
+                                  );
+                                  return followUpLabel ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950 dark:text-blue-300"
+                                    >
+                                      {followUpLabel}
+                                    </Badge>
+                                  ) : null;
+                                })()}
                               </div>
                             </div>
 

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import { db } from '@/firebase';
-import { collection, query, where, getDocs, doc, getDoc, updateDoc, addDoc, Timestamp } from 'firebase/firestore';
-import { formatReadableDatePST, getReservationDateTime, getTodayInTimezone } from '@/utils/dateUtils';
+import { collection, addDoc, doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { formatReadableDatePST } from '@/utils/dateUtils';
 import { buildFollowUpEmailHtml } from '@/utils/followUpEmail';
 
 const transporter = nodemailer.createTransport({
@@ -17,69 +17,47 @@ const transporter = nodemailer.createTransport({
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://tablego.vercel.app';
 
-const logRun = async (result: { sent: number; skipped: number; failed: number; total: number; note?: string }) => {
-    await addDoc(collection(db, 'cronLogs'), {
-        type: 'follow-up',
-        runAt: Timestamp.now(),
-        ...result,
-    });
-};
-
-export async function GET(request: Request) {
-    const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret) {
-        const authHeader = request.headers.get('authorization');
-        if (authHeader !== `Bearer ${cronSecret}`) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-    }
-
+export async function POST(request: Request) {
     try {
+        const { reservationIds } = await request.json();
+
+        if (!Array.isArray(reservationIds) || reservationIds.length === 0) {
+            return NextResponse.json({ success: false, error: 'No reservations provided' }, { status: 400 });
+        }
+
         const settingsDoc = await getDoc(doc(db, 'settings', 'general'));
         const settings = settingsDoc.exists() ? settingsDoc.data() : {};
         const timezone = settings.timezone || 'America/Los_Angeles';
 
-        if (!settings.followUpEnabled) {
-            await logRun({ sent: 0, skipped: 0, failed: 0, total: 0, note: 'disabled' });
-            return NextResponse.json({ success: true, note: 'Follow-up emails are disabled' });
-        }
-
-        const delayMinutes = settings.followUpDelayMinutes ?? 90;
-        const today = getTodayInTimezone(timezone);
-        const yesterday = getTodayInTimezone(timezone, -1);
-
-        const q = query(collection(db, 'reservations'), where('date', 'in', [today, yesterday]));
-        const snapshot = await getDocs(q);
-
-        const now = new Date();
         let sent = 0;
         let failed = 0;
-        let skipped = 0;
-        let total = 0;
+        const results: { id: string; success: boolean; error?: string }[] = [];
 
-        for (const reservationDoc of snapshot.docs) {
-            const data = reservationDoc.data();
-
-            if (data.status === 'cancelled' || data.followUpSent) {
-                continue;
-            }
-
-            total += 1;
-
-            const reservationTime = getReservationDateTime(data.date, data.time, timezone);
-            const dueAt = new Date(reservationTime.getTime() + delayMinutes * 60 * 1000);
-            if (now < dueAt) {
-                skipped += 1;
-                continue;
-            }
-
-            if (!data.email) {
-                skipped += 1;
-                continue;
-            }
-
+        for (const id of reservationIds) {
             try {
-                const id = reservationDoc.id;
+                const reservationRef = doc(db, 'reservations', id);
+                const reservationDoc = await getDoc(reservationRef);
+
+                if (!reservationDoc.exists()) {
+                    results.push({ id, success: false, error: 'Not found' });
+                    failed += 1;
+                    continue;
+                }
+
+                const data = reservationDoc.data();
+
+                if (data.status === 'cancelled' || data.followUpSent) {
+                    results.push({ id, success: false, error: 'Not eligible' });
+                    failed += 1;
+                    continue;
+                }
+
+                if (!data.email) {
+                    results.push({ id, success: false, error: 'No email on file' });
+                    failed += 1;
+                    continue;
+                }
+
                 const readableDate = formatReadableDatePST(data.date, timezone);
                 const html = buildFollowUpEmailHtml({
                     name: data.name || 'Guest',
@@ -97,24 +75,33 @@ export async function GET(request: Request) {
                     html,
                 });
 
-                await updateDoc(doc(db, 'reservations', id), {
+                await updateDoc(reservationRef, {
                     followUpSent: true,
                     followUpSentAt: Timestamp.now(),
                 });
 
+                results.push({ id, success: true });
                 sent += 1;
             } catch (err) {
-                console.error(`Failed to send follow-up for reservation ${reservationDoc.id}:`, err);
+                console.error(`Failed to send follow-up for reservation ${id}:`, err);
+                results.push({ id, success: false, error: 'Send failed' });
                 failed += 1;
             }
         }
 
-        await logRun({ sent, skipped, failed, total });
+        await addDoc(collection(db, 'cronLogs'), {
+            type: 'follow-up',
+            runAt: Timestamp.now(),
+            sent,
+            skipped: 0,
+            failed,
+            total: reservationIds.length,
+            note: 'manual',
+        });
 
-        return NextResponse.json({ success: true, sent, skipped, failed, total });
+        return NextResponse.json({ success: true, sent, failed, results });
     } catch (error) {
-        console.error('Follow-up cron error:', error);
-        await logRun({ sent: 0, skipped: 0, failed: 0, total: 0, note: 'error' });
-        return NextResponse.json({ success: false, error: 'Failed to run follow-up job' }, { status: 500 });
+        console.error('Follow-up send error:', error);
+        return NextResponse.json({ success: false, error: 'Failed to send follow-up emails' }, { status: 500 });
     }
 }
