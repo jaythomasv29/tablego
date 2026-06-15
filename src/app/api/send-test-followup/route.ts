@@ -59,7 +59,6 @@ export async function POST(request: Request) {
             html: buildFollowUpEmailHtml({
                 name: 'Jamie Chen',
                 readableDate,
-                time: timeStr,
                 goodUrl: `${baseUrl}/api/feedback/${id}?s=good`,
                 badUrl: `${baseUrl}/api/feedback/${id}?s=bad`,
                 noshowUrl: `${baseUrl}/api/feedback/${id}?s=noshow`,

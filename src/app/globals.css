@@ -10,6 +10,7 @@
 
 @layer base {
     :root {
+        color-scheme: light;
         --background: oklch(1 0 0);
         --foreground: oklch(0.145 0 0);
 
@@ -68,6 +69,7 @@
     }
 
     .dark {
+        color-scheme: dark;
         --background: oklch(0.145 0 0);
         --foreground: oklch(0.985 0 0);
 
@@ -154,8 +156,8 @@ textarea,
 .dark input,
 .dark select,
 .dark textarea {
-    background-color: hsl(var(--input)) !important;
-    color: hsl(var(--foreground)) !important;
+    background-color: var(--input) !important;
+    color: var(--foreground) !important;
 }
 
 /* Remove black focus border and customize focus state */
@@ -183,14 +185,33 @@ textarea::-webkit-input-placeholder,
 textarea::-moz-placeholder,
 textarea:-ms-input-placeholder,
 textarea:-moz-placeholder {
-    color: black !important;
+    color: #6b7280 !important;
     opacity: 1 !important;
 }
 
 /* Additional specific overrides for MUI components */
 .MuiInputBase-input::placeholder,
 .MuiOutlinedInput-input::placeholder {
-    color: black !important;
+    color: #6b7280 !important;
+    opacity: 1 !important;
+}
+
+.dark input::placeholder,
+.dark input::-webkit-input-placeholder,
+.dark input::-moz-placeholder,
+.dark input:-ms-input-placeholder,
+.dark input:-moz-placeholder,
+.dark select::placeholder,
+.dark select::-webkit-input-placeholder,
+.dark select::-moz-placeholder,
+.dark select:-ms-input-placeholder,
+.dark select:-moz-placeholder,
+.dark textarea::placeholder,
+.dark textarea::-webkit-input-placeholder,
+.dark textarea::-moz-placeholder,
+.dark textarea:-ms-input-placeholder,
+.dark textarea:-moz-placeholder {
+    color: var(--muted-foreground) !important;
     opacity: 1 !important;
 }
 
@@ -203,8 +224,8 @@ select option {
 
 .dark select,
 .dark select option {
-    color: hsl(var(--foreground)) !important;
-    background-color: hsl(var(--input)) !important;
+    color: var(--popover-foreground) !important;
+    background-color: var(--popover) !important;
 }
 
 .animate-slide-up {

@@ -62,7 +62,6 @@ export async function POST(request: Request) {
                 const html = buildFollowUpEmailHtml({
                     name: data.name || 'Guest',
                     readableDate,
-                    time: data.time,
                     goodUrl: `${baseUrl}/api/feedback/${id}?s=good`,
                     badUrl: `${baseUrl}/api/feedback/${id}?s=bad`,
                     noshowUrl: `${baseUrl}/api/feedback/${id}?s=noshow`,

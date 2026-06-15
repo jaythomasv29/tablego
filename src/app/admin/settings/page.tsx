@@ -263,20 +263,20 @@ export default function AdminSettings() {
 
         <div className="mb-6">
           <h1 className="text-2xl font-bold">Settings</h1>
-          <p className="text-gray-600 mt-1">
+          <p className="text-muted-foreground mt-1">
             Configure your restaurant's settings
           </p>
         </div>
 
         {/* Timezone Settings Card */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+        <div className="bg-card text-card-foreground rounded-xl shadow-md border border-border p-6 mb-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 bg-blue-50 rounded-full">
+            <div className="p-3 bg-blue-50 dark:bg-blue-950/40 rounded-full">
               <Globe className="w-6 h-6 text-blue-500" />
             </div>
             <div>
               <h2 className="text-lg font-semibold">Restaurant Timezone</h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 Set the timezone for your restaurant. All reservations will be
                 displayed and managed in this timezone.
               </p>
@@ -284,18 +284,18 @@ export default function AdminSettings() {
           </div>
 
           {/* Current Time Display */}
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <p className="text-sm text-gray-600 mb-1">
+          <div className="mb-6 p-4 bg-muted rounded-lg border border-border">
+            <p className="text-sm text-muted-foreground mb-1">
               Current time in {getTimezoneLabel(selectedTimezone)}:
             </p>
-            <p className="text-lg font-medium text-gray-900">{currentTime}</p>
+            <p className="text-lg font-medium text-foreground">{currentTime}</p>
           </div>
 
           {/* Timezone Selector */}
           <div className="mb-6">
             <label
               htmlFor="timezone"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-foreground mb-2"
             >
               Select Timezone
             </label>
@@ -303,7 +303,7 @@ export default function AdminSettings() {
               id="timezone"
               value={selectedTimezone}
               onChange={(e) => setSelectedTimezone(e.target.value)}
-              className="w-full md:w-96 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+              className="w-full md:w-96 px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-foreground"
             >
               {TIMEZONE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -314,11 +314,11 @@ export default function AdminSettings() {
           </div>
 
           {/* Info Box */}
-          <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
+          <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-950/30 border-l-4 border-amber-400 dark:border-amber-700 rounded-r-lg">
             <div className="flex">
               <div className="flex-shrink-0">
                 <svg
-                  className="h-5 w-5 text-amber-400"
+                  className="h-5 w-5 text-amber-400 dark:text-amber-500"
                   viewBox="0 0 20 20"
                   fill="currentColor"
                 >
@@ -330,7 +330,7 @@ export default function AdminSettings() {
                 </svg>
               </div>
               <div className="ml-3">
-                <p className="text-sm text-amber-700">
+                <p className="text-sm text-amber-700 dark:text-amber-300">
                   <strong>Important:</strong> Changing the timezone will affect
                   how all times are displayed throughout the reservation system.
                   Customers will see available time slots based on this
@@ -361,16 +361,16 @@ export default function AdminSettings() {
         </div>
 
         {/* Reservation Cutoff Settings Card */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+        <div className="bg-card text-card-foreground rounded-xl shadow-md border border-border p-6 mb-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 bg-orange-50 rounded-full">
+            <div className="p-3 bg-orange-50 dark:bg-orange-950/40 rounded-full">
               <Clock className="w-6 h-6 text-orange-500" />
             </div>
             <div>
               <h2 className="text-lg font-semibold">
                 Reservation Cutoff Before Closing
               </h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 Set how long before closing time customers can no longer make
                 reservations.
               </p>
@@ -381,7 +381,7 @@ export default function AdminSettings() {
           <div className="mb-6">
             <label
               htmlFor="cutoff"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-foreground mb-2"
             >
               Cutoff Time (minutes before closing)
             </label>
@@ -391,7 +391,7 @@ export default function AdminSettings() {
               onChange={(e) =>
                 setReservationCutoffMinutes(Number(e.target.value))
               }
-              className="w-full md:w-96 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white text-gray-900"
+              className="w-full md:w-96 px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white text-foreground"
             >
               <option value={30}>30 minutes</option>
               <option value={45}>45 minutes</option>
@@ -404,8 +404,8 @@ export default function AdminSettings() {
           </div>
 
           {/* Current Setting Display */}
-          <div className="mb-6 p-4 bg-orange-50 rounded-lg border border-orange-200">
-            <p className="text-sm text-orange-800">
+          <div className="mb-6 p-4 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-200 dark:border-orange-800">
+            <p className="text-sm text-orange-800 dark:text-orange-300">
               <strong>Current Setting:</strong> Customers cannot book a
               reservation within{" "}
               <strong>
@@ -418,8 +418,8 @@ export default function AdminSettings() {
           </div>
 
           {/* Example */}
-          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <p className="text-sm text-gray-600">
+          <div className="p-4 bg-muted rounded-lg border border-border">
+            <p className="text-sm text-muted-foreground">
               <strong>Example:</strong> If dinner closes at 9:30 PM and cutoff
               is set to 1 hour, the last available reservation slot will be 8:30
               PM.
@@ -428,16 +428,16 @@ export default function AdminSettings() {
         </div>
 
         {/* Minimum Booking Lead Time Card */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+        <div className="bg-card text-card-foreground rounded-xl shadow-md border border-border p-6 mb-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 bg-purple-50 rounded-full">
+            <div className="p-3 bg-purple-50 dark:bg-purple-950/40 rounded-full">
               <Clock className="w-6 h-6 text-purple-500" />
             </div>
             <div>
               <h2 className="text-lg font-semibold">
                 Minimum Booking Lead Time
               </h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 Minimum time in advance a guest must book a same-day
                 reservation.
               </p>
@@ -447,7 +447,7 @@ export default function AdminSettings() {
           <div className="mb-6">
             <label
               htmlFor="leadTime"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-foreground mb-2"
             >
               Lead Time (minutes from now)
             </label>
@@ -457,9 +457,9 @@ export default function AdminSettings() {
               onChange={(e) =>
                 setMinimumLeadTimeMinutes(Number(e.target.value))
               }
-              className="w-full md:w-96 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white text-gray-900"
+              className="w-full md:w-96 px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white text-foreground"
             >
-              <option className="text-gray-700" value={30}>
+              <option className="text-foreground" value={30}>
                 30 minutes
               </option>
               <option value={45}>45 minutes</option>
@@ -469,8 +469,8 @@ export default function AdminSettings() {
             </select>
           </div>
 
-          <div className="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
-            <p className="text-sm text-purple-800">
+          <div className="mb-6 p-4 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
+            <p className="text-sm text-purple-800 dark:text-purple-300">
               <strong>Current Setting:</strong> Same-day reservations must be
               booked at least{" "}
               <strong>
@@ -482,8 +482,8 @@ export default function AdminSettings() {
             </p>
           </div>
 
-          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <p className="text-sm text-gray-600">
+          <div className="p-4 bg-muted rounded-lg border border-border">
+            <p className="text-sm text-muted-foreground">
               <strong>Example:</strong> If a guest tries to book at 6:40 PM with
               a 60-minute lead time, the earliest available slot they'll see is
               7:40 PM.
@@ -492,14 +492,14 @@ export default function AdminSettings() {
         </div>
 
         {/* Post-Visit Follow-Up Card */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+        <div className="bg-card text-card-foreground rounded-xl shadow-md border border-border p-6 mb-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 bg-rose-50 rounded-full">
+            <div className="p-3 bg-rose-50 dark:bg-rose-950/40 rounded-full">
               <MessageSquareHeart className="w-6 h-6 text-rose-500" />
             </div>
             <div>
               <h2 className="text-lg font-semibold">Post-Visit Follow-Up</h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 Email guests after their visit to ask how it went, and route
                 negative feedback to your team instead of public review
                 sites. Sent manually from{" "}
@@ -514,7 +514,7 @@ export default function AdminSettings() {
           <div className="mb-6">
             <label
               htmlFor="followUpDelay"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-foreground mb-2"
             >
               Mark follow-ups as &quot;ready to send&quot; this long after the
               reservation time
@@ -523,7 +523,7 @@ export default function AdminSettings() {
               id="followUpDelay"
               value={followUpDelayMinutes}
               onChange={(e) => setFollowUpDelayMinutes(Number(e.target.value))}
-              className="w-full md:w-96 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-white text-gray-900"
+              className="w-full md:w-96 px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-white text-foreground"
             >
               <option value={60}>1 hour</option>
               <option value={90}>1.5 hours</option>
@@ -535,22 +535,22 @@ export default function AdminSettings() {
           <div className="mb-2">
             <label
               htmlFor="reviewUrl"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-foreground mb-2"
             >
               Review link (Google / Yelp)
             </label>
             <div className="relative w-full md:w-96">
-              <Link2 className="w-4 h-4 text-gray-700 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Link2 className="w-4 h-4 text-foreground absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 id="reviewUrl"
                 type="url"
                 value={reviewUrl}
                 onChange={(e) => setReviewUrl(e.target.value)}
                 placeholder="https://g.page/r/..."
-                className="w-full pl-9 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-white text-gray-900 placeholder-gray-400"
+                className="w-full pl-9 pr-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-white text-foreground placeholder-gray-400"
               />
             </div>
-            <p className="mt-2 text-xs text-gray-500">
+            <p className="mt-2 text-xs text-muted-foreground">
               Guests who say they loved their visit are sent here. Guests who
               say it could&apos;ve been better are sent to a private feedback
               form instead.
@@ -559,14 +559,14 @@ export default function AdminSettings() {
         </div>
 
         {/* Test Follow-Up Email Card */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+        <div className="bg-card text-card-foreground rounded-xl shadow-md border border-border p-6 mb-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 bg-rose-50 rounded-full">
+            <div className="p-3 bg-rose-50 dark:bg-rose-950/40 rounded-full">
               <Send className="w-6 h-6 text-rose-500" />
             </div>
             <div>
               <h2 className="text-lg font-semibold">Send Test Follow-Up</h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 Creates a real test reservation already past the follow-up delay
                 and sends the follow-up email with working &quot;Loved it&quot;,
                 &quot;Could&apos;ve been better&quot;, and &quot;Couldn&apos;t
@@ -582,7 +582,7 @@ export default function AdminSettings() {
               onChange={(e) => setTestFollowUpEmail(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSendTestFollowUp()}
               placeholder="Enter email address"
-              className="flex-1 md:max-w-sm px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-white text-gray-900 placeholder-gray-400"
+              className="flex-1 md:max-w-sm px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-white text-foreground placeholder-gray-400"
             />
             <button
               onClick={handleSendTestFollowUp}
@@ -604,8 +604,8 @@ export default function AdminSettings() {
           </div>
 
           {testFollowUpReservationId && (
-            <div className="mt-4 p-4 bg-rose-50 border border-rose-200 rounded-lg">
-              <p className="text-sm text-rose-800">
+            <div className="mt-4 p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-lg">
+              <p className="text-sm text-rose-800 dark:text-rose-300">
                 Test email sent — open it and click a button to try the flow.
                 The test reservation (#{testFollowUpReservationId.slice(0, 8)})
                 will show up under{" "}
@@ -619,14 +619,14 @@ export default function AdminSettings() {
         </div>
 
         {/* Test Email Card */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+        <div className="bg-card text-card-foreground rounded-xl shadow-md border border-border p-6 mb-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 bg-green-50 rounded-full">
+            <div className="p-3 bg-green-50 dark:bg-green-950/40 rounded-full">
               <Mail className="w-6 h-6 text-green-500" />
             </div>
             <div>
               <h2 className="text-lg font-semibold">Send Test Email</h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 Creates a real test reservation in Firebase and sends both the
                 customer and restaurant confirmation emails — with working
                 cancel, reschedule, and menu download links.
@@ -641,7 +641,7 @@ export default function AdminSettings() {
               onChange={(e) => setTestEmail(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSendTestEmail()}
               placeholder="Enter email address"
-              className="flex-1 md:max-w-sm px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 placeholder-gray-400"
+              className="flex-1 md:max-w-sm px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-foreground placeholder-gray-400"
             />
             <button
               onClick={handleSendTestEmail}
@@ -663,7 +663,7 @@ export default function AdminSettings() {
             <button
               onClick={handleDeleteTestReservations}
               disabled={deletingTest}
-              className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              className="flex items-center gap-2 px-5 py-3 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
             >
               {deletingTest ? (
                 <>
@@ -680,9 +680,9 @@ export default function AdminSettings() {
           </div>
 
           {testReservationId && (
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-2 text-sm text-blue-800">
+                <div className="flex items-center gap-2 text-sm text-blue-800 dark:text-blue-300">
                   <CalendarClock className="w-4 h-4 shrink-0" />
                   <span>
                     Test reservation ready — try the reschedule flow exactly as
@@ -699,7 +699,7 @@ export default function AdminSettings() {
                   Test Reschedule Page
                 </a>
               </div>
-              <p className="mt-2 text-xs text-blue-700/80">
+              <p className="mt-2 text-xs text-blue-700/80 dark:text-blue-300/80">
                 This link always points to the same test reservation (#
                 {testReservationId.slice(0, 8)}), so reopening it after
                 rescheduling will show the updated date/time. Clicking
@@ -711,14 +711,14 @@ export default function AdminSettings() {
         </div>
 
         {/* Notification Sound Card */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+        <div className="bg-card text-card-foreground rounded-xl shadow-md border border-border p-6 mb-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 bg-indigo-50 rounded-full">
+            <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 rounded-full">
               <Bell className="w-6 h-6 text-indigo-500" />
             </div>
             <div>
               <h2 className="text-lg font-semibold">Notification Sound</h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 Choose the sound that plays when a new reservation comes in.
                 Saved to this browser.
               </p>
@@ -735,12 +735,12 @@ export default function AdminSettings() {
                 }}
                 className={`flex-1 flex flex-col items-center gap-1 px-4 py-4 rounded-xl border-2 transition-all ${
                   notificationSound === option.value
-                    ? "border-indigo-500 bg-indigo-50 text-indigo-700"
-                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                    ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300"
+                    : "border-border bg-card text-muted-foreground hover:border-muted-foreground/40 hover:bg-muted"
                 }`}
               >
                 <span className="font-semibold text-sm">{option.label}</span>
-                <span className="text-xs text-gray-700">
+                <span className="text-xs text-foreground">
                   {option.description}
                 </span>
               </button>
@@ -757,11 +757,11 @@ export default function AdminSettings() {
         </div>
 
         {/* Additional Info */}
-        <div className="bg-white rounded-xl shadow-md p-6">
+        <div className="bg-card text-card-foreground rounded-xl shadow-md border border-border p-6">
           <h3 className="text-lg font-semibold mb-4">
             How Timezone Settings Work
           </h3>
-          <ul className="space-y-3 text-gray-600">
+          <ul className="space-y-3 text-muted-foreground">
             <li className="flex items-start gap-2">
               <span className="text-blue-500 font-bold">•</span>
               <span>
