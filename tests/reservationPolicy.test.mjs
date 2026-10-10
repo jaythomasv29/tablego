@@ -47,7 +47,7 @@ test('restaurant clock handles both daylight saving transitions', () => {
 });
 test('booking lifecycle restricts terminal states and guest editing', () => {
   assert.equal(transition('pending', 'confirm'), 'confirmed'); assert.equal(transition('confirmed', 'seat'), 'seated'); assert.equal(transition('seated', 'complete'), 'completed');
-  assert.throws(() => transition('pending', 'seat')); assert.throws(() => transition('cancelled', 'confirm')); assert.throws(() => transition('no-show', 'seat'));
+  assert.throws(() => transition('pending', 'seat')); assert.throws(() => transition('pending', 'no-show')); assert.throws(() => transition('cancelled', 'confirm')); assert.throws(() => transition('no-show', 'seat'));
   assert.equal(transition('cancelled', 'cancel'), 'cancelled'); assert.equal(isGuestEditable('completed'), false);
 });
 test('legacy attendance and cancellation history are preserved; unknown states require review', () => {

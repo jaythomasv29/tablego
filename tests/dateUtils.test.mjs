@@ -71,3 +71,8 @@ test('display of calendar dates is stable even across the date line', () => {
 test('restaurant clock uses zero rather than 24 at midnight', () => {
   assert.equal(getDateInTimezone(new Date('2026-01-02T08:00:00Z')).getHours(), 0);
 });
+
+test('timestamps without a timezone are rejected rather than interpreted in viewer time', () => {
+  assert.throws(() => getLocalDateString('2026-10-10T23:00:00'), RangeError);
+  assert.equal(getLocalDateString('2026-10-10T23:00:00-07:00'), '2026-10-10');
+});

@@ -15,11 +15,15 @@ for (const zone of ['America/Los_Angeles', 'Asia/Tokyo', 'Europe/London', 'Pacif
       import { act, create } from 'react-test-renderer';
       import ts from 'typescript';
       import * as dates from './src/utils/dateUtils.ts';
+      import * as service from './src/lib/reservations/service.ts';
       import * as availability from './src/lib/reservations/availability.ts';
       assert.equal(dates.getLocalDateString('2026-10-11T01:00:00Z', 'America/Los_Angeles'), '2026-10-10');
       assert.equal(dates.formatDateForDisplay('2026-10-10', 'America/Los_Angeles'), 'October 10, 2026');
       assert.equal(dates.formatReadableDatePST('2026-01-02T07:59:00Z'), 'Thursday, January 1, 2026');
       assert.equal(availability.restaurantClock('America/Los_Angeles', new Date('2026-11-01T09:30:00Z')).minutes, 90);
+      const row = service.serviceReservation('fixture', { name: 'Guest', date: { toDate: () => new Date('2026-10-11T01:00:00Z') }, time: '7:00 PM', guests: 2, status: 'confirmed' }, 'America/Los_Angeles');
+      assert.equal(service.todaySummary([row], 'America/Los_Angeles', new Date('2026-10-11T01:00:00Z')).expectedCovers, 2);
+      assert.ok(dates.formatBusinessTimestamp('2026-10-11T01:00:00Z', 'America/Los_Angeles').includes('Oct 10, 2026'));
       const selected = new Date(2026, 9, 11, 12);
       assert.equal(availability.calendarDate(selected), '2026-10-11');
       const filename = new URL('./src/components/DatePicker.tsx', import.meta.url);

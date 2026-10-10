@@ -92,6 +92,18 @@ try {
   status(await request(`/api/reservations/${id}`, { method: 'POST', token, body: { action: 'confirm' } }), 403, 'guest cannot grant restaurant acceptance');
   status(await request(`/api/staff/reservations/${id}`, { method: 'POST', cookie: staffCookie, body: { action: 'seat' } }), 409, 'pending booking cannot be seated');
   status(await request(`/api/staff/reservations/${id}`, { method: 'POST', cookie: staffCookie, body: { action: 'confirm' } }), 200, 'staff acceptance');
+  status(await request(`/api/staff/reservations/${id}`, { method: 'POST', cookie: staffCookie, body: { action: 'no-show' } }), 409, 'future arrivals cannot be marked no-show');
+  status(await request(`/api/staff/reservations/${id}/history`), 401, 'private notes and timeline require staff authorization');
+  const savedNote = await request(`/api/staff/reservations/${id}/history`, { method: 'PATCH', cookie: staffCookie, body: { internalNotes: 'Synthetic private service note', noteVersion: 0 } });
+  status(savedNote, 200, 'authorized staff note saved');
+  status(await request(`/api/staff/reservations/${id}/history`, { method: 'PATCH', cookie: staffCookie, body: { internalNotes: 'Conflicting note', noteVersion: 0 } }), 409, 'concurrent staff note cannot overwrite another change');
+  const guestWithNote = await request(`/api/reservations/${id}`, { token });
+  assert.equal(guestWithNote.data.reservation.internalNotes, undefined);
+  const history = await request(`/api/staff/reservations/${id}/history`, { cookie: staffCookie });
+  assert.equal(history.data.internalNotes, 'Synthetic private service note');
+  assert.equal(history.data.events.filter(event => event.event === 'reservation.internal_note_updated').length, 1);
+  await permissionDenied(() => updateDoc(doc(client, 'reservations', id), { internalNotes: 'Bypass' }), 'staff clients cannot bypass audited note changes');
+  console.log('PASS staff notes excluded from guest API and audit preserved');
   status(await request('/api/send-sms', { method: 'POST', cookie: staffCookie, body: { reservationId: id, phone: '6505559999' } }), 200, 'SMS reminder uses stored consent and verified recipient');
   const before = (await request(`/api/reservations/${id}`, { token })).data.reservation;
   status(await request(`/api/reservations/${id}`, { method: 'POST', token, body: { action: 'reschedule', date: later, time: '3:00 AM', version: before.version } }), 409, 'unavailable reschedule rejected');

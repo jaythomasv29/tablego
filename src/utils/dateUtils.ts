@@ -9,7 +9,10 @@ function instant(value: unknown): Date {
     let date: Date;
     if (value instanceof Date) date = value;
     else if (value && typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') date = value.toDate();
-    else if (typeof value === 'string' && value.trim()) date = new Date(value);
+    else if (typeof value === 'string' && value.trim()) {
+        if (!/(Z|[+-]\d{2}:?\d{2}|GMT.*)$/i.test(value)) throw new RangeError('Timestamp must include a timezone');
+        date = new Date(value);
+    }
     else throw new RangeError('A valid date is required');
     if (!(date instanceof Date) || !Number.isFinite(date.getTime())) throw new RangeError('Invalid date');
     return date;
@@ -43,3 +46,6 @@ export const getCurrentTimeInTimezone = (timeZone = DEFAULT_TIMEZONE): { hours: 
 export const getDayOfWeekInTimezone = (date: Date, timeZone = DEFAULT_TIMEZONE): string => instant(date).toLocaleDateString('en-US', { weekday: 'long', timeZone }).toLowerCase();
 export const formatTimeInTimezone = (date: Date, timeZone = DEFAULT_TIMEZONE): string => instant(date).toLocaleTimeString('en-US', { timeZone, hour: 'numeric', minute: '2-digit', hour12: true });
 export const isToday = (date: Date | string, timeZone = DEFAULT_TIMEZONE): boolean => getLocalDateString(date, timeZone) === getTodayInTimezone(timeZone);
+
+export const formatBusinessTimestamp = (value: string | Date, timeZone = DEFAULT_TIMEZONE): string =>
+    new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(instant(value));

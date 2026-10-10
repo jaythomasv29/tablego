@@ -24,12 +24,14 @@ export const TIMEZONE_OPTIONS = [
 interface TimezoneContextType {
     timezone: string;
     loading: boolean;
+    error: string | null;
     refreshTimezone: () => Promise<void>;
 }
 
 const TimezoneContext = createContext<TimezoneContextType>({
     timezone: 'America/Los_Angeles', // Default fallback
     loading: true,
+    error: null,
     refreshTimezone: async () => {},
 });
 
@@ -48,18 +50,21 @@ interface TimezoneProviderProps {
 export function TimezoneProvider({ children }: TimezoneProviderProps) {
     const [timezone, setTimezone] = useState<string>('America/Los_Angeles');
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     const fetchTimezone = async () => {
+        setError(null);
         try {
             const settingsDoc = await getDoc(doc(db, 'settings', 'general'));
             if (settingsDoc.exists()) {
                 const data = settingsDoc.data();
                 if (data.timezone) {
+                    new Intl.DateTimeFormat('en-US', { timeZone: data.timezone }).format();
                     setTimezone(data.timezone);
                 }
-            }
+            } else { throw new Error('Missing business settings'); }
         } catch (error) {
-            console.error('Error fetching timezone setting:', error);
+            setError('Business timezone could not be loaded. Please refresh or check settings.');
             // Keep default timezone on error
         } finally {
             setLoading(false);
@@ -76,7 +81,7 @@ export function TimezoneProvider({ children }: TimezoneProviderProps) {
     };
 
     return (
-        <TimezoneContext.Provider value={{ timezone, loading, refreshTimezone }}>
+        <TimezoneContext.Provider value={{ timezone, loading, error, refreshTimezone }}>
             {children}
         </TimezoneContext.Provider>
     );

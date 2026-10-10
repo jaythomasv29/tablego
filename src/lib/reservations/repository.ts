@@ -1,10 +1,12 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { getServerDatabase } from '../serverFirebase';
 import { bookingState, isGuestEditable, transition, type StaffAction } from './domain';
-import { checkAvailability, restaurantClock, validDate, timeMinutes, displayTime } from './availability';
+import { checkAvailability, validDate, timeMinutes, displayTime } from './availability';
 import { loadPolicy, businessTimezone } from './policy';
 import { newManagementToken, tokenHash, encryptToken, decryptToken, managementUrl } from './managementToken';
 import { notificationIntent, type ReservationEvent } from './notifications';
+import { getLocalDateString } from '../../utils/dateUtils';
+import { arrivalDue } from './service';
 import { scheduleDelivery } from './background';
 import { ReservationError } from './http';
 import type { BookingInput } from './input';
@@ -18,10 +20,8 @@ function publicReservation(id: string, record: FirebaseFirestore.DocumentData, t
     status: bookingState(record), guestAcknowledged: Boolean(record.guestAcknowledgedAt), comments: record.comments || '', timezone, version: record.version || 1 };
 }
 function dateString(value: unknown, timezone: string): string {
-  if (validDate(value)) return value;
-  if (typeof value === 'string' && Number.isFinite(new Date(value).getTime())) return restaurantClock(timezone, new Date(value)).date;
-  if (value && typeof value === 'object' && 'toDate' in value) return restaurantClock(timezone, (value as { toDate: () => Date }).toDate()).date;
-  throw new ReservationError('Reservation date needs staff review', 409);
+  try { return getLocalDateString(value, timezone); }
+  catch { throw new ReservationError('Reservation date needs staff review', 409); }
 }
 function notificationRecord(record: FirebaseFirestore.DocumentData, timezone: string): BookingInput & { status: ReturnType<typeof bookingState>; notificationRevision: number; restaurantTimezone: string } {
   return { name: record.name, email: record.email, phone: record.phone || '', date: dateString(record.date, timezone), time: record.time,
@@ -91,6 +91,7 @@ export async function actOnReservation(id: string, action: string, actor: 'guest
       event = 'rescheduled';
     } else {
       if (!['confirm', 'seat', 'complete', 'cancel', 'no-show'].includes(action)) throw new ReservationError('Unknown action');
+      if (action === 'no-show' && state !== 'no-show' && !arrivalDue({ date: dateString(data.date, timezone), time: data.time }, timezone)) throw new ReservationError('No-show can only be recorded after the scheduled arrival time in the restaurant timezone.', 409);
       let next;
       try { next = transition(state, action as StaffAction); } catch (error) { throw new ReservationError((error as Error).message, 409); }
       if (state === next) return { reservation: publicReservation(id, data, timezone), changed: false };

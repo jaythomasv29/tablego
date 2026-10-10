@@ -14,7 +14,7 @@ export function transition(state: BookingState, action: StaffAction): BookingSta
   const next: Record<StaffAction, BookingState> = { confirm: 'confirmed', seat: 'seated', complete: 'completed', cancel: 'cancelled', 'no-show': 'no-show' };
   const allowed: Record<StaffAction, BookingState[]> = {
     confirm: ['pending'], seat: ['confirmed'], complete: ['seated'],
-    cancel: ['pending', 'confirmed'], 'no-show': ['pending', 'confirmed'],
+    cancel: ['pending', 'confirmed'], 'no-show': ['confirmed'],
   };
   if (state === next[action]) return state;
   if (!allowed[action].includes(state)) throw new Error(`Cannot ${action} a ${state} reservation`);

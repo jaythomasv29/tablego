@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Home, Calendar, Clock, CalendarDays, Utensils, BookText,
-  MessageSquare, Flag, Settings, Users, Package, Eye, EyeOff, Printer,
+  MessageSquare, Flag, Settings, Users, Package, Eye, EyeOff, Printer, TrendingUp,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -28,33 +28,26 @@ const HIDEABLE = ['inventory', 'team', 'messages'];
 const DEFAULT_HIDDEN = ['inventory', 'team', 'messages'];
 
 const NAV_GROUPS = [
-  {
-    label: null as string | null,
-    items: [
-      { id: 'dashboard',    href: '/admin/home',         label: 'Dashboard',         icon: Home },
-      { id: 'reservations', href: '/admin/reservation',  label: 'Reservations',      icon: CalendarDays },
-    ],
-  },
-  {
-    label: 'Operations',
-    items: [
-      { id: 'team',          href: '/admin/team',          label: 'Team View',          icon: Users },
-      { id: 'inventory',     href: '/admin/inventory',     label: 'Inventory',          icon: Package },
-      { id: 'hours',         href: '/admin/hours',         label: 'Hours',              icon: Clock },
-      { id: 'special-dates', href: '/admin/special-dates', label: 'Business Holidays',  icon: Calendar },
-      { id: 'cater',         href: '/admin/cater',         label: 'Catering',           icon: Utensils },
-      { id: 'labeling',      href: '/admin/labeling',      label: 'Food Labels',        icon: Printer },
-      { id: 'menu',          href: '/admin/menu',          label: 'Restaurant Menu',    icon: BookText },
-      { id: 'messages',      href: '/admin/messages',      label: 'Messages',           icon: MessageSquare },
-    ],
-  },
-  {
-    label: 'Admin',
-    items: [
-      { id: 'banner',   href: '/admin/banner',   label: 'Banner',   icon: Flag },
-      { id: 'settings', href: '/admin/settings', label: 'Settings', icon: Settings },
-    ],
-  },
+  { label: 'Today', items: [{ id: 'dashboard', href: '/admin/home', label: 'Today', icon: Home }] },
+  { label: 'Guests & Reservations', items: [
+    { id: 'reservations', href: '/admin/reservation', label: 'Reservations', icon: CalendarDays },
+    { id: 'guests', href: '/admin/guests', label: 'Guests', icon: Users },
+  ] },
+  { label: 'Restaurant Operations', items: [
+    { id: 'team', href: '/admin/team', label: 'Team View', icon: Users },
+    { id: 'inventory', href: '/admin/inventory', label: 'Inventory', icon: Package },
+    { id: 'hours', href: '/admin/hours', label: 'Hours', icon: Clock },
+    { id: 'special-dates', href: '/admin/special-dates', label: 'Business Holidays', icon: Calendar },
+    { id: 'cater', href: '/admin/cater', label: 'Catering', icon: Utensils },
+    { id: 'labeling', href: '/admin/labeling', label: 'Food Labels', icon: Printer },
+    { id: 'menu', href: '/admin/menu', label: 'Restaurant Menu', icon: BookText },
+  ] },
+  { label: 'Guest Engagement', items: [
+    { id: 'messages', href: '/admin/messages', label: 'Messages', icon: MessageSquare },
+    { id: 'insights', href: '/admin/insights', label: 'Insights', icon: TrendingUp },
+    { id: 'banner', href: '/admin/banner', label: 'Banner', icon: Flag },
+  ] },
+  { label: 'Settings', items: [{ id: 'settings', href: '/admin/settings', label: 'Settings', icon: Settings }] },
 ];
 
 export default function AdminSidebar() {
