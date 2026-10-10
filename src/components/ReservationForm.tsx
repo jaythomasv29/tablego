@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, Users, Mail, MessageSquare, Clock, User, Phone, Check, X } from 'lucide-react';
 import Cookies from 'js-cookie';
 import { db } from '../firebase';
@@ -88,6 +88,35 @@ const getClosureType = (specialDate?: SpecialDate): 'full' | 'lunch' | 'dinner' 
   // Backward compatibility: existing records without closureType are treated as full-day closures.
   return specialDate.closureType || 'full';
 };
+
+// Helper to check if restaurant is open on a given day
+const isRestaurantOpenOnDay = (date: Date, hours: BusinessHours | null): boolean => {
+  if (!hours) return true; // Assume open if we don't have hours yet
+
+  // Use the local day from the Date object (what the user visually selected)
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayName = days[date.getDay()];
+  const dayHours = hours[dayName];
+
+  if (!dayHours) return false;
+
+  // Restaurant is open if either lunch or dinner is open
+  return dayHours.lunch?.isOpen || dayHours.dinner?.isOpen;
+};
+
+// Find the next open day starting from a given date
+const findNextOpenDay = (startDate: Date, hours: BusinessHours | null): Date => {
+  const date = new Date(startDate);
+  // Check up to 7 days ahead
+  for (let i = 0; i < 7; i++) {
+    if (isRestaurantOpenOnDay(date, hours)) {
+      return date;
+    }
+    date.setDate(date.getDate() + 1);
+  }
+  return startDate; // Fallback to start date if all days are closed
+};
+
 
 // Add theme for MUI components
 const theme = createTheme({
@@ -187,42 +216,14 @@ export default function ReservationForm() {
   const [minimumLeadTimeMinutes, setMinimumLeadTimeMinutes] = useState<number>(50);
 
   // Helper function to get current date in restaurant's timezone
-  const getRestaurantDate = (date?: Date): Date => {
+  const getRestaurantDate = useCallback((date?: Date): Date => {
     const targetDate = date || new Date();
     return new Date(
       targetDate.toLocaleString("en-US", {
         timeZone: timezone,
       })
     );
-  };
-
-  // Helper to check if restaurant is open on a given day
-  const isRestaurantOpenOnDay = (date: Date, hours: BusinessHours | null): boolean => {
-    if (!hours) return true; // Assume open if we don't have hours yet
-
-    // Use the local day from the Date object (what the user visually selected)
-    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const dayName = days[date.getDay()];
-    const dayHours = hours[dayName];
-
-    if (!dayHours) return false;
-
-    // Restaurant is open if either lunch or dinner is open
-    return dayHours.lunch?.isOpen || dayHours.dinner?.isOpen;
-  };
-
-  // Find the next open day starting from a given date
-  const findNextOpenDay = (startDate: Date, hours: BusinessHours | null): Date => {
-    const date = new Date(startDate);
-    // Check up to 7 days ahead
-    for (let i = 0; i < 7; i++) {
-      if (isRestaurantOpenOnDay(date, hours)) {
-        return date;
-      }
-      date.setDate(date.getDate() + 1);
-    }
-    return startDate; // Fallback to start date if all days are closed
-  };
+  }, [timezone]);
 
   // Initialize selectedDate once timezone and business hours are loaded
   useEffect(() => {
@@ -340,21 +341,8 @@ export default function ReservationForm() {
     loadSpecialDates();
   }, []);
 
-  // Update time slots when date or business hours change
-  useEffect(() => {
-    if (businessHours && selectedDate) {
-      const slots = generateTimeSlots(selectedDate, businessHours);
-      setAvailableTimeSlots(slots);
-
-      // If current time is not available, clear it
-      if (formData.time && !slots.find(slot => slot.time === formData.time)) {
-        updateFormData({ time: '' });
-      }
-    }
-  }, [selectedDate, businessHours, reservationCutoffMinutes]);
-
   // 1. Add helper function to check if we should show next day
-  const shouldShowNextDay = (hours: BusinessHours): boolean => {
+  const shouldShowNextDay = useCallback((hours: BusinessHours): boolean => {
     const restaurantNow = getRestaurantDate();
     // Use the local day from the restaurant's current date
     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -387,7 +375,7 @@ export default function ReservationForm() {
       currentMinutes > timeToMinutes(currentHours.lunch.close) - 30;
 
     return isDinnerClosed && isLunchClosed;
-  };
+  }, [getRestaurantDate]);
 
 
 
@@ -399,13 +387,13 @@ export default function ReservationForm() {
         tomorrow.setDate(tomorrow.getDate() + 1);
         tomorrow.setHours(0, 0, 0, 0);
         setSelectedDate(tomorrow);
-        updateFormData({ date: tomorrow });
+        setFormData(prev => ({ ...prev, date: tomorrow }));
       }
     }
-  }, [businessHours]); // Only run when business hours are loaded
+  }, [businessHours, shouldShowNextDay]); // Only run when business hours are loaded
 
   // 4. Update the generateTimeSlots function
-  const generateTimeSlots = (date: Date, hours: BusinessHours): TimeSlot[] => {
+  const generateTimeSlots = useCallback((date: Date, hours: BusinessHours): TimeSlot[] => {
     // Use the local day of the Date object (what the user visually selected)
     // NOT converted to restaurant timezone, because the user picked this calendar date
     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -557,7 +545,20 @@ export default function ReservationForm() {
       const timeB = timeStringToMinutes(b.time);
       return timeA - timeB;
     });
-  };
+  }, [specialDates, getRestaurantDate, reservationCutoffMinutes, minimumLeadTimeMinutes]);
+
+  // Update time slots when date or business hours change
+  useEffect(() => {
+    if (businessHours && selectedDate) {
+      const slots = generateTimeSlots(selectedDate, businessHours);
+      setAvailableTimeSlots(slots);
+
+      // If current time is not available, clear it
+      if (formData.time && !slots.find(slot => slot.time === formData.time)) {
+        setFormData(prev => ({ ...prev, time: '' }));
+      }
+    }
+  }, [selectedDate, businessHours, formData.time, generateTimeSlots]);
 
   const handleDateChange = (date: Date) => {
 
@@ -570,7 +571,7 @@ export default function ReservationForm() {
 
     const closureType = getClosureType(holiday);
     if (closureType === 'full') {
-      alert(`Sorry, we're closed on this date (${holiday.reason})`);
+      alert(`Sorry, we're closed on this date (${holiday?.reason ?? 'Restaurant closed'})`);
       return;
     }
 
@@ -1154,7 +1155,7 @@ export default function ReservationForm() {
                             className="pl-10 h-11"
                           />
                         </div>
-                        <p className="text-xs text-gray-500">We'll send your confirmation here</p>
+                        <p className="text-xs text-gray-500">We&apos;ll send your confirmation here</p>
                       </div>
 
                       {/* Phone */}

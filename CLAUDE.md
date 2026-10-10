@@ -6,12 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm run dev      # Start Next.js dev server (port 3000)
-npm run build    # Production build (TS/ESLint errors are suppressed — see next.config.mjs)
+npm run build    # Production build with TypeScript and ESLint validation
 npm run lint     # ESLint check
+npm run typecheck # TypeScript check
+npm test         # Date/timezone regression tests
+npm run check    # All quality checks and build
 npm run start    # Serve production build
 ```
 
-There are no automated tests. There is a one-off seed script:
+Automated regression tests are in `tests/`. Use Node 22.14 or newer for the native TypeScript test runner. There is a one-off seed script:
 ```bash
 node scripts/seed-employees.mjs   # Seed employee data into Firestore
 ```
@@ -95,4 +98,4 @@ The public page embeds a standalone chat widget via a `<script>` tag in `src/app
 
 ### Build notes
 
-`next.config.mjs` disables both TypeScript and ESLint errors during builds (`ignoreBuildErrors: true`, `ignoreDuringBuilds: true`). The build also forces aggressive cache-busting headers site-wide and a timestamp-based `generateBuildId`.
+`next.config.mjs` validates TypeScript and ESLint during builds. The build still forces aggressive cache-busting headers site-wide and a timestamp-based `generateBuildId`; caching changes are planned for a later phase. Standalone lint enforces zero errors and the documented existing performance-warning budget. See `docs/phase-0-progress.md` for staging gates and validation status.

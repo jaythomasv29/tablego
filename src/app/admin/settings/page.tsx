@@ -185,7 +185,7 @@ export default function AdminSettings() {
 
                 <div className="mb-6">
                     <h1 className="text-2xl font-bold">Settings</h1>
-                    <p className="text-gray-600 mt-1">Configure your restaurant's settings</p>
+                    <p className="text-gray-600 mt-1">Configure your restaurant&apos;s settings</p>
                 </div>
 
                 {/* Timezone Settings Card */}
@@ -238,7 +238,7 @@ export default function AdminSettings() {
                             <div className="ml-3">
                                 <p className="text-sm text-amber-700">
                                     <strong>Important:</strong> Changing the timezone will affect how all times are displayed throughout the reservation system.
-                                    Customers will see available time slots based on this timezone, regardless of their browser's local time.
+                                    Customers will see available time slots based on this timezone, regardless of their browser&apos;s local time.
                                 </p>
                             </div>
                         </div>
@@ -364,7 +364,7 @@ export default function AdminSettings() {
                     <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                         <p className="text-sm text-gray-600">
                             <strong>Example:</strong> If a guest tries to book at 6:40 PM with a 60-minute lead time,
-                            the earliest available slot they'll see is 7:40 PM.
+                            the earliest available slot they&apos;ll see is 7:40 PM.
                         </p>
                     </div>
                 </div>
@@ -478,11 +478,11 @@ export default function AdminSettings() {
                     <ul className="space-y-3 text-gray-600">
                         <li className="flex items-start gap-2">
                             <span className="text-blue-500 font-bold">•</span>
-                            <span>All reservation times are stored and displayed in the restaurant's timezone.</span>
+                            <span>All reservation times are stored and displayed in the restaurant&apos;s timezone.</span>
                         </li>
                         <li className="flex items-start gap-2">
                             <span className="text-blue-500 font-bold">•</span>
-                            <span>Customers will see available slots in your restaurant's timezone, not their local time.</span>
+                            <span>Customers will see available slots in your restaurant&apos;s timezone, not their local time.</span>
                         </li>
                         <li className="flex items-start gap-2">
                             <span className="text-blue-500 font-bold">•</span>
@@ -490,7 +490,7 @@ export default function AdminSettings() {
                         </li>
                         <li className="flex items-start gap-2">
                             <span className="text-blue-500 font-bold">•</span>
-                            <span>Email confirmations will show times in the restaurant's timezone.</span>
+                            <span>Email confirmations will show times in the restaurant&apos;s timezone.</span>
                         </li>
                     </ul>
                 </div>

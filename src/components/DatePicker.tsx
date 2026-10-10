@@ -66,12 +66,12 @@ const DatePickerComponent: React.FC<DatePickerProps> = ({
             selected={date}
             onSelect={handleDaySelect}
             disabled={isDateDisabled}
-            fromDate={today}
+            startMonth={today}
             className="w-full"
             classNames={{
               months: 'w-full relative flex flex-col gap-4',
               month: 'w-full flex flex-col gap-4',
-              table: 'w-full border-collapse',
+              month_grid: 'w-full border-collapse',
               month_caption: 'flex h-auto w-full items-center justify-center px-7 py-3 border-b border-gray-100',
               caption_label: 'text-base font-semibold text-gray-900',
               weekdays: 'flex w-full',

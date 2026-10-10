@@ -34,5 +34,13 @@
 
 ### Important Timezone Note
 - Dates stored as "2025-02-16T20:00:00.000Z" (UTC) need to be converted to PST
-- Example: 8:00 PM UTC Feb 16 = 12:00 PM PST Feb 17
+- Example: 8:00 PM UTC Feb 16 = 12:00 PM PST Feb 16
 - Always convert to PST before date comparisons
+
+## Quality checks and phased refinement
+
+Use `America/Los_Angeles` for restaurant timezone calculations, including daylight saving time; PST is not a year-round fixed offset.
+
+Run `npm run typecheck`, `npm run lint`, `npm test`, and `npm run build`, or `npm run check` for all four. The initial test suite covers timezone and date storage behavior. Build-time type and lint failures are no longer suppressed.
+
+See [the refinement plan](docs/tablego-refinement-plan.md), [Phase 0 progress](docs/phase-0-progress.md), and [isolated staging setup](docs/staging-setup.md). Do not exercise booking or notification tests against the live database or real guest recipients.

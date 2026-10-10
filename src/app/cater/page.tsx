@@ -326,7 +326,7 @@ export default function CateringPage() {
                     Catering Inquiry
                   </h2>
                   <p className="text-zinc-500 text-sm mt-1" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    We'll follow up within 24 hours.
+                    We&apos;ll follow up within 24 hours.
                   </p>
                 </div>
 

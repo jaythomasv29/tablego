@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Calendar,
   CheckCircle2,
@@ -304,7 +304,7 @@ function App() {
     }
   }, [isEditingGuests]);
 
-  const generateTimeSlots = (date: Date, hours: BusinessHours): TimeSlot[] => {
+  const generateTimeSlots = useCallback((date: Date, hours: BusinessHours): TimeSlot[] => {
     const days = [
       "sunday",
       "monday",
@@ -418,7 +418,7 @@ function App() {
     };
 
     return slots.sort((a, b) => sortTime(a.time) - sortTime(b.time));
-  };
+  }, [specialDates, minimumLeadTimeMinutes, reservationCutoffMinutes]);
 
   useEffect(() => {
     if (!businessHours) return;
@@ -427,7 +427,7 @@ function App() {
     if (formData.time && !slots.some((slot) => slot.time === formData.time)) {
       setFormData((prev) => ({ ...prev, time: "" }));
     }
-  }, [formData.date, businessHours, reservationCutoffMinutes, specialDates]);
+  }, [formData.date, formData.time, businessHours, generateTimeSlots]);
 
   const steps = [
     { title: "Date & Time", icon: Calendar },

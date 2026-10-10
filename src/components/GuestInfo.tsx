@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { User, Mail, Phone, CheckCircle2, Loader2 } from 'lucide-react';
 import { ReservationData } from '../App';
 
@@ -22,6 +22,7 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
   const [isVerifying, setIsVerifying] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
   const [shake, setShake] = useState(false);
+  const attemptedVerification = useRef<string | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const phoneDigits = formData.phone.replace(/\D/g, '');
@@ -34,13 +35,6 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
       setTimeout(() => inputRefs.current[0]?.focus(), 50);
     }
   }, [otpSent]);
-
-  // Auto-verify when all digits are filled
-  useEffect(() => {
-    if (code.length === OTP_LENGTH && otpSent && !isVerifying) {
-      handleVerifyCode(code);
-    }
-  }, [code]);
 
   const formatPhoneNumber = (input: string): string => {
     const d = input.replace(/\D/g, '').slice(0, 10);
@@ -78,7 +72,7 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
     }
   };
 
-  const handleVerifyCode = async (codeToVerify: string) => {
+  const handleVerifyCode = useCallback(async (codeToVerify: string) => {
     setIsVerifying(true);
     setOtpError(null);
     try {
@@ -106,7 +100,20 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
     } finally {
       setIsVerifying(false);
     }
-  };
+  }, [formData.phone, onPhoneVerified]);
+
+  // A completed code is submitted once, even when callbacks change identity.
+  useEffect(() => {
+    if (code.length !== OTP_LENGTH || !otpSent) {
+      attemptedVerification.current = null;
+      return;
+    }
+    const attempt = `${formData.phone}:${code}`;
+    if (isVerifying || phoneVerified || attemptedVerification.current === attempt) return;
+    attemptedVerification.current = attempt;
+    void handleVerifyCode(code);
+  }, [code, otpSent, isVerifying, phoneVerified, formData.phone, handleVerifyCode]);
+
 
   const handleDigitChange = (index: number, value: string) => {
     const digit = value.replace(/\D/g, '').slice(-1);

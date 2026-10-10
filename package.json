@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint src middleware.ts --ext .ts,.tsx --max-warnings=11",
+    "typecheck": "tsc --noEmit --incremental false",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "check": "npm run typecheck && npm run lint && npm test && npm run build"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -59,10 +62,15 @@
     "autoprefixer": "^10.4.18",
     "dotenv": "^17.2.4",
     "eslint": "^8.56.0",
+    "eslint-config-next": "15.5.9",
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "postcss": "^8.4.35",
+    "react-test-renderer": "18.3.1",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.5.3"
+  },
+  "engines": {
+    "node": ">=22.14.0"
   }
 }

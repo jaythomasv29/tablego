@@ -98,7 +98,7 @@ export default function BannerManagement() {
                                     placeholder="View Menu"
                                 />
                                 <p className="mt-2 text-sm text-muted-foreground">
-                                    If not provided, "Learn More" will be used
+                                    If not provided, &quot;Learn More&quot; will be used
                                 </p>
                             </div>
 

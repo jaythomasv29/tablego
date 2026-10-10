@@ -6,6 +6,7 @@ import {
   getDefaultClassNames,
   type DayButton,
   type Locale,
+  DateLib,
 } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
@@ -35,7 +36,7 @@ function Calendar({
       locale={locale}
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString(locale?.code, { month: "short" }),
+          new DateLib({ locale }).format(date, "LLL"),
         ...formatters,
       }}
       classNames={{
@@ -82,7 +83,7 @@ function Calendar({
             : "flex items-center gap-1 rounded-md text-sm [&>svg]:size-3.5 [&>svg]:text-muted-foreground",
           defaultClassNames.caption_label
         ),
-        table: "w-full border-collapse",
+        month_grid: "w-full border-collapse",
         weekdays: cn("flex", defaultClassNames.weekdays),
         weekday: cn(
           "flex-1 rounded-md text-[0.8rem] font-normal text-muted-foreground select-none",
@@ -194,7 +195,7 @@ function CalendarDayButton({
       ref={ref}
       variant="ghost"
       size="icon"
-      data-day={day.date.toLocaleDateString(locale?.code)}
+      data-day={new DateLib({ locale }).format(day.date, "yyyy-MM-dd")}
       data-selected-single={
         modifiers.selected &&
         !modifiers.range_start &&

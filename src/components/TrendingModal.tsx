@@ -207,13 +207,13 @@ export function TrendingModal({ onClose, isOpen = true }: { onClose: () => void;
               className="text-lg font-light text-zinc-800 mb-2"
               style={{ fontFamily: "'Cormorant Garamond', serif" }}
             >
-              We're closed right now
+              We&apos;re closed right now
             </p>
             <p
               className="text-sm text-zinc-400 leading-relaxed mb-7 max-w-[260px]"
               style={{ fontFamily: 'Inter, sans-serif' }}
             >
-              Check back during service hours — in the meantime, explore what's on the menu.
+              Check back during service hours — in the meantime, explore what&apos;s on the menu.
             </p>
             <Link
               href="/menu"

@@ -9,8 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 import { Calendar as CalendarIcon, Check, ChevronsUpDown, Users, Calendar, Clock, Mail, Edit } from 'lucide-react';
-import toast from 'react-hot-toast';
-import { Toaster } from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 
 import ReminderModal from '@/components/ReminderModal';
 import { formatReadableDatePST } from '@/utils/dateUtils';

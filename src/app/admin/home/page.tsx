@@ -1,7 +1,7 @@
 "use client";
 
 import AdminLayout from "@/components/AdminLayout";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   collection,
   getDocs,
@@ -13,6 +13,7 @@ import {
   updateDoc,
   doc,
   onSnapshot,
+  Timestamp,
 } from "firebase/firestore";
 import { db } from "@/firebase";
 import {
@@ -47,7 +48,6 @@ import {
 } from "lucide-react";
 import PageTransition from "@/components/PageTransition";
 import StaggeredList from "@/components/StaggeredList";
-import { Timestamp } from "firebase/firestore";
 import { formatReadableDatePST } from "@/utils/dateUtils";
 import { playNotificationSound, unlockAudio } from "@/utils/soundUtils";
 import { Reservation } from "../reservation/page";
@@ -515,7 +515,7 @@ export default function AdminHome() {
     return parts.length > 0 ? parts : ["Closed"];
   };
 
-  const fetchMetrics = async () => {
+  const fetchMetrics = useCallback(async () => {
     try {
       // Get today's date in restaurant's timezone and format as YYYY-MM-DD
       const todayLocal = new Date().toLocaleDateString("en-CA", {
@@ -608,7 +608,7 @@ export default function AdminHome() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [timezone]);
 
   // Real-time listener for new reservations (unacknowledged)
   useEffect(() => {
@@ -760,7 +760,7 @@ export default function AdminHome() {
     return () => unsubscribe();
   }, [timezone]);
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     try {
       const messagesRef = collection(db, "messages");
       const q = query(messagesRef, orderBy("timestamp", "desc"));
@@ -774,7 +774,7 @@ export default function AdminHome() {
     } catch (error) {
       console.error("Error fetching messages:", error);
     }
-  };
+  }, []);
 
   // Send reminder email
   const handleSendReminder = async (reservation: Reservation) => {
@@ -865,7 +865,7 @@ export default function AdminHome() {
     }
 
     fetchData();
-  }, [timezone]);
+  }, [fetchMetrics, fetchMessages]);
 
   // console.log(totalViews)
 
@@ -1087,7 +1087,7 @@ export default function AdminHome() {
             Thaiphoon Restaurant
           </h1>
           <p className="mt-1 text-muted-foreground">
-            Welcome back! Here's what's happening today.
+            Welcome back! Here&apos;s what&apos;s happening today.
           </p>
           <div className="absolute top-4 right-6 opacity-15 pointer-events-none flex">
             <Utensils className="w-20 h-20 text-muted-foreground" />
