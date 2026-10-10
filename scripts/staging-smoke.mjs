@@ -85,6 +85,7 @@ try {
   status(await request('/api/reservations/staging-fixture', { token }), 403, 'token cannot manage another reservation');
   await permissionDenied(() => getDocFromServer(doc(client, 'managementAccess', id)), 'staff client cannot read management tokens');
   await permissionDenied(() => getDocFromServer(doc(client, 'staffSessions', 'anything')), 'staff client cannot read server session records');
+  for (const collection of ['stagingCaptures', 'stagingOtpChallenges']) await permissionDenied(() => getDocFromServer(doc(client, collection, 'anything')), `staff clients cannot read ${collection}`);
   await permissionDenied(() => updateDoc(doc(client, 'reservations', id), { status: 'confirmed' }), 'staff client cannot bypass transition APIs');
   const ack = await request(`/api/reservations/${id}`, { method: 'POST', token, body: { action: 'acknowledge' } });
   status(ack, 200, 'guest acknowledgement'); assert.equal(ack.data.reservation.status, 'pending');

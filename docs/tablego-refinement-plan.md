@@ -2,7 +2,7 @@
 
 Reviewed October 10, 2026. Branch: `review/tablego-phased-refinement`.
 
-The initial source review and plan below are preserved as the delivery baseline. Implementation and current validation are recorded in `phase-0-progress.md`, `phase-1-progress.md`, `phase-2-progress.md` and `staging-setup.md`. Work proceeds on separate refinement branches; no phase has been deployed to production.
+The initial source review and plan below are preserved as the delivery baseline. Implementation and current validation are recorded in `phase-0-progress.md`, `phase-1-progress.md`, `phase-2-progress.md`, `phase-3-progress.md` and `staging-setup.md`. Work proceeds on separate refinement branches; no phase has been deployed to production.
 
 ## Findings and priority corrections
 

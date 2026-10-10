@@ -13,7 +13,7 @@ const transport = createEmailTransport({ host: process.env.SMTP_HOST || 'smtp.gm
 export const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
 export type ReservationEvent = 'created' | 'confirmed' | 'rescheduled' | 'cancelled' | 'reminder' | 'recovered' | 'seated' | 'completed' | 'no-show';
 export function notificationIntent(tx: Transaction, id: string, eventId: string, event: ReservationEvent,
-  reservation: BookingInput & { status: BookingState; notificationRevision?: number }, encryptedToken: string, channel: 'email' | 'sms' = 'email') {
+  reservation: BookingInput & { status: BookingState; notificationRevision?: number; restaurantTimezone?: string }, encryptedToken: string, channel: 'email' | 'sms' = 'email') {
   for (const recipient of ['guest', 'restaurant'] as const) {
     if (recipient === 'restaurant' && (event === 'reminder' || event === 'recovered')) continue;
     if (recipient === 'guest' && ['seated', 'completed', 'no-show'].includes(event)) continue;
@@ -23,16 +23,16 @@ export function notificationIntent(tx: Transaction, id: string, eventId: string,
     });
   }
 }
-export function renderNotification(job: { event: ReservationEvent; recipient: string; reservationId: string; encryptedToken: string; reservation: BookingInput & { status: BookingState } }) {
+export function renderNotification(job: { event: ReservationEvent; recipient: string; reservationId: string; encryptedToken: string; reservation: BookingInput & { status: BookingState; restaurantTimezone?: string } }) {
   const reservation = job.reservation;
   const titles: Record<ReservationEvent, string> = { created: 'Reservation request received', confirmed: 'Reservation accepted', rescheduled: 'Reservation change requested',
     cancelled: 'Reservation cancelled', reminder: 'Upcoming reservation reminder', recovered: 'Your secure reservation link', seated: 'Guest seated', completed: 'Visit completed', 'no-show': 'Reservation marked no-show' };
   const url = managementUrl(job.reservationId, decryptToken(job.encryptedToken));
   const date = new Date(`${reservation.date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
-  const text = `${titles[job.event]}. ${reservation.name}: ${date} at ${reservation.time}, ${reservation.guests} guests. Status: ${statusLabels[reservation.status]}. ${reservation.status === 'pending' ? 'The restaurant still needs to accept this request. ' : ''}Manage reservation: ${url}`;
+  const text = `${titles[job.event]}. ${reservation.name}: ${date} at ${reservation.time} (${reservation.restaurantTimezone || "America/Los_Angeles"}), ${reservation.guests} guests. Status: ${statusLabels[reservation.status]}. ${reservation.status === 'pending' ? 'The restaurant still needs to accept this request. ' : ''}Manage reservation: ${url}`;
   return { from: process.env.EMAIL_USER, to: job.recipient === 'guest' ? reservation.email : process.env.EMAIL_USER,
     subject: `${titles[job.event]} — Thaiphoon Restaurant`, text,
-    html: `<main style="max-width:600px;margin:32px auto;padding:32px;font-family:Arial,sans-serif;color:#121212;background:#f9f7f2;border-radius:16px"><p>Thaiphoon · Palo Alto</p><h1>${escapeHtml(titles[job.event])}</h1><p>Hello ${escapeHtml(reservation.name)},</p><p>${escapeHtml(date)} at ${escapeHtml(reservation.time)} · ${reservation.guests} guests</p><p><strong>${escapeHtml(statusLabels[reservation.status])}</strong></p>${reservation.status === 'pending' ? '<p>The restaurant still needs to accept this request. Guest acknowledgement does not confirm a table.</p>' : ''}<p>${escapeHtml(reservation.comments)}</p><p><a href="${escapeHtml(url)}" style="display:inline-block;padding:14px 20px;background:#121212;color:#fff;border-radius:8px">Manage reservation</a></p></main>` };
+    html: `<main style="max-width:600px;margin:32px auto;padding:32px;font-family:Arial,sans-serif;color:#121212;background:#f9f7f2;border-radius:16px"><p>Thaiphoon · Palo Alto</p><h1>${escapeHtml(titles[job.event])}</h1><p>Hello ${escapeHtml(reservation.name)},</p><p>${escapeHtml(date)} at ${escapeHtml(reservation.time)} (${escapeHtml(reservation.restaurantTimezone || "America/Los_Angeles")}) · ${reservation.guests} guests</p><p><strong>${escapeHtml(statusLabels[reservation.status])}</strong></p>${reservation.status === 'pending' ? '<p>The restaurant still needs to accept this request. Guest acknowledgement does not confirm a table.</p>' : ''}<p>${escapeHtml(reservation.comments)}</p><p><a href="${escapeHtml(url)}" style="display:inline-block;padding:14px 20px;background:#121212;color:#fff;border-radius:8px">Manage reservation</a></p></main>` };
 }
 // Durable intents are committed with the booking. A failed send never reverses it.
 export async function deliverNotification(id: string): Promise<'delivered' | 'failed' | 'skipped'> {

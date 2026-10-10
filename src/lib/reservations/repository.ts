@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { getServerDatabase } from '../serverFirebase';
 import { bookingState, isGuestEditable, transition, type StaffAction } from './domain';
 import { checkAvailability, restaurantClock, validDate, timeMinutes, displayTime } from './availability';
-import { loadPolicy } from './policy';
+import { loadPolicy, businessTimezone } from './policy';
 import { newManagementToken, tokenHash, encryptToken, decryptToken, managementUrl } from './managementToken';
 import { notificationIntent, type ReservationEvent } from './notifications';
 import { scheduleDelivery } from './background';
@@ -13,19 +13,19 @@ export function reservationId(value: string): string {
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(value)) throw new ReservationError('Invalid reservation link', 403);
   return value;
 }
-function publicReservation(id: string, record: FirebaseFirestore.DocumentData) {
-  return { id, name: record.name, date: dateString(record.date), time: record.time, guests: record.guests,
-    status: bookingState(record), guestAcknowledged: Boolean(record.guestAcknowledgedAt), comments: record.comments || '', version: record.version || 1 };
+function publicReservation(id: string, record: FirebaseFirestore.DocumentData, timezone: string) {
+  return { id, name: record.name, date: dateString(record.date, timezone), time: record.time, guests: record.guests,
+    status: bookingState(record), guestAcknowledged: Boolean(record.guestAcknowledgedAt), comments: record.comments || '', timezone, version: record.version || 1 };
 }
-function dateString(value: unknown): string {
+function dateString(value: unknown, timezone: string): string {
   if (validDate(value)) return value;
-  if (typeof value === 'string' && Number.isFinite(new Date(value).getTime())) return restaurantClock('America/Los_Angeles', new Date(value)).date;
-  if (value && typeof value === 'object' && 'toDate' in value) return restaurantClock('America/Los_Angeles', (value as { toDate: () => Date }).toDate()).date;
+  if (typeof value === 'string' && Number.isFinite(new Date(value).getTime())) return restaurantClock(timezone, new Date(value)).date;
+  if (value && typeof value === 'object' && 'toDate' in value) return restaurantClock(timezone, (value as { toDate: () => Date }).toDate()).date;
   throw new ReservationError('Reservation date needs staff review', 409);
 }
-function notificationRecord(record: FirebaseFirestore.DocumentData): BookingInput & { status: ReturnType<typeof bookingState>; notificationRevision: number } {
-  return { name: record.name, email: record.email, phone: record.phone || '', date: dateString(record.date), time: record.time,
-    guests: record.guests, comments: record.comments || '', status: bookingState(record), notificationRevision: record.notificationRevision || 1 };
+function notificationRecord(record: FirebaseFirestore.DocumentData, timezone: string): BookingInput & { status: ReturnType<typeof bookingState>; notificationRevision: number; restaurantTimezone: string } {
+  return { name: record.name, email: record.email, phone: record.phone || '', date: dateString(record.date, timezone), time: record.time,
+    guests: record.guests, comments: record.comments || '', status: bookingState(record), notificationRevision: record.notificationRevision || 1, restaurantTimezone: timezone };
 }
 export async function createReservation(input: BookingInput, phoneVerified: boolean, smsOptIn: boolean, key: string) {
   if (!/^[A-Za-z0-9_-]{16,128}$/.test(key)) throw new ReservationError('Invalid submission key');
@@ -43,7 +43,7 @@ export async function createReservation(input: BookingInput, phoneVerified: bool
     }
     const policy = await loadPolicy(tx);
     if (!checkAvailability(input.date, input.time, policy).available) throw new ReservationError('This time is unavailable. Please choose another time.', 409);
-    const reservation = { ...input, status: 'pending' as const, phoneVerified, phoneVerificationSource: phoneVerified ? 'server' : 'unverified', smsOptIn, marked: false, createdAt: new Date(), schemaVersion: 2, version: 1, notificationRevision: 1, isTest: process.env.TABLEGO_ENVIRONMENT === 'staging' };
+    const reservation = { ...input, restaurantTimezone: policy.timezone, status: 'pending' as const, phoneVerified, phoneVerificationSource: phoneVerified ? 'server' : 'unverified', smsOptIn, marked: false, createdAt: new Date(), schemaVersion: 2, version: 1, notificationRevision: 1, isTest: process.env.TABLEGO_ENVIRONMENT === 'staging' };
     tx.create(ref, reservation);
     tx.create(db.doc(`managementAccess/${ref.id}`), { hash: tokenHash(token), encryptedToken, expiresAt: new Date(`${input.date}T23:59:59Z`).getTime() + 31 * 86400000 });
     tx.create(submission, { fingerprint, reservationId: ref.id, encryptedToken, eventId, createdAt: new Date() });
@@ -60,7 +60,8 @@ export async function readGuestReservation(id: string, token: unknown) {
   if (!hash) throw new ReservationError('Use a valid secure reservation link or verify your phone to recover access.', 403);
   const [access, reservation] = await Promise.all([db.doc(`managementAccess/${reservationId(id)}`).get(), db.doc(`reservations/${id}`).get()]);
   if (!reservation.exists || access.data()?.hash !== hash || access.data()!.expiresAt <= Date.now()) throw new ReservationError('This link is invalid or expired. Verify your phone to recover access.', 403);
-  return publicReservation(id, reservation.data()!);
+  const timezone = businessTimezone((await db.doc('settings/general').get()).data());
+  return publicReservation(id, reservation.data()!, timezone);
 }
 export async function actOnReservation(id: string, action: string, actor: 'guest' | 'staff', token: unknown, change?: { date?: unknown; time?: unknown; version?: unknown }) {
   const db = getServerDatabase(), ref = db.doc(`reservations/${reservationId(id)}`), eventId = randomUUID();
@@ -69,18 +70,19 @@ export async function actOnReservation(id: string, action: string, actor: 'guest
     const data = reservation.data();
     if (!data) throw new ReservationError(actor === 'guest' ? 'Invalid or expired reservation link' : 'Reservation not found', actor === 'guest' ? 403 : 404);
     if (actor === 'guest' && (!tokenHash(token) || tokenHash(token) !== access.data()?.hash || access.data()!.expiresAt <= Date.now())) throw new ReservationError('Invalid or expired reservation link', 403);
+    const timezone = businessTimezone((await tx.get(db.doc('settings/general'))).data());
     const state = bookingState(data), patch: FirebaseFirestore.DocumentData = {};
     let event: ReservationEvent | null = null;
     if (actor === 'guest' && !['acknowledge', 'cancel', 'reschedule'].includes(action)) throw new ReservationError('Action not permitted', 403);
     if (action === 'acknowledge') {
       if (!isGuestEditable(state)) throw new ReservationError('This reservation can no longer be acknowledged', 409);
-      if (data.guestAcknowledgedAt) return { reservation: publicReservation(id, data), changed: false };
+      if (data.guestAcknowledgedAt) return { reservation: publicReservation(id, data, timezone), changed: false };
       patch.guestAcknowledgedAt = new Date();
     } else if (action === 'reschedule') {
       if (!isGuestEditable(state)) throw new ReservationError('This reservation can no longer be changed', 409);
       if (!validDate(change?.date) || timeMinutes(change?.time) === null) throw new ReservationError('Invalid date or time');
       const time = displayTime(timeMinutes(change!.time)!);
-      if (data.date === change!.date && data.time === time) return { reservation: publicReservation(id, data), changed: false };
+      if (data.date === change!.date && data.time === time) return { reservation: publicReservation(id, data, timezone), changed: false };
       if (new Date(`${change!.date}T12:00:00Z`).getTime() > Date.now() + 366 * 86400000) throw new ReservationError('Please book within one year');
       if (!checkAvailability(change!.date as string, time, await loadPolicy(tx)).available) throw new ReservationError('The new time is unavailable. Your existing reservation is unchanged.', 409);
       if (change?.version !== undefined && change.version !== (data.version || 1)) throw new ReservationError('Reservation changed. Reload before trying again.', 409);
@@ -91,7 +93,7 @@ export async function actOnReservation(id: string, action: string, actor: 'guest
       if (!['confirm', 'seat', 'complete', 'cancel', 'no-show'].includes(action)) throw new ReservationError('Unknown action');
       let next;
       try { next = transition(state, action as StaffAction); } catch (error) { throw new ReservationError((error as Error).message, 409); }
-      if (state === next) return { reservation: publicReservation(id, data), changed: false };
+      if (state === next) return { reservation: publicReservation(id, data, timezone), changed: false };
       Object.assign(patch, { status: next, attendanceStatus: next === 'seated' || next === 'completed' ? 'show' : next === 'no-show' ? 'no-show' : null, [`${next.replace('-', '')}At`]: new Date() });
       event = next as ReservationEvent;
     }
@@ -107,9 +109,9 @@ export async function actOnReservation(id: string, action: string, actor: 'guest
         const fresh = newManagementToken(); encryptedToken = encryptToken(fresh);
         tx.set(db.doc(`managementAccess/${id}`), { hash: tokenHash(fresh), encryptedToken, expiresAt: Date.now() + 365 * 86400000 });
       }
-      notificationIntent(tx, id, eventId, event, notificationRecord(updated), encryptedToken);
+      notificationIntent(tx, id, eventId, event, notificationRecord(updated, timezone), encryptedToken);
     }
-    return { reservation: publicReservation(id, updated), changed: true };
+    return { reservation: publicReservation(id, updated, timezone), changed: true };
   });
   if (result.changed) scheduleDelivery(eventId);
   return { success: true, ...result };
@@ -118,12 +120,13 @@ export async function recoverReservation(id: string, verifiedPhone: string) {
   const db = getServerDatabase(), token = newManagementToken(), encryptedToken = encryptToken(token), eventId = randomUUID();
   await db.runTransaction(async tx => {
     const ref = db.doc(`reservations/${reservationId(id)}`), data = (await tx.get(ref)).data();
+    const timezone = businessTimezone((await tx.get(db.doc('settings/general'))).data());
     const digits = (value: string) => value.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
     if (!data || typeof data.phone !== 'string' || digits(data.phone) !== digits(verifiedPhone)) throw new ReservationError('Unable to recover this link. Verify the phone used for the booking or call the restaurant.', 403);
-    tx.set(db.doc(`managementAccess/${id}`), { hash: tokenHash(token), encryptedToken, expiresAt: Math.max(Date.now() + 86400000, new Date(`${dateString(data.date)}T23:59:59Z`).getTime() + 31 * 86400000) });
+    tx.set(db.doc(`managementAccess/${id}`), { hash: tokenHash(token), encryptedToken, expiresAt: Math.max(Date.now() + 86400000, new Date(`${dateString(data.date, timezone)}T23:59:59Z`).getTime() + 31 * 86400000) });
     tx.update(ref, { phoneVerified: true, phoneVerificationSource: 'server' });
     tx.create(ref.collection('events').doc(eventId), { event: 'reservation.access_recovered', actor: 'verified-guest', timestamp: new Date(), correlationId: eventId });
-    notificationIntent(tx, id, eventId, 'recovered', notificationRecord(data), encryptedToken);
+    notificationIntent(tx, id, eventId, 'recovered', notificationRecord(data, timezone), encryptedToken);
   });
   scheduleDelivery(eventId);
   return { success: true, managementUrl: managementUrl(id, token) };
@@ -132,16 +135,17 @@ export async function queueReminder(id: string, channel: 'email' | 'sms') {
   const db = getServerDatabase(), eventId = randomUUID();
   await db.runTransaction(async tx => {
     const ref = db.doc(`reservations/${reservationId(id)}`), data = (await tx.get(ref)).data(), access = await tx.get(db.doc(`managementAccess/${id}`));
+    const timezone = businessTimezone((await tx.get(db.doc('settings/general'))).data());
     if (!data || !isGuestEditable(bookingState(data))) throw new ReservationError('This reservation is not eligible for a reminder', 409);
     if (channel === 'sms' && (data.smsOptIn !== true || data.phoneVerified !== true || data.phoneVerificationSource !== 'server')) throw new ReservationError('SMS requires recorded consent and a server-verified phone', 409);
     let encryptedToken = access.data()?.encryptedToken;
     if (!encryptedToken || access.data()!.expiresAt <= Date.now()) {
       const fresh = newManagementToken(); encryptedToken = encryptToken(fresh);
-      tx.set(db.doc(`managementAccess/${id}`), { hash: tokenHash(fresh), encryptedToken, expiresAt: Math.max(Date.now() + 86400000, new Date(`${dateString(data.date)}T23:59:59Z`).getTime() + 31 * 86400000) });
+      tx.set(db.doc(`managementAccess/${id}`), { hash: tokenHash(fresh), encryptedToken, expiresAt: Math.max(Date.now() + 86400000, new Date(`${dateString(data.date, timezone)}T23:59:59Z`).getTime() + 31 * 86400000) });
     }
     if (data.reminderQueuedAt?.toMillis() > Date.now() - 300000) throw new ReservationError('A reminder was already queued recently', 429);
     tx.update(ref, { reminderQueuedAt: new Date() });
-    notificationIntent(tx, id, eventId, 'reminder', notificationRecord(data), encryptedToken, channel);
+    notificationIntent(tx, id, eventId, 'reminder', notificationRecord(data, timezone), encryptedToken, channel);
     tx.create(ref.collection('events').doc(eventId), { event: 'reservation.reminder_queued', actor: 'staff', timestamp: new Date(), correlationId: eventId });
   });
   scheduleDelivery(eventId);

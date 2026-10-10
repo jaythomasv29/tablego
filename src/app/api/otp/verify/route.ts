@@ -7,12 +7,13 @@ import { rateLimit } from '@/lib/auth/rateLimit';
 export async function POST(request: Request) {
   if (!validMutationOrigin(request)) return NextResponse.json({ error: 'Invalid request origin' }, { status: 403 });
   try {
-    const { phone, code } = await request.json();
+    const { phone, code } = await request.json() || {};
     if (!phone || !code) {
       return NextResponse.json({ success: false, error: 'Phone and code are required' }, { status: 400 });
     }
 
-    const to = toE164(phone);
+    let to;
+    try { to = toE164(phone); } catch { return NextResponse.json({ success: false, error: 'Enter a valid US phone number' }, { status: 400 }); }
     const limited = await rateLimit('otp-verify', to, 10, 600);
     if (limited) return limited;
 
@@ -27,7 +28,8 @@ export async function POST(request: Request) {
     }
     return response;
   } catch (error) {
-    console.error('[otp/verify]', error);
+    if (error instanceof SyntaxError) return NextResponse.json({ success: false, error: 'Invalid JSON' }, { status: 400 });
+    console.warn('[otp/verify] verification provider unavailable');
     return NextResponse.json({ success: false, error: 'Failed to verify code' }, { status: 500 });
   }
 }

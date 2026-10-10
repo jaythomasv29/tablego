@@ -9,5 +9,11 @@ export async function loadPolicy(transaction?: Transaction): Promise<Availabilit
   if (!hours.exists || !general.exists) throw new Error('Availability configuration is missing');
   const settings = general.data()!;
   return { businessHours: hours.data() as AvailabilityPolicy['businessHours'], specialDates: special.docs.map(d => d.data()) as AvailabilityPolicy['specialDates'],
-    timezone: settings.timezone || 'America/Los_Angeles', cutoffMinutes: settings.reservationCutoffMinutes ?? 60, leadTimeMinutes: settings.minimumLeadTimeMinutes ?? 50 };
+    timezone: businessTimezone(settings), cutoffMinutes: settings.reservationCutoffMinutes ?? 60, leadTimeMinutes: settings.minimumLeadTimeMinutes ?? 50 };
+}
+
+export function businessTimezone(settings: FirebaseFirestore.DocumentData | undefined): string {
+  const timezone = settings?.timezone || 'America/Los_Angeles';
+  new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format();
+  return timezone;
 }

@@ -1,4 +1,4 @@
-import { calendarDate, slotsForDate } from '@/lib/reservations/availability';
+import { calendarDate, slotsForDate, restaurantClock } from '@/lib/reservations/availability';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Calendar,
@@ -150,13 +150,11 @@ function computeIsOpen(
     "friday",
     "saturday",
   ];
-  const localNow = new Date(
-    new Date().toLocaleString("en-US", { timeZone: timezone }),
-  );
-  const today = days[localNow.getDay()];
+  const clock = restaurantClock(timezone);
+  const today = days[new Date(`${clock.date}T12:00:00Z`).getUTCDay()];
   const day = hours[today];
   if (!day) return false;
-  const cur = localNow.getHours() * 60 + localNow.getMinutes();
+  const cur = clock.minutes;
   const t = (s: string) => {
     const [h, m] = s.split(":").map(Number);
     return h * 60 + m;
@@ -789,6 +787,7 @@ function App() {
                     })}{" "}
                     at {formData.time || "—"} · {formData.guests}{" "}
                     {formData.guests === 1 ? "guest" : "guests"}
+                    <p className="mt-2 text-sm">Restaurant local time · {timezone}</p>
                   </div>
                   {managementLink && <a href={managementLink} className="mt-6 inline-block underline">Manage your reservation</a>}
                   <div className="mt-8 flex justify-center">

@@ -8,6 +8,9 @@
 .guest-management {
   --background: #ffffff;
   --foreground: #121212;
+  --popover: #ffffff;
+  --popover-foreground: #121212;
+  --ring: #57534e;
   --card: #ffffff;
   --card-foreground: #121212;
   --primary: #121212;

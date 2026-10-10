@@ -13,6 +13,11 @@ export function capturesNotifications(): boolean {
 
 export async function captureNotification(channel: 'email' | 'sms' | 'otp', payload: unknown): Promise<string> {
   const id = randomUUID();
+  if (persistentCapture()) {
+    const { getServerDatabase } = await import('./serverFirebase');
+    await getServerDatabase().doc(`stagingCaptures/${id}`).create({ id, channel, capturedAt: new Date(), payload: JSON.parse(JSON.stringify(payload)) });
+    return id;
+  }
   const directory = process.env.TABLEGO_NOTIFICATION_CAPTURE_DIR || '.staging/outbox';
   await mkdir(directory, { recursive: true, mode: 0o700 });
   await writeFile(join(directory, `${Date.now()}-${id}.json`), JSON.stringify({
@@ -38,4 +43,16 @@ export function createEmailTransport(options: SMTPTransport.Options) {
       return getLive().sendMail(message);
     },
   };
+}
+
+// Vercel files are ephemeral. Hosted staging keeps synthetic captures private in
+// its independent database; local fault tests continue using filesystem capture.
+export function persistentCapture(): boolean {
+  const enabled = process.env.VERCEL === '1' || process.env.TABLEGO_NOTIFICATION_CAPTURE_STORAGE === 'firestore';
+  if (!enabled) return false;
+  if (process.env.TABLEGO_ENVIRONMENT !== 'staging') {
+    if (process.env.TABLEGO_NOTIFICATION_CAPTURE_STORAGE === 'firestore') throw new Error('Persistent capture is staging only');
+    return false;
+  }
+  return true;
 }
