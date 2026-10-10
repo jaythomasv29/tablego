@@ -82,79 +82,9 @@ export function TimezoneProvider({ children }: TimezoneProviderProps) {
     );
 }
 
-// Utility functions that use a specific timezone
-export const getDateInTimezone = (date?: Date, timezone?: string): Date => {
-    const targetDate = date || new Date();
-    const tz = timezone || 'America/Los_Angeles';
-    return new Date(
-        targetDate.toLocaleString("en-US", {
-            timeZone: tz,
-        })
-    );
+// Share the same calendar/instant rules throughout the application.
+export { getDateInTimezone, getLocalDateString, getCurrentTimeInTimezone, getTodayInTimezone, getDayOfWeekInTimezone } from '@/utils/dateUtils';
+export const formatDateInTimezone = (date: Date | string, timezone: string, options?: Intl.DateTimeFormatOptions): string => {
+    const calendar = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date);
+    return new Intl.DateTimeFormat('en-US', { ...options, timeZone: calendar ? 'UTC' : timezone }).format(calendar ? new Date(`${date}T12:00:00Z`) : new Date(date));
 };
-
-export const formatDateInTimezone = (
-    date: Date | string,
-    timezone: string,
-    options?: Intl.DateTimeFormatOptions
-): string => {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    return dateObj.toLocaleDateString('en-US', {
-        ...options,
-        timeZone: timezone,
-    });
-};
-
-export const getLocalDateString = (
-    date: Date | string | any,
-    timezone: string
-): string => {
-    // If it's already a YYYY-MM-DD string, return it directly
-    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        return date;
-    }
-
-    // If it's a full ISO string, extract the date part and convert to local timezone
-    if (typeof date === 'string') {
-        const d = new Date(date);
-        return d.toLocaleDateString('en-CA', { timeZone: timezone });
-    }
-
-    // If it's a Date object
-    if (date instanceof Date) {
-        return date.toLocaleDateString('en-CA', { timeZone: timezone });
-    }
-
-    // If it's a Firestore Timestamp
-    if (date && typeof date === 'object' && 'toDate' in date) {
-        return date.toDate().toLocaleDateString('en-CA', { timeZone: timezone });
-    }
-
-    // Fallback
-    return new Date().toLocaleDateString('en-CA', { timeZone: timezone });
-};
-
-export const getCurrentTimeInTimezone = (timezone: string): { hours: number; minutes: number } => {
-    const now = new Date();
-    const options: Intl.DateTimeFormatOptions = {
-        timeZone: timezone,
-        hour: 'numeric',
-        minute: 'numeric',
-        hour12: false,
-    };
-    const timeString = now.toLocaleTimeString('en-US', options);
-    const [hours, minutes] = timeString.split(':').map(Number);
-    return { hours, minutes };
-};
-
-export const getTodayInTimezone = (timezone: string): string => {
-    return new Date().toLocaleDateString('en-CA', { timeZone: timezone });
-};
-
-export const getDayOfWeekInTimezone = (date: Date, timezone: string): string => {
-    return date.toLocaleDateString('en-US', {
-        weekday: 'long',
-        timeZone: timezone
-    }).toLowerCase();
-};
-

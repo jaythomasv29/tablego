@@ -36,6 +36,15 @@ async function permissionDenied(operation, description) {
   try { await operation(); } catch (error) { denied = error.code === 'permission-denied'; }
   assert.ok(denied, description); console.log(`PASS ${description}`);
 }
+async function waitForJobs(id, predicate) {
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline) {
+    const jobs = await server.collection('notificationOutbox').where('reservationId', '==', id).get();
+    if (jobs.size && predicate(jobs.docs)) return jobs.docs;
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+  throw new Error('Notification jobs did not reach the expected state');
+}
 function tokenFrom(url) { return new URLSearchParams(new URL(url).hash.slice(1)).get('token'); }
 const tomorrow = new Date(Date.now() + 2 * 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
 const later = new Date(Date.now() + 3 * 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
@@ -47,6 +56,8 @@ try {
   await getDocs(collection(client, 'reservations')); console.log('PASS staff Firebase sign-in and reservation read');
   for (const path of ['/api/check-reservations', '/api/analytics']) status(await request(path, { cookie: 'company-auth=true' }), 401, `forged staff cookie rejected: ${path}`);
   status(await request('/api/auth/logout', { method: 'POST', cookie: staffCookie, origin: 'https://attacker.invalid' }), 403, 'cross-origin staff mutation rejected');
+  status(await request('/api/notifications/process'), 401, 'worker rejects unauthenticated callers');
+  status(await request('/api/notifications/process', { token: 'invalid-worker-secret' }), 401, 'worker rejects incorrect secret');
   const availability = await request(`/api/availability/settings?date=${tomorrow}`);
   status(availability, 200, 'staging availability policy');
   assert.ok(availability.data.slots.length, 'Staging fixture needs open hours');
@@ -96,16 +107,55 @@ try {
   status(await request(`/api/staff/reservations/${id}`, { method: 'POST', cookie: staffCookie, body: { action: 'confirm' } }), 409, 'cancelled booking cannot be reconfirmed');
   // Disable only this local capture directory to simulate a provider outage.
   const backup = `.staging/outbox-backup-${randomUUID()}`;
+  await waitForJobs(id, docs => docs.every(job => ['delivered', 'superseded', 'exhausted'].includes(job.data().state)));
+  let outageId, outageJobs;
   await rename('.staging/outbox', backup); await writeFile('.staging/outbox', 'simulate capture failure', { mode: 0o600 });
   try {
     const outage = await request('/api/send-confirmation', { method: 'POST', cookie: phoneCookie, key: randomUUID(), body: { formData: { ...formData, name: 'Synthetic Delivery Outage' } } });
     status(outage, 200, 'notification outage still returns booking success'); fixtureIds.push(outage.data.reservationId);
     await server.doc(`reservations/${outage.data.reservationId}`).update({ isTest: true });
-    const jobs = await server.collection('notificationOutbox').where('reservationId', '==', outage.data.reservationId).get();
-    assert.equal(jobs.size, 2); assert.ok(jobs.docs.every(job => job.data().state === 'failed'));
+    outageId = outage.data.reservationId;
+    const jobs = await waitForJobs(outageId, docs => docs.every(job => job.data().state === 'failed'));
+    assert.equal(jobs.length, 2);
     console.log('PASS notification failures persisted for independent recipients');
     status(await request(`/api/reservations/${outage.data.reservationId}`, { method: 'POST', token: tokenFrom(outage.data.managementUrl), body: { action: 'cancel' } }), 200, 'cancellation survives notification outage');
+    outageJobs = await waitForJobs(outageId, docs => docs.filter(job => job.data().event === 'cancelled').length === 2 && docs.filter(job => job.data().event === 'cancelled').every(job => job.data().state === 'failed'));
   } finally { await unlink('.staging/outbox'); await rename(backup, '.staging/outbox'); }
+  const cancelJobs = outageJobs.filter(job => job.data().event === 'cancelled');
+  for (const job of cancelJobs) await job.ref.update({ nextAttemptAt: new Date(0) });
+  const workers = await Promise.all([1, 2].map(() => request('/api/notifications/process', { token: settings.CRON_SECRET })));
+  for (const worker of workers) status(worker, 200, 'authenticated concurrent notification worker');
+  await waitForJobs(outageId, docs => docs.filter(job => job.data().event === 'cancelled').every(job => job.data().state === 'delivered'));
+  for (const job of cancelJobs) {
+    let captures = 0;
+    for (const file of await readdir('.staging/outbox')) {
+      const entry = JSON.parse(await readFile(`.staging/outbox/${file}`));
+      if (entry.payload?.messageId?.includes(job.id)) captures++;
+    }
+    assert.equal(captures, 1, 'Concurrent workers must capture each message once');
+  }
+  console.log('PASS provider recovery delivers each leased job once');
+  const obsolete = outageJobs.find(job => job.data().event === 'created');
+  await obsolete.ref.update({ state: 'failed', nextAttemptAt: new Date(0) });
+  status(await request('/api/notifications/process', { token: settings.CRON_SECRET }), 200, 'worker processes obsolete job');
+  assert.equal((await obsolete.ref.get()).data().state, 'superseded');
+  console.log('PASS older booking notifications cannot deliver outdated status');
+  const exhausted = cancelJobs.find(job => job.data().recipient === 'restaurant');
+  await exhausted.ref.update({ state: 'failed', attempts: 4, nextAttemptAt: new Date(0) });
+  const secondBackup = `.staging/outbox-backup-${randomUUID()}`;
+  await rename('.staging/outbox', secondBackup); await writeFile('.staging/outbox', 'capture failure', { mode: 0o600 });
+  try {
+    status(await request('/api/notifications/process', { token: settings.CRON_SECRET }), 200, 'worker persists exhausted provider retry');
+    assert.equal((await exhausted.ref.get()).data().state, 'exhausted');
+  } finally { await unlink('.staging/outbox'); await rename(secondBackup, '.staging/outbox'); }
+  const deliveryInfo = await request(`/api/staff/reservations/${outageId}/notifications`, { cookie: staffCookie });
+  status(deliveryInfo, 200, 'staff can inspect delivery failures');
+  assert.ok(deliveryInfo.data.notifications.every(job => job.encryptedToken === undefined && job.reservation === undefined));
+  status(await request(`/api/staff/reservations/${outageId}/notifications`, { method: 'POST', cookie: staffCookie, body: { notificationId: exhausted.id } }), 200, 'staff can deliberately retry exhausted delivery');
+  await waitForJobs(outageId, docs => docs.find(job => job.id === exhausted.id)?.data().state === 'delivered');
+  const retried = (await exhausted.ref.get()).data();
+  assert.equal(retried.attempts, 1); assert.equal(retried.previousAttempts, 5);
+  console.log('PASS manual retry preserves previous attempt history');
   const hoursRef = server.doc('settings/businessHours'), hours = (await hoursRef.get()).data();
   await hoursRef.delete();
   try {

@@ -14,10 +14,10 @@ test('staging removes inherited provider and database credentials and forces cap
   const env = stagingEnvironment({ NEXT_PUBLIC_FIREBASE_PROJECT_ID: STAGING_PROJECT }, {
     FIREBASE_SERVICE_ACCOUNT_JSON: 'live-key', NEXT_PUBLIC_FIREBASE_API_KEY: 'live-public-config',
     TWILIO_AUTH_TOKEN: 'live-token', EMAIL_PASS: 'live-password', ADMIN_SESSION_SECRET: 'live-secret',
-    GOOGLE_APPLICATION_CREDENTIALS: 'live-key.json', PATH: '/bin', TABLEGO_NOTIFICATION_MODE: 'live',
+    GOOGLE_APPLICATION_CREDENTIALS: 'live-key.json', CRON_SECRET: 'live-worker-secret', PATH: '/bin', TABLEGO_NOTIFICATION_MODE: 'live',
   });
   assert.equal(env.TABLEGO_NOTIFICATION_MODE, 'capture');
-  for (const name of ['FIREBASE_SERVICE_ACCOUNT_JSON', 'NEXT_PUBLIC_FIREBASE_API_KEY', 'TWILIO_AUTH_TOKEN', 'EMAIL_PASS', 'ADMIN_SESSION_SECRET', 'GOOGLE_APPLICATION_CREDENTIALS']) {
+  for (const name of ['FIREBASE_SERVICE_ACCOUNT_JSON', 'NEXT_PUBLIC_FIREBASE_API_KEY', 'TWILIO_AUTH_TOKEN', 'EMAIL_PASS', 'ADMIN_SESSION_SECRET', 'GOOGLE_APPLICATION_CREDENTIALS', 'CRON_SECRET']) {
     assert.equal(env[name], '');
   }
   assert.equal(env.PATH, '/bin');

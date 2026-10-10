@@ -7,7 +7,7 @@ The test project is `tablego-staging-1d712` (display name **TableGo Staging**). 
 - Separate Firebase project, web app and standard Firestore database in `nam5`.
 - Firebase Authentication initialized through the console, with custom staff-token sign-in verified.
 - Staging-only service account with database/authentication roles; no access to the live project.
-- Repository Firestore rules and five existing index definitions deployed **only to staging**. Guest browsers cannot read reservations or alter them by document ID. Staff state changes and private session/link/job records are server controlled.
+- Repository Firestore rules and six index definitions (including notification retry ordering) deployed **only to staging**. Guest browsers cannot read reservations or alter them by document ID. Staff state changes and private session/link/job records are server controlled.
 - Synthetic hours/settings and reservations only. No real guest data copied.
 - `.env.staging.local` and `.staging/server-credentials.json` are ignored by Git and have private filesystem permissions. Do not copy their values into tickets, Git or chat.
 - Email, SMS and OTP are captured locally under `.staging/`; staging cannot activate real delivery. Missing staging variables are explicitly blanked so Next cannot reload live secrets from `.env.local`.
@@ -25,7 +25,7 @@ npm run start:staging
 
 Open http://127.0.0.1:3100. Staff credentials are in the private local staging environment file. Use the **staging-admin** account for local staff testing. Staging OTP codes are captured locally instead of sent to phones. The smoke runner uses synthetic example.invalid email addresses, verifies that both configuration and credentials point at staging, and retains its test reservations for review.
 
-The smoke suite checks forged and revoked staff sessions, database permission denials, verified phone proofs, wrong-reservation tokens, concurrent idempotent creation, transition restrictions, token rotation, rescheduling, notification outages and fail-closed availability. It temporarily alters **staging** hours/capture settings and restores them in `finally` blocks; run it only against an isolated local staging server, without simultaneous manual booking tests.
+The smoke suite also verifies authenticated concurrent notification workers, outage recovery, bounded exhaustion, obsolete updates and staff retries. It checks forged and revoked staff sessions, database permission denials, verified phone proofs, wrong-reservation tokens, concurrent idempotent creation, transition restrictions, token rotation, rescheduling, notification outages and fail-closed availability. It temporarily alters **staging** hours/capture settings and restores them in `finally` blocks; run it only against an isolated local staging server, without simultaneous manual booking tests.
 
 ## Remaining release preparation
 

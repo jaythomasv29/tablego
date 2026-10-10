@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import NotificationStatus from './NotificationStatus';
 import { Button } from './ui/button';
 import { bookingState, type StaffAction } from '@/lib/reservations/domain';
 import { staffReservationAction } from '@/lib/reservations/client';
@@ -29,6 +30,6 @@ export default function ReservationActions({ reservation, onUpdated }: {
     <div className="flex flex-wrap gap-2">{actions.map(({ action, label }) => <Button key={action} size="sm" variant={action === 'cancel' && confirmCancel ? 'destructive' : 'outline'} disabled={busy} className="h-7 px-2 text-xs" onClick={() => run(action)}>{busy ? 'Saving…' : label}</Button>)}
       {confirmCancel && <Button size="sm" variant="ghost" disabled={busy} onClick={() => setConfirmCancel(false)}>Keep booking</Button>}
       {reservation.phone && <a className="inline-flex items-center rounded-md border px-2 text-xs" href={`tel:${reservation.phone.replace(/[^\d+]/g, '')}`}>Call</a>}
-    </div>{error && <p role="alert" className="text-xs text-red-700">{error}</p>}
+    </div><NotificationStatus reservationId={reservation.id} />{error && <p role="alert" className="text-xs text-red-700">{error}</p>}
   </div>;
 }

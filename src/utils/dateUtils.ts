@@ -1,166 +1,45 @@
-// Default timezone - can be overridden by passing a specific timezone
 const DEFAULT_TIMEZONE = 'America/Los_Angeles';
-
-export const formatReadableDatePST = (dateInput: string, timezone: string = DEFAULT_TIMEZONE): string => {
-    if (!dateInput) return '';
-
-    // If it's a YYYY-MM-DD string, parse it directly to avoid timezone issues
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
-        const [year, month, day] = dateInput.split('-').map(Number);
-        // Create date in UTC at noon to avoid any date shifting
-        const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-        return new Intl.DateTimeFormat('en-US', {
-            weekday: 'long',
-            month: 'long',
-            day: 'numeric',
-            year: 'numeric',
-            timeZone: 'UTC'
-        }).format(date);
-    }
-
-    // For other formats, convert to Date object
-    const date = new Date(dateInput);
-    const normalizedDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-
-    return new Intl.DateTimeFormat('en-US', {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-        timeZone: 'UTC'
-    }).format(normalizedDate);
+function dateOnly(value: unknown): value is string {
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const parsed = new Date(`${value}T12:00:00Z`);
+    return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+function instant(value: unknown): Date {
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !dateOnly(value)) throw new RangeError('Invalid calendar date');
+    let date: Date;
+    if (value instanceof Date) date = value;
+    else if (value && typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') date = value.toDate();
+    else if (typeof value === 'string' && value.trim()) date = new Date(value);
+    else throw new RangeError('A valid date is required');
+    if (!(date instanceof Date) || !Number.isFinite(date.getTime())) throw new RangeError('Invalid date');
+    return date;
+}
+export const getLocalDateString = (value: unknown, timeZone = DEFAULT_TIMEZONE): string => {
+    if (dateOnly(value)) return value;
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(instant(value));
+    const get = (type: string) => parts.find(part => part.type === type)!.value;
+    return `${get('year')}-${get('month')}-${get('day')}`;
 };
-
-// Add utility functions for consistent date handling
-export const getLocalDateString = (date: Date | string | any, timeZone: string = DEFAULT_TIMEZONE): string => {
-    // If it's already a YYYY-MM-DD string, return it directly
-    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        return date;
-    }
-
-    // If it's a full ISO string, extract the date part and convert to local timezone
-    if (typeof date === 'string') {
-        const d = new Date(date);
-        return d.toLocaleDateString('en-CA', { timeZone });
-    }
-
-    // If it's a Date object
-    if (date instanceof Date) {
-        return date.toLocaleDateString('en-CA', { timeZone });
-    }
-
-    // If it's a Firestore Timestamp
-    if (date && typeof date === 'object' && 'toDate' in date) {
-        return date.toDate().toLocaleDateString('en-CA', { timeZone });
-    }
-
-    // Fallback
-    return new Date().toLocaleDateString('en-CA', { timeZone });
+function displayDate(value: unknown, timeZone: string, weekday = false): string {
+    const calendar = dateOnly(value);
+    return new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric',
+        ...(weekday ? { weekday: 'long' as const } : {}), timeZone: calendar ? 'UTC' : timeZone }).format(calendar ? new Date(`${value}T12:00:00Z`) : instant(value));
+}
+export const formatReadableDatePST = (value: string, timeZone = DEFAULT_TIMEZONE): string => displayDate(value, timeZone, true);
+export const formatDateForDisplay = (value: unknown, timeZone = DEFAULT_TIMEZONE): string => displayDate(value, timeZone);
+export const convertDateToStorageFormat = (value: Date | string, timeZone = DEFAULT_TIMEZONE): string => getLocalDateString(value, timeZone);
+// A calendar widget needs local Date components representing the restaurant clock.
+// Never use this synthetic Date as an instant or shift a user-selected calendar day.
+export const getDateInTimezone = (date = new Date(), timeZone = DEFAULT_TIMEZONE): Date => {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).formatToParts(instant(date));
+    const get = (type: string) => Number(parts.find(part => part.type === type)!.value);
+    return new Date(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
 };
-
-export const formatDateForDisplay = (date: any, timeZone: string = DEFAULT_TIMEZONE): string => {
-    // If it's already a YYYY-MM-DD string, create a date at noon to avoid timezone shifts
-    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        const d = new Date(date + 'T12:00:00');
-        return d.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            timeZone
-        });
-    }
-
-    // If it's a Firestore Timestamp
-    if (date && typeof date === 'object' && 'toDate' in date) {
-        return date.toDate().toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            timeZone
-        });
-    }
-
-    // If it's a string (ISO format)
-    if (typeof date === 'string') {
-        return new Date(date).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            timeZone
-        });
-    }
-
-    // If it's already a Date object
-    return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        timeZone
-    });
+export const getTodayInTimezone = (timeZone = DEFAULT_TIMEZONE): string => getLocalDateString(new Date(), timeZone);
+export const getCurrentTimeInTimezone = (timeZone = DEFAULT_TIMEZONE): { hours: number; minutes: number } => {
+    const date = getDateInTimezone(new Date(), timeZone);
+    return { hours: date.getHours(), minutes: date.getMinutes() };
 };
-
-export const convertDateToStorageFormat = (date: Date | string, timeZone: string = DEFAULT_TIMEZONE): string => {
-    if (date instanceof Date) {
-        return date.toLocaleDateString('en-CA', { timeZone });
-    }
-
-    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        return date;
-    }
-
-    return new Date(date).toLocaleDateString('en-CA', { timeZone });
-};
-
-// Get the current date in a specific timezone
-export const getDateInTimezone = (date?: Date, timezone: string = DEFAULT_TIMEZONE): Date => {
-    const targetDate = date || new Date();
-    return new Date(
-        targetDate.toLocaleString("en-US", {
-            timeZone: timezone,
-        })
-    );
-};
-
-// Get today's date string (YYYY-MM-DD) in a specific timezone
-export const getTodayInTimezone = (timezone: string = DEFAULT_TIMEZONE): string => {
-    return new Date().toLocaleDateString('en-CA', { timeZone: timezone });
-};
-
-// Get current time in a specific timezone
-export const getCurrentTimeInTimezone = (timezone: string = DEFAULT_TIMEZONE): { hours: number; minutes: number } => {
-    const now = new Date();
-    const options: Intl.DateTimeFormatOptions = {
-        timeZone: timezone,
-        hour: 'numeric',
-        minute: 'numeric',
-        hour12: false,
-    };
-    const timeString = now.toLocaleTimeString('en-US', options);
-    const [hours, minutes] = timeString.split(':').map(Number);
-    return { hours, minutes };
-};
-
-// Get day of week in a specific timezone
-export const getDayOfWeekInTimezone = (date: Date, timezone: string = DEFAULT_TIMEZONE): string => {
-    return date.toLocaleDateString('en-US', {
-        weekday: 'long',
-        timeZone: timezone
-    }).toLowerCase();
-};
-
-// Format time for display in a specific timezone
-export const formatTimeInTimezone = (date: Date, timezone: string = DEFAULT_TIMEZONE): string => {
-    return date.toLocaleTimeString('en-US', {
-        timeZone: timezone,
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-    });
-};
-
-// Check if a date is today in a specific timezone
-export const isToday = (date: Date | string, timezone: string = DEFAULT_TIMEZONE): boolean => {
-    const dateString = typeof date === 'string' ? date : getLocalDateString(date, timezone);
-    const todayString = getTodayInTimezone(timezone);
-    return dateString === todayString;
-};
+export const getDayOfWeekInTimezone = (date: Date, timeZone = DEFAULT_TIMEZONE): string => instant(date).toLocaleDateString('en-US', { weekday: 'long', timeZone }).toLowerCase();
+export const formatTimeInTimezone = (date: Date, timeZone = DEFAULT_TIMEZONE): string => instant(date).toLocaleTimeString('en-US', { timeZone, hour: 'numeric', minute: '2-digit', hour12: true });
+export const isToday = (date: Date | string, timeZone = DEFAULT_TIMEZONE): boolean => getLocalDateString(date, timeZone) === getTodayInTimezone(timeZone);

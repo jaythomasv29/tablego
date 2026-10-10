@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint src middleware.ts --ext .ts,.tsx --max-warnings=11",
-    "typecheck": "tsc --noEmit --incremental false",
+    "typecheck": "tsc -p tsconfig.check.json --noEmit --incremental false",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "check": "npm run typecheck && npm run lint && npm test && npm run build",
     "dev:staging": "node scripts/staging.mjs dev",

@@ -13,12 +13,13 @@ const transport = createEmailTransport({ host: process.env.SMTP_HOST || 'smtp.gm
 export const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
 export type ReservationEvent = 'created' | 'confirmed' | 'rescheduled' | 'cancelled' | 'reminder' | 'recovered' | 'seated' | 'completed' | 'no-show';
 export function notificationIntent(tx: Transaction, id: string, eventId: string, event: ReservationEvent,
-  reservation: BookingInput & { status: BookingState }, encryptedToken: string, channel: 'email' | 'sms' = 'email') {
+  reservation: BookingInput & { status: BookingState; notificationRevision?: number }, encryptedToken: string, channel: 'email' | 'sms' = 'email') {
   for (const recipient of ['guest', 'restaurant'] as const) {
     if (recipient === 'restaurant' && (event === 'reminder' || event === 'recovered')) continue;
     if (recipient === 'guest' && ['seated', 'completed', 'no-show'].includes(event)) continue;
     tx.create(getServerDatabase().doc(`notificationOutbox/${eventId}-${recipient}`), {
-      reservationId: id, event, recipient, channel, reservation, encryptedToken, state: 'queued', attempts: 0, nextAttemptAt: new Date(), createdAt: new Date(),
+      reservationId: id, event, recipient, channel, reservation, encryptedToken, notificationRevision: reservation.notificationRevision || 1,
+      state: 'queued', attempts: 0, nextAttemptAt: new Date(), createdAt: new Date(),
     });
   }
 }
@@ -38,10 +39,19 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
   const db = getServerDatabase(), ref = db.doc(`notificationOutbox/${id}`), lease = randomUUID();
   const job = await db.runTransaction(async tx => {
     const record = (await tx.get(ref)).data();
-    if (!record || record.state === 'delivered' || record.attempts >= 5 || record.nextAttemptAt.toMillis() > Date.now() ||
+    if (!record || !['queued', 'failed', 'sending'].includes(record.state) || record.nextAttemptAt.toMillis() > Date.now() ||
       (record.state === 'sending' && record.leaseUntil?.toMillis() > Date.now())) return null;
-    tx.update(ref, { state: 'sending', lease, leaseUntil: new Date(Date.now() + 120_000), attempts: record.attempts + 1 });
-    return record;
+    if (record.attempts >= 5) { tx.update(ref, { state: 'exhausted', lastError: 'attempt-limit-reached' }); return null; }
+    const current = (await tx.get(db.doc(`reservations/${record.reservationId}`))).data();
+    const access = (await tx.get(db.doc(`managementAccess/${record.reservationId}`))).data();
+    if (!current || (record.notificationRevision && record.notificationRevision !== (current.notificationRevision || 1)) ||
+      (record.channel === 'sms' && (current.smsOptIn !== true || current.phoneVerificationSource !== 'server'))) {
+      tx.update(ref, { state: 'superseded', lastError: 'reservation-changed-or-consent-revoked' });
+      return null;
+    }
+    if (!access || access.expiresAt <= Date.now()) { tx.update(ref, { state: 'exhausted', lastError: 'management-link-expired' }); return null; }
+    tx.update(ref, { state: 'sending', lease, leaseUntil: new Date(Date.now() + 120_000), nextAttemptAt: new Date(Date.now() + 120_000), attempts: record.attempts + 1 });
+    return { ...record, encryptedToken: access.encryptedToken } as FirebaseFirestore.DocumentData;
   });
   if (!job) return 'skipped';
   let state: 'delivered' | 'failed' = 'failed';
@@ -49,7 +59,8 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
     const message = renderNotification(job as Parameters<typeof renderNotification>[0]);
     if (job.channel === 'sms') await sendSMS({ to: job.reservation.phone, body: message.text });
     else {
-      const result = await transport.sendMail(message);
+      const host = new URL(process.env.NEXT_PUBLIC_BASE_URL!).hostname;
+      const result = await transport.sendMail({ ...message, messageId: `<tablego-${id}@${host}>` });
       if ('rejected' in result && result.rejected?.length) throw new Error('Recipient rejected');
     }
     state = 'delivered';
@@ -57,7 +68,7 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
   await db.runTransaction(async tx => {
     const current = (await tx.get(ref)).data();
     if (current?.lease !== lease) return;
-    tx.update(ref, { state, lastAttemptAt: new Date(), nextAttemptAt: new Date(Date.now() + Math.min(3600, 60 * 2 ** current.attempts) * 1000),
+    tx.update(ref, { state: state === 'failed' && current.attempts >= 5 ? 'exhausted' : state, lastAttemptAt: new Date(), nextAttemptAt: new Date(Date.now() + Math.min(3600, 60 * 2 ** current.attempts) * 1000),
       lastError: state === 'failed' ? 'provider-delivery-failed' : null, leaseUntil: null });
     tx.create(db.doc(`reservations/${job.reservationId}/events/${randomUUID()}`), {
       event: `notification.${state}`, actor: 'system', channel: job.channel || 'email', recipient: job.recipient, notificationId: id, timestamp: new Date(),

@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   distDir: process.env.TABLEGO_ENVIRONMENT === 'staging' ? '.next-staging' : '.next',
+  typescript: { tsconfigPath: process.env.TABLEGO_ENVIRONMENT === 'staging' ? 'tsconfig.staging.json' : 'tsconfig.json' },
   // Add cache-busting headers
   async headers() {
     return [

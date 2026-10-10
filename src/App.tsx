@@ -426,8 +426,7 @@ function App() {
   };
 
   const handleDateChange = (date: Date) => {
-    const dateInTimezone = getDateInTimezone(date, timezone);
-    setFormData((prev) => ({ ...prev, date: dateInTimezone }));
+    setFormData((prev) => ({ ...prev, date, time: "" }));
   };
 
   const handleDateTimeUpdate = (date: Date, time: string) => {

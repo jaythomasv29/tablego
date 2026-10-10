@@ -6,6 +6,8 @@ import {
   formatReadableDatePST,
   getDayOfWeekInTimezone,
   formatTimeInTimezone,
+  formatDateForDisplay,
+  getDateInTimezone,
 } from '../src/utils/dateUtils.ts';
 
 test('date-only reservations retain their calendar date in every supported timezone', () => {
@@ -52,7 +54,20 @@ test('date-only email formatting is stable across guest timezones', () => {
   }
 });
 
-// Confirmed defects remain visible until the reservation engine replaces these helpers.
-test.todo('reject impossible calendar dates instead of silently accepting or normalizing them');
-test.todo('reject missing dates instead of defaulting to today');
-test.todo('display date-only reservations independently of the browser/host timezone');
+test('impossible calendar dates are rejected', () => {
+  for (const value of ['2026-02-30', '2026-13-01', '2026-00-01', 'not-a-date']) {
+    assert.throws(() => getLocalDateString(value), RangeError);
+    assert.throws(() => formatDateForDisplay(value), RangeError);
+  }
+});
+test('missing dates never default to today', () => {
+  for (const value of [undefined, null, '', {}]) assert.throws(() => getLocalDateString(value), RangeError);
+});
+test('display of calendar dates is stable even across the date line', () => {
+  for (const zone of ['Pacific/Kiritimati', 'Pacific/Honolulu', 'America/Los_Angeles'])
+    assert.equal(formatDateForDisplay('2026-10-10', zone), 'October 10, 2026');
+  assert.equal(formatReadableDatePST('2026-01-02T07:59:00Z'), 'Thursday, January 1, 2026');
+});
+test('restaurant clock uses zero rather than 24 at midnight', () => {
+  assert.equal(getDateInTimezone(new Date('2026-01-02T08:00:00Z')).getHours(), 0);
+});

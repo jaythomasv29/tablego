@@ -3,6 +3,8 @@
 import React from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { TimeSlot } from '@/types/TimeSlot';
+import { calendarDate, restaurantClock } from '@/lib/reservations/availability';
+import { useTimezone } from '@/contexts/TimezoneContext';
 
 interface SpecialDate {
   date: string;
@@ -19,9 +21,6 @@ interface DatePickerProps {
   specialDates: SpecialDate[];
 }
 
-const isSameMonthAndDay = (d1: Date, d2: Date) =>
-  d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
-
 const DatePickerComponent: React.FC<DatePickerProps> = ({
   date,
   time,
@@ -30,23 +29,20 @@ const DatePickerComponent: React.FC<DatePickerProps> = ({
   availableTimeSlots = [],
   specialDates = [],
 }) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
+  const { timezone } = useTimezone();
+  const todayKey = restaurantClock(timezone).date;
+  const today = new Date(`${todayKey}T12:00:00`);
   const isDateDisabled = (d: Date) => {
-    if (d < today) return true;
-    return specialDates.some(
-      (sd) =>
-        isSameMonthAndDay(d, new Date(sd.date)) &&
-        (sd.closureType ?? 'full') === 'full'
-    );
+    const key = calendarDate(d);
+    return key < todayKey || specialDates.some(sd =>
+      sd.date?.split('T')[0] === key && (sd.closureType ?? 'full') === 'full');
   };
 
   const handleDaySelect = (selected: Date | undefined) => {
     if (!selected) return;
     const d = new Date(selected);
     d.setHours(12, 0, 0, 0);
-    onUpdate(d, time);
+    onUpdate(d, '');
     onDateChange(d);
   };
 
@@ -92,7 +88,7 @@ const DatePickerComponent: React.FC<DatePickerProps> = ({
                   dayDate.getDate() === date.getDate();
 
                 let cls =
-                  'flex h-10 w-full items-center justify-center rounded-md text-sm font-medium transition-colors focus:outline-none';
+                  'flex h-10 w-full items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700';
 
                 if (isSelected) {
                   cls += ' bg-[#A3B18A] text-zinc-900 hover:bg-[#A3B18A]';

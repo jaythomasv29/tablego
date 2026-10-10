@@ -4,7 +4,8 @@ import { bookingState, isGuestEditable, transition, type StaffAction } from './d
 import { checkAvailability, restaurantClock, validDate, timeMinutes, displayTime } from './availability';
 import { loadPolicy } from './policy';
 import { newManagementToken, tokenHash, encryptToken, decryptToken, managementUrl } from './managementToken';
-import { notificationIntent, deliverEvent, type ReservationEvent } from './notifications';
+import { notificationIntent, type ReservationEvent } from './notifications';
+import { scheduleDelivery } from './background';
 import { ReservationError } from './http';
 import type { BookingInput } from './input';
 
@@ -22,26 +23,27 @@ function dateString(value: unknown): string {
   if (value && typeof value === 'object' && 'toDate' in value) return restaurantClock('America/Los_Angeles', (value as { toDate: () => Date }).toDate()).date;
   throw new ReservationError('Reservation date needs staff review', 409);
 }
-function notificationRecord(record: FirebaseFirestore.DocumentData): BookingInput & { status: ReturnType<typeof bookingState> } {
+function notificationRecord(record: FirebaseFirestore.DocumentData): BookingInput & { status: ReturnType<typeof bookingState>; notificationRevision: number } {
   return { name: record.name, email: record.email, phone: record.phone || '', date: dateString(record.date), time: record.time,
-    guests: record.guests, comments: record.comments || '', status: bookingState(record) };
+    guests: record.guests, comments: record.comments || '', status: bookingState(record), notificationRevision: record.notificationRevision || 1 };
 }
 export async function createReservation(input: BookingInput, phoneVerified: boolean, smsOptIn: boolean, key: string) {
   if (!/^[A-Za-z0-9_-]{16,128}$/.test(key)) throw new ReservationError('Invalid submission key');
   const db = getServerDatabase(), ref = db.collection('reservations').doc(), eventId = randomUUID();
   const submission = db.doc(`bookingSubmissions/${createHash('sha256').update(key).digest('hex')}`);
   const fingerprint = createHash('sha256').update(JSON.stringify({ input, smsOptIn })).digest('hex');
-  const policy = await loadPolicy();
   if (new Date(`${input.date}T12:00:00Z`).getTime() > Date.now() + 366 * 86400000) throw new ReservationError('Please book within one year');
   const token = newManagementToken(), encryptedToken = encryptToken(token);
   const result = await db.runTransaction(async tx => {
     const existing = (await tx.get(submission)).data();
     if (existing) {
       if (existing.fingerprint !== fingerprint) throw new ReservationError('This submission key belongs to different reservation details', 409);
-      return { id: existing.reservationId as string, token: decryptToken(existing.encryptedToken), eventId: existing.eventId as string, repeated: true };
+      const currentAccess = (await tx.get(db.doc(`managementAccess/${existing.reservationId}`))).data();
+      return { id: existing.reservationId as string, token: decryptToken(currentAccess?.encryptedToken || existing.encryptedToken), eventId: existing.eventId as string, repeated: true };
     }
+    const policy = await loadPolicy(tx);
     if (!checkAvailability(input.date, input.time, policy).available) throw new ReservationError('This time is unavailable. Please choose another time.', 409);
-    const reservation = { ...input, status: 'pending' as const, phoneVerified, phoneVerificationSource: phoneVerified ? 'server' : 'unverified', smsOptIn, marked: false, createdAt: new Date(), schemaVersion: 2, version: 1, isTest: process.env.TABLEGO_ENVIRONMENT === 'staging' };
+    const reservation = { ...input, status: 'pending' as const, phoneVerified, phoneVerificationSource: phoneVerified ? 'server' : 'unverified', smsOptIn, marked: false, createdAt: new Date(), schemaVersion: 2, version: 1, notificationRevision: 1, isTest: process.env.TABLEGO_ENVIRONMENT === 'staging' };
     tx.create(ref, reservation);
     tx.create(db.doc(`managementAccess/${ref.id}`), { hash: tokenHash(token), encryptedToken, expiresAt: new Date(`${input.date}T23:59:59Z`).getTime() + 31 * 86400000 });
     tx.create(submission, { fingerprint, reservationId: ref.id, encryptedToken, eventId, createdAt: new Date() });
@@ -49,7 +51,7 @@ export async function createReservation(input: BookingInput, phoneVerified: bool
     notificationIntent(tx, ref.id, eventId, 'created', reservation, encryptedToken);
     return { id: ref.id, token, eventId, repeated: false };
   });
-  await deliverEvent(result.eventId).catch(() => undefined);
+  scheduleDelivery(result.eventId);
   return { success: true, reservationId: result.id, managementUrl: managementUrl(result.id, result.token),
     reservationDetails: { ...input, reservationId: result.id, status: 'pending' }, notificationStatus: 'queued-or-delivered', repeated: result.repeated };
 }
@@ -62,7 +64,6 @@ export async function readGuestReservation(id: string, token: unknown) {
 }
 export async function actOnReservation(id: string, action: string, actor: 'guest' | 'staff', token: unknown, change?: { date?: unknown; time?: unknown; version?: unknown }) {
   const db = getServerDatabase(), ref = db.doc(`reservations/${reservationId(id)}`), eventId = randomUUID();
-  const policy = action === 'reschedule' ? await loadPolicy() : null;
   const result = await db.runTransaction(async tx => {
     const reservation = await tx.get(ref), access = await tx.get(db.doc(`managementAccess/${id}`));
     const data = reservation.data();
@@ -81,7 +82,7 @@ export async function actOnReservation(id: string, action: string, actor: 'guest
       const time = displayTime(timeMinutes(change!.time)!);
       if (data.date === change!.date && data.time === time) return { reservation: publicReservation(id, data), changed: false };
       if (new Date(`${change!.date}T12:00:00Z`).getTime() > Date.now() + 366 * 86400000) throw new ReservationError('Please book within one year');
-      if (!checkAvailability(change!.date as string, time, policy!).available) throw new ReservationError('The new time is unavailable. Your existing reservation is unchanged.', 409);
+      if (!checkAvailability(change!.date as string, time, await loadPolicy(tx)).available) throw new ReservationError('The new time is unavailable. Your existing reservation is unchanged.', 409);
       if (change?.version !== undefined && change.version !== (data.version || 1)) throw new ReservationError('Reservation changed. Reload before trying again.', 409);
       Object.assign(patch, { date: change!.date, time, status: 'pending', guestAcknowledgedAt: null, rescheduledAt: new Date() });
       if (access.exists) tx.update(access.ref, { expiresAt: Math.max(access.data()!.expiresAt, new Date(`${change!.date}T23:59:59Z`).getTime() + 31 * 86400000) });
@@ -95,6 +96,7 @@ export async function actOnReservation(id: string, action: string, actor: 'guest
       event = next as ReservationEvent;
     }
     patch.version = (data.version || 1) + 1; patch.updatedAt = new Date();
+    if (event) patch.notificationRevision = (data.notificationRevision || 1) + 1;
     tx.update(ref, patch);
     tx.create(ref.collection('events').doc(eventId), { event: `reservation.${event || 'acknowledged'}`, actor, timestamp: new Date(), correlationId: eventId,
       previousStatus: state, status: patch.status || state });
@@ -109,7 +111,7 @@ export async function actOnReservation(id: string, action: string, actor: 'guest
     }
     return { reservation: publicReservation(id, updated), changed: true };
   });
-  if (result.changed) await deliverEvent(eventId).catch(() => undefined);
+  if (result.changed) scheduleDelivery(eventId);
   return { success: true, ...result };
 }
 export async function recoverReservation(id: string, verifiedPhone: string) {
@@ -123,7 +125,7 @@ export async function recoverReservation(id: string, verifiedPhone: string) {
     tx.create(ref.collection('events').doc(eventId), { event: 'reservation.access_recovered', actor: 'verified-guest', timestamp: new Date(), correlationId: eventId });
     notificationIntent(tx, id, eventId, 'recovered', notificationRecord(data), encryptedToken);
   });
-  await deliverEvent(eventId).catch(() => undefined);
+  scheduleDelivery(eventId);
   return { success: true, managementUrl: managementUrl(id, token) };
 }
 export async function queueReminder(id: string, channel: 'email' | 'sms') {
@@ -142,6 +144,6 @@ export async function queueReminder(id: string, channel: 'email' | 'sms') {
     notificationIntent(tx, id, eventId, 'reminder', notificationRecord(data), encryptedToken, channel);
     tx.create(ref.collection('events').doc(eventId), { event: 'reservation.reminder_queued', actor: 'staff', timestamp: new Date(), correlationId: eventId });
   });
-  await deliverEvent(eventId).catch(() => undefined);
+  scheduleDelivery(eventId);
   return { success: true, queued: true };
 }
