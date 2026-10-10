@@ -21,7 +21,7 @@ node scripts/seed-employees.mjs   # Seed employee data into Firestore
 
 ## Architecture Overview
 
-This is a **Next.js 15 App Router** restaurant reservation system for Thaiphoon Restaurant. All data lives in **Firebase/Firestore** (client SDK — not the Admin SDK). Email is sent via **Nodemailer** (Gmail SMTP) from API routes.
+This is a **Next.js 15 App Router** restaurant reservation system for Thaiphoon Restaurant. Reservation mutations, private sessions and delivery jobs use the server Admin SDK. Other staff operations still use authenticated client Firestore access during incremental migration. Email/SMS use a central capture-safe transport.
 
 ### Public-facing flow
 
@@ -29,13 +29,13 @@ This is a **Next.js 15 App Router** restaurant reservation system for Thaiphoon 
 1. **DatePicker** (date + time slot + party size)
 2. **GuestInfo + AdditionalInfo** (name, email, phone, comments)
 
-On submit, `POST /api/send-confirmation` writes the reservation to Firestore and sends a confirmation email. Available time slots are generated client-side in `App.tsx#generateTimeSlots` from the `settings/businessHours` Firestore doc.
+On submit, `POST /api/send-confirmation` validates allowlisted fields and a phone-bound server verification proof, then atomically stores a pending request, management-token authorization, event and durable notification intents. Guest acknowledgement does not grant restaurant acceptance. Stable Idempotency-Key headers protect retries. Public and server slot checks use `src/lib/reservations/availability.ts`; unavailable configuration returns 503.
 
 Other public routes: `/menu`, `/cater`, `/reservation` (deep-link to reserve), `/cancel-reservation`, `/reschedule`.
 
 ### Admin area (`/admin/*`)
 
-Protected by `middleware.ts`, which checks for a `company-auth` cookie. Missing cookie → redirect to `/login`. There is **no NextAuth session** — auth is purely cookie-based with a shared company password.
+Root middleware verifies a signed, expiring HttpOnly cookie. Privileged API handlers also verify its server-owned revocation record and mutation origin. The admin layout authenticates Firebase with a scoped custom token before mounting data consumers; rules check session expiry/revocation. There is no NextAuth session.
 
 Key admin pages:
 - `/admin/home` — dashboard
@@ -50,19 +50,21 @@ Key admin pages:
 
 | Route | Purpose |
 |---|---|
-| `POST /api/send-confirmation` | Create reservation in Firestore, send guest confirmation email |
-| `POST /api/send-reminder` | Send reminder email, mark `reminderSent: true` on the doc |
-| `POST /api/send-cancellation` | Cancel reservation, send guest email |
-| `POST /api/send-reschedule` | Reschedule, send guest email |
+| `POST /api/send-confirmation` | Create pending request with verified phone evidence, secure link and notification intents |
+| `POST /api/send-reminder` | Staff only: queue reminder to stored guest contact; delivered state is tracked separately |
+| `POST /api/send-cancellation` | Legacy token-authorized cancellation adapter |
+| `POST /api/send-reschedule` | Legacy token-authorized reschedule adapter |
 | `GET /api/availability/check?date=&time=` | Check if a specific date+time is bookable |
-| `GET /api/availability/slots?date=` | Return available time slots for a date |
+| `GET/POST /api/reservations/{id}` | Token-authorized details, acknowledgement, cancellation and rescheduling |
+| `POST /api/reservations/{id}/recover` | Rotate access after verifying the booking phone |
+| `POST /api/staff/reservations/{id}` | Staff lifecycle transitions |
 | `GET /api/availability/settings?date=` | Return raw businessHours + cutoff (used by ai-chat-widget) |
 
 ### Firestore schema
 
 | Collection / Doc | Contents |
 |---|---|
-| `reservations/{id}` | `date` (YYYY-MM-DD string), `time` (e.g. "7:00 PM"), `name`, `email`, `phone`, `guests`, `comments`, `status` ('pending'/'confirmed'/'cancelled'), `reminderSent`, `reminderSentAt`, `attendanceStatus` |
+| `reservations/{id}` | `date` (YYYY-MM-DD string), `time` (e.g. "7:00 PM"), `name`, `email`, `phone`, `guests`, `comments`, `status` (pending/confirmed/seated/completed/cancelled/no-show), `reminderSent`, `reminderSentAt`, `attendanceStatus` |
 | `settings/businessHours` | Keyed by lowercase day name; each day has `lunch` and `dinner` objects with `isOpen`, `open`, `close`, and optional `customRanges[]` |
 | `settings/general` | `timezone` (IANA string), `reservationCutoffMinutes` |
 | `settings/banner` | `text`, `link`, `linkText` |
@@ -85,7 +87,7 @@ The `src/utils/dateUtils.ts` file exports the canonical helpers (`getLocalDateSt
 
 ### AI Chat Widget
 
-The public page embeds a standalone chat widget via a `<script>` tag in `src/app/layout.tsx`. The widget is a separate project (`ai-chat-widget`). It calls `/api/availability/settings` and `/api/availability/check` as open (unauthenticated) endpoints to answer guest questions about hours and slot availability.
+Chat-widget scripts in `src/app/layout.tsx` are currently commented out. The widget is a separate project (`ai-chat-widget`). It calls `/api/availability/settings` and `/api/availability/check` as open (unauthenticated) endpoints to answer guest questions about hours and slot availability.
 
 ### Key dependencies
 

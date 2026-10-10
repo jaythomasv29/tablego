@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, Users, Mail, MessageSquare, Clock, User, Phone, Check, X } from 'lucide-react';
 import Cookies from 'js-cookie';
 import { db } from '../firebase';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import Navbar from './Navbar';
+import { calendarDate, slotsForDate } from '@/lib/reservations/availability';
+import GuestInfo from './GuestInfo';
 import { TimeSlot } from '@/types/TimeSlot';
 import { toast } from 'react-hot-toast';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -51,6 +53,7 @@ interface ReservationDetails {
   guests: number;
   email: string;
   reservationId: string;
+  managementUrl?: string;
 }
 
 export interface BusinessHours {
@@ -192,6 +195,10 @@ const formatDisplayDate2 = (dateString: string) => {
   });
 };
 export default function ReservationForm() {
+  const submissionKey = useRef<string | null>(null);
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [smsOptIn, setSmsOptIn] = useState(false);
+  const otpEnabled = process.env.NEXT_PUBLIC_OTP_ENABLED === 'true';
   const { timezone, loading: timezoneLoading } = useTimezone();
 
   // Get timezone label for display
@@ -394,158 +401,9 @@ export default function ReservationForm() {
 
   // 4. Update the generateTimeSlots function
   const generateTimeSlots = useCallback((date: Date, hours: BusinessHours): TimeSlot[] => {
-    // Use the local day of the Date object (what the user visually selected)
-    // NOT converted to restaurant timezone, because the user picked this calendar date
-    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const dayOfWeek = days[date.getDay()];
-
-    const dayHours = hours[dayOfWeek];
-    if (!dayHours) return [];
-
-    const matchingSpecialDate = specialDates.find(specialDate => {
-      const holidayDate = new Date(specialDate.date);
-      return isSameMonthAndDay(date, holidayDate);
-    });
-    const closureType = getClosureType(matchingSpecialDate);
-    const lunchClosedBySpecialDate = closureType === 'full' || closureType === 'lunch';
-    const dinnerClosedBySpecialDate = closureType === 'full' || closureType === 'dinner';
-
-    const slots: TimeSlot[] = [];
-    const restaurantNow = getRestaurantDate();
-    const isToday = date.toDateString() === restaurantNow.toDateString();
-    const currentMinutes = isToday ? restaurantNow.getHours() * 60 + restaurantNow.getMinutes() : 0;
-
-    // Helper function to convert time string to minutes (24-hour format)
-    const timeToMinutes = (timeStr: string): number => {
-      const [hours, minutes] = timeStr.split(':').map(Number);
-      return hours * 60 + minutes;
-    };
-
-    // Helper function to format minutes to time string (12-hour format)
-    const minutesToTime = (minutes: number): string => {
-      const hours = Math.floor(minutes / 60);
-      const mins = minutes % 60;
-      const period = hours >= 12 ? 'PM' : 'AM';
-      const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
-      return `${displayHours}:${mins.toString().padStart(2, '0')} ${period}`;
-    };
-
-    // Process lunch hours
-    if (dayHours.lunch.isOpen && !lunchClosedBySpecialDate) {
-      if (dayHours.lunch.customRanges && dayHours.lunch.customRanges.length > 0) {
-        // Use custom ranges for lunch
-        dayHours.lunch.customRanges.forEach(range => {
-          let start = timeToMinutes(range.start);
-          const end = timeToMinutes(range.end);
-
-          // Skip if the entire range is in the past or within cutoff
-          if (isToday && end <= currentMinutes + reservationCutoffMinutes) return;
-
-          // Adjust start time if it's today and in the past
-          if (isToday && start < currentMinutes) {
-            start = Math.ceil((currentMinutes + minimumLeadTimeMinutes) / slotDuration) * slotDuration;
-          }
-
-          // Last slot must be reservationCutoffMinutes before closing
-          for (let time = start; time <= end - reservationCutoffMinutes; time += slotDuration) {
-            if (!isToday || time >= currentMinutes + minimumLeadTimeMinutes) {
-              slots.push({
-                time: minutesToTime(time),
-                period: 'lunch'
-              });
-            }
-          }
-        });
-      } else {
-        // Use regular lunch hours
-        let start = timeToMinutes(dayHours.lunch.open);
-        const end = timeToMinutes(dayHours.lunch.close);
-
-        if (isToday && start < currentMinutes) {
-          start = Math.ceil((currentMinutes + minimumLeadTimeMinutes) / slotDuration) * slotDuration;
-        }
-
-        // Last slot must be reservationCutoffMinutes before closing
-        for (let time = start; time <= end - reservationCutoffMinutes; time += slotDuration) {
-          if (!isToday || time >= currentMinutes + minimumLeadTimeMinutes) {
-            slots.push({
-              time: minutesToTime(time),
-              period: 'lunch'
-            });
-          }
-        }
-      }
-    }
-
-    // Process dinner hours
-    if (dayHours.dinner.isOpen && !dinnerClosedBySpecialDate) {
-      if (dayHours.dinner.customRanges && dayHours.dinner.customRanges.length > 0) {
-        // Use custom ranges for dinner
-        dayHours.dinner.customRanges.forEach(range => {
-          let start = timeToMinutes(range.start);
-          const end = timeToMinutes(range.end);
-
-          // Skip if the entire range is in the past or within cutoff
-          if (isToday && end <= currentMinutes + reservationCutoffMinutes) return;
-
-          // Adjust start time if it's today and in the past
-          if (isToday && start < currentMinutes) {
-            start = Math.ceil((currentMinutes + minimumLeadTimeMinutes) / slotDuration) * slotDuration;
-          }
-
-          // Last slot must be reservationCutoffMinutes before closing
-          for (let time = start; time <= end - reservationCutoffMinutes; time += slotDuration) {
-            if (!isToday || time >= currentMinutes + minimumLeadTimeMinutes) {
-              slots.push({
-                time: minutesToTime(time),
-                period: 'dinner'
-              });
-            }
-          }
-        });
-      } else {
-        // Use regular dinner hours
-        let start = timeToMinutes(dayHours.dinner.open);
-        const end = timeToMinutes(dayHours.dinner.close);
-
-        if (isToday && start < currentMinutes) {
-          start = Math.ceil((currentMinutes + minimumLeadTimeMinutes) / slotDuration) * slotDuration;
-        }
-
-        // Last slot must be reservationCutoffMinutes before closing
-        for (let time = start; time <= end - reservationCutoffMinutes; time += slotDuration) {
-          if (!isToday || time >= currentMinutes + minimumLeadTimeMinutes) {
-            slots.push({
-              time: minutesToTime(time),
-              period: 'dinner'
-            });
-          }
-        }
-      }
-    }
-
-    // Helper function to convert 12-hour time string to minutes for sorting
-    const timeStringToMinutes = (timeStr: string): number => {
-      const [time, period] = timeStr.split(' ');
-      let [hours, minutes] = time.split(':').map(Number);
-
-      // Convert to 24-hour format for proper sorting
-      if (period === 'PM' && hours !== 12) {
-        hours += 12;
-      } else if (period === 'AM' && hours === 12) {
-        hours = 0;
-      }
-
-      return hours * 60 + minutes;
-    };
-
-    // Update the sort at the end of generateTimeSlots function
-    return slots.sort((a, b) => {
-      const timeA = timeStringToMinutes(a.time);
-      const timeB = timeStringToMinutes(b.time);
-      return timeA - timeB;
-    });
-  }, [specialDates, getRestaurantDate, reservationCutoffMinutes, minimumLeadTimeMinutes]);
+    try { return slotsForDate(calendarDate(date), { businessHours: hours, specialDates, timezone, cutoffMinutes: reservationCutoffMinutes, leadTimeMinutes: minimumLeadTimeMinutes }); }
+    catch { return []; }
+  }, [specialDates, timezone, reservationCutoffMinutes, minimumLeadTimeMinutes]);
 
   // Update time slots when date or business hours change
   useEffect(() => {
@@ -618,6 +476,8 @@ export default function ReservationForm() {
   };
 
   const handleSubmit = async () => {
+    if (isSubmitting) return;
+    if (otpEnabled && !phoneVerified) { alert('Verify your phone before submitting.'); return; }
     const validation = validateSteps();
 
     if (!validation.isValid) {
@@ -655,12 +515,14 @@ export default function ReservationForm() {
         date: dateToSend // Send as YYYY-MM-DD string (the calendar date user selected)
       };
 
+      submissionKey.current ??= crypto.randomUUID();
       const response = await fetch('/api/send-confirmation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Idempotency-Key': submissionKey.current,
         },
-        body: JSON.stringify({ formData: submissionData, timezone }),
+        body: JSON.stringify({ formData: submissionData, smsOptIn }),
       });
 
       const data = await response.json();
@@ -674,14 +536,15 @@ export default function ReservationForm() {
         // Store the reservation details in lastReservation cookie
         Cookies.set('lastReservation', JSON.stringify(data.reservationDetails), { expires: 1 });
 
-        setReservationDetails(data.reservationDetails);
+        setReservationDetails({ ...data.reservationDetails, managementUrl: data.managementUrl });
+        submissionKey.current = null;
         setIsSuccess(true);
         setFormData(initialData);
       } else {
         throw new Error(data.error || 'Failed to submit reservation');
       }
     } catch (error) {
-      alert('Failed to submit reservation. Please try again.');
+      alert(error instanceof Error ? error.message : 'Failed to submit reservation. Please try again.');
       console.error('Submission error:', error);
     } finally {
       setIsSubmitting(false);
@@ -696,7 +559,7 @@ export default function ReservationForm() {
         </svg>
       </div>
       <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-        Reservation Confirmed!
+        Reservation request received
       </h2>
       {reservationDetails && (
         <div className="bg-gray-50 rounded-lg p-6 mb-8 text-left">
@@ -712,7 +575,8 @@ export default function ReservationForm() {
         </div>
       )}
 
-      {/* <CancelButton reservationId={reservationDetails?.reservationId || ""} /> */}
+      <p className="mb-4 text-sm text-gray-600">Your request awaits restaurant acceptance. Email delivery may be delayed.</p>
+      {reservationDetails?.managementUrl && <a href={reservationDetails.managementUrl} className="mb-6 inline-block underline">Manage reservation</a>}
 
       <button
         onClick={() => {
@@ -1123,58 +987,9 @@ export default function ReservationForm() {
                       </Button>
                     </div>
 
-                    {/* Contact Information */}
-                    <div className="space-y-4">
-                      {/* Name */}
-                      <div className="space-y-2">
-                        <Label htmlFor="name" className="text-gray-700">Full Name *</Label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                          <Input
-                            id="name"
-                            type="text"
-                            placeholder="John Doe"
-                            value={formData.name}
-                            onChange={(e) => updateFormData({ name: e.target.value })}
-                            className="pl-10 h-11"
-                          />
-                        </div>
-                      </div>
+                    <GuestInfo formData={formData} onUpdate={updateFormData} phoneVerified={phoneVerified} onPhoneVerified={setPhoneVerified} smsOptIn={smsOptIn} onSmsOptIn={setSmsOptIn} otpEnabled={otpEnabled} />
 
-                      {/* Email */}
-                      <div className="space-y-2">
-                        <Label htmlFor="email" className="text-gray-700">Email Address *</Label>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                          <Input
-                            id="email"
-                            type="email"
-                            placeholder="john@example.com"
-                            value={formData.email}
-                            onChange={(e) => updateFormData({ email: e.target.value })}
-                            className="pl-10 h-11"
-                          />
-                        </div>
-                        <p className="text-xs text-gray-500">We&apos;ll send your confirmation here</p>
-                      </div>
-
-                      {/* Phone */}
-                      <div className="space-y-2">
-                        <Label htmlFor="phone" className="text-gray-700">Phone Number *</Label>
-                        <div className="relative">
-                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                          <Input
-                            id="phone"
-                            type="tel"
-                            placeholder="(555) 123-4567"
-                            value={formData.phone}
-                            onChange={(e) => updateFormData({ phone: e.target.value })}
-                            className="pl-10 h-11"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Special Requests */}
+                    {/* Special Requests */}
                       <div className="space-y-2">
                         <Label htmlFor="comments" className="text-gray-700">Special Requests (optional)</Label>
                         <Textarea
@@ -1185,7 +1000,6 @@ export default function ReservationForm() {
                           rows={3}
                         />
                       </div>
-                    </div>
 
                     {/* Submit Button */}
                     <Button

@@ -1,23 +1,14 @@
 import { NextResponse } from 'next/server';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/firebase';
+import { requireAdmin } from '@/lib/auth/admin';
+import { getServerDatabase } from '@/lib/serverFirebase';
 
-export async function GET() {
-    try {
-        const q = query(
-            collection(db, 'reservations'),
-            where('status', '==', 'pending')
-        );
-
-        const snapshot = await getDocs(q);
-        const pendingReservations = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-
-        return NextResponse.json({ pendingReservations });
-    } catch (error) {
-        console.error('Error checking reservations:', error);
-        return NextResponse.json({ error: 'Failed to check reservations' }, { status: 500 });
-    }
-} 
+export async function GET(request: Request) {
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
+  try {
+    const snapshot = await getServerDatabase().collection('reservations').where('status', '==', 'pending').get();
+    return NextResponse.json({ pendingReservations: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) });
+  } catch {
+    return NextResponse.json({ error: 'Failed to check reservations' }, { status: 503 });
+  }
+}

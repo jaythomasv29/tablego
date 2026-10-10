@@ -2,7 +2,7 @@
 
 Reviewed October 10, 2026. Branch: `review/tablego-phased-refinement`.
 
-This is a source-code review and implementation plan. No application behavior has been changed or deployed. Findings about deployed Firestore permissions and external services require staging verification; their configuration is not established by this repository.
+The initial source review and plan below are preserved as the delivery baseline. Implementation and current validation are recorded in `phase-0-progress.md`, `phase-1-progress.md` and `staging-setup.md`. Work proceeds on separate refinement branches; no phase has been deployed to production.
 
 ## Findings and priority corrections
 
@@ -113,6 +113,6 @@ Deploy only an explicitly accepted phase after staging passes. Record the deploy
 
 Observe booking errors, duplicate records, notification backlog/failures and unauthorized action attempts after release. Pause rollout on guest-facing failures or data inconsistencies. Tests reduce crash risk; they cannot guarantee zero crashes.
 
-## Review limits
+## Initial review limits (before implementation)
 
 Typecheck and lint were run locally and failed as recorded above. A production build, live database audit, provider delivery test and staging browser test were not performed. No test runner is declared in package scripts. No production action, message, data migration or deployment was performed.

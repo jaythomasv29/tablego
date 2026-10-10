@@ -9,7 +9,10 @@
     "lint": "eslint src middleware.ts --ext .ts,.tsx --max-warnings=11",
     "typecheck": "tsc --noEmit --incremental false",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
-    "check": "npm run typecheck && npm run lint && npm test && npm run build"
+    "check": "npm run typecheck && npm run lint && npm test && npm run build",
+    "dev:staging": "node scripts/staging.mjs dev",
+    "build:staging": "node scripts/staging.mjs build",
+    "start:staging": "node scripts/staging.mjs start"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -29,6 +32,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^2.30.0",
     "firebase": "^11.0.1",
+    "firebase-admin": "14.5.0",
     "framer-motion": "^11.15.0",
     "gsap": "^3.14.2",
     "js-cookie": "^3.0.5",

@@ -18,8 +18,7 @@ Use Node 22.14 or newer for the native TypeScript test runner. CI uses Node 22.2
 
 The lint configuration now includes Next's Core Web Vitals rules using `eslint-config-next` pinned to the installed Next version, 15.5.9. Hook dependency warnings are errors. Fourteen existing JSX escaping errors were corrected without changing displayed text. Eleven existing font/image optimization warnings remain visible, with a warning budget of 11 so additional warnings fail the standalone lint gate. These performance warnings belong to Phase 5; no lint errors are ignored.
 
-Separate staging Firebase/hosting configuration, deployed rules/index inventory and staging guest/staff smoke tests are still outstanding. Phase 0 is not ready for deployment until those gates pass.
-The installed Firebase CLI currently has no authenticated account, so project inventory could not be completed.
+Firebase login is now authenticated. A separate staging project/database, staging-only credentials, deployed staging rules/indexes and local staging guest/staff smoke tests are established in Phase 1. Hosted-preview and Storage upload gates remain pending; see `staging-setup.md`.
 
 ## Local validation
 

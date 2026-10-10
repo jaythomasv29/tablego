@@ -5,6 +5,8 @@ import { useState, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { signInWithCustomToken } from 'firebase/auth';
+import { auth } from '@/firebase';
 
 function LoginForm() {
   const [username, setUsername] = useState("");
@@ -14,7 +16,8 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/admin/home";
+  const requestedCallback = searchParams.get("callbackUrl") || '';
+  const callbackUrl = requestedCallback.startsWith('/admin/') || requestedCallback === '/admin' ? requestedCallback : '/admin/home';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,6 +30,8 @@ function LoginForm() {
         body: JSON.stringify({ username, password, remember }),
       });
       if (res.ok) {
+        const data = await res.json();
+        await signInWithCustomToken(auth, data.firebaseToken);
         router.push(callbackUrl);
       } else {
         setError(true);

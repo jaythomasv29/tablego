@@ -1,4 +1,7 @@
-"use client";
+'use client';
+import { staffReservationAction } from '@/lib/reservations/client';
+import { bookingState, statusLabels } from '@/lib/reservations/domain';
+import ReservationActions from '@/components/ReservationActions';
 
 import AdminLayout from "@/components/AdminLayout";
 import { useEffect, useState, useCallback } from "react";
@@ -567,7 +570,7 @@ export default function AdminHome() {
             guests: data.guests,
             phone: data.phone,
             email: data.email,
-            status: data.status || "pending",
+            status: bookingState(data),
             comments: data.comments || "",
             createdAt: data.createdAt,
             reminderSent: data.reminderSent,
@@ -731,7 +734,7 @@ export default function AdminHome() {
               guests: data.guests,
               phone: data.phone,
               email: data.email,
-              status: data.status || "pending",
+              status: bookingState(data),
               comments: data.comments || "",
               createdAt: data.createdAt,
               reminderSent: data.reminderSent,
@@ -822,10 +825,8 @@ export default function AdminHome() {
     status: "show" | "no-show" | "default",
   ) => {
     try {
-      const reservationRef = doc(db, "reservations", reservationId);
-      await updateDoc(reservationRef, {
-        attendanceStatus: status === "default" ? null : status,
-      });
+      if (status === "default") throw new Error("Attendance history cannot be cleared. Contact a manager to correct it.");
+      const result = await staffReservationAction(reservationId, status === "show" ? "seat" : "no-show");
 
       // Update local state
       setTodaysReservations((prev) =>
@@ -833,7 +834,8 @@ export default function AdminHome() {
           res.id === reservationId
             ? {
                 ...res,
-                attendanceStatus: status === "default" ? undefined : status,
+                attendanceStatus: status,
+                status: result.status,
               }
             : res,
         ),
@@ -1347,11 +1349,7 @@ export default function AdminHome() {
                                           : "border-border text-muted-foreground bg-muted/50"
                                     }`}
                                   >
-                                    {reservation.status === "confirmed"
-                                      ? "Confirmed"
-                                      : reservation.status === "cancelled"
-                                        ? "Cancelled"
-                                        : "Pending"}
+                                    {statusLabels[bookingState(reservation)]}
                                   </Badge>
                                 )}
                                 {reservation.attendanceStatus && (
@@ -1428,48 +1426,7 @@ export default function AdminHome() {
                               className="flex flex-wrap items-center justify-between gap-1.5 border-t pt-2"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className={`text-xs ${
-                                    reservation.attendanceStatus === "show"
-                                      ? "text-green-700 bg-green-100 border-green-300"
-                                      : "text-muted-foreground bg-card hover:bg-green-100 dark:hover:bg-green-900 hover:text-green-700"
-                                  } h-7 px-2`}
-                                  onClick={() =>
-                                    handleAttendanceUpdate(
-                                      reservation.id,
-                                      reservation.attendanceStatus === "show"
-                                        ? "default"
-                                        : "show",
-                                    )
-                                  }
-                                >
-                                  <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                                  Show
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className={`text-xs ${
-                                    reservation.attendanceStatus === "no-show"
-                                      ? "text-orange-700 bg-orange-100 border-orange-300"
-                                      : "text-muted-foreground bg-card hover:bg-orange-100 dark:hover:bg-orange-900 hover:text-orange-700"
-                                  } h-7 px-2`}
-                                  onClick={() =>
-                                    handleAttendanceUpdate(
-                                      reservation.id,
-                                      reservation.attendanceStatus === "no-show"
-                                        ? "default"
-                                        : "no-show",
-                                    )
-                                  }
-                                >
-                                  <XCircle className="w-3.5 h-3.5 mr-1" />
-                                  No-show
-                                </Button>
-                              </div>
+                              <ReservationActions reservation={reservation} onUpdated={record => setTodaysReservations(prev => prev.map(item => item.id === reservation.id ? { ...item, ...record } : item))} />
                               <Button
                                 size="sm"
                                 variant="outline"

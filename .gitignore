@@ -32,6 +32,10 @@ C:tmpnodejsnpm-cache
 C:tmpnodejsnpm-cache
 **/npm-cache
 **/_cacache
+
+# Local staging credentials, synthetic records and captured notifications
+.staging/
+.next-staging/
 # NPM cache
 C:tmpnodejsnpm-cache
 **/npm-cache

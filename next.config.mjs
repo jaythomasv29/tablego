@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  distDir: process.env.TABLEGO_ENVIRONMENT === 'staging' ? '.next-staging' : '.next',
   // Add cache-busting headers
   async headers() {
     return [

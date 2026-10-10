@@ -1,49 +1,24 @@
-import { NextResponse } from 'next/server';
-import { getAnalytics } from 'firebase/analytics';
-import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, query, where, orderBy } from 'firebase/firestore';
-import { db } from '@/firebase';
-
-export async function GET() {
-    try {
-        // Get page views from Firestore analytics collection
-        const analyticsRef = collection(db, 'analytics');
-        const last7Days = new Date();
-        last7Days.setDate(last7Days.getDate() - 7);
-
-        const q = query(
-            analyticsRef,
-            where('timestamp', '>=', last7Days),
-            orderBy('timestamp', 'desc')
-        );
-
-        const snapshot = await getDocs(q);
-        const dailyViews = snapshot.docs.map(doc => ({
-            date: doc.data().timestamp.toDate().toISOString(),
-            views: doc.data().pageViews || 0
-        }));
-
-        // Calculate total views
-        const totalViews = dailyViews.reduce((sum, day) => sum + day.views, 0);
-
-        return NextResponse.json({
-            pageViews: {
-                value: totalViews,
-                timestamp: new Date().toISOString()
-            },
-            dailyViews
-        });
-    } catch (error) {
-        console.error('Analytics Error:', error);
-        // Return mock data if analytics fails
-        return NextResponse.json({
-            pageViews: {
-                value: 100,
-                timestamp: new Date().toISOString()
-            },
-            dailyViews: [
-                { date: new Date().toISOString(), views: 100 }
-            ]
-        });
-    }
+import { requireAdmin, validMutationOrigin } from '@/lib/auth/admin';
+import { getServerDatabase } from '@/lib/serverFirebase';
+import { rateLimit } from '@/lib/auth/rateLimit';
+import { privateJson, reservationError } from '@/lib/reservations/http';
+export async function GET(request: Request) {
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
+  try {
+    const snapshot = await getServerDatabase().collection('analytics').where('timestamp', '>=', new Date(Date.now() - 7 * 86400000)).orderBy('timestamp', 'desc').get();
+    const dailyViews = snapshot.docs.map(doc => ({ date: doc.data().timestamp.toDate().toISOString(), views: Number(doc.data().pageViews) || 0 }));
+    return privateJson({ pageViews: { value: dailyViews.reduce((sum, day) => sum + day.views, 0), timestamp: new Date().toISOString() }, dailyViews });
+  } catch (error) { return reservationError(error); }
+}
+export async function POST(request: Request) {
+  if (!validMutationOrigin(request)) return privateJson({ error: 'Invalid origin' }, 403);
+  try {
+    const { page } = await request.json();
+    if (typeof page !== 'string' || !page.startsWith('/') || page.length > 200) return privateJson({ error: 'Invalid page' }, 400);
+    const limited = await rateLimit('analytics', 'site', 1000, 60);
+    if (limited) return limited;
+    await getServerDatabase().collection('analytics').add({ page: page.split('?')[0], pageViews: 1, timestamp: new Date() });
+    return privateJson({ success: true });
+  } catch (error) { return reservationError(error); }
 }

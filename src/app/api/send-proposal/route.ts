@@ -1,7 +1,6 @@
+import { getServerDatabase } from '@/lib/serverFirebase';
 import { NextResponse } from "next/server";
-import { db } from "../../../firebase";
-import { collection, addDoc } from "firebase/firestore";
-import nodemailer from "nodemailer";
+import { createEmailTransport } from '@/lib/notificationTransport';
 
 // Add these interfaces
 interface Dish {
@@ -25,7 +24,7 @@ interface CateringFormData {
   selectedDishes: Dish[];
 }
 
-const transporter = nodemailer.createTransport({
+const transporter = createEmailTransport({
   host: process.env.SMTP_HOST || "smtp.gmail.com",
   port: parseInt(process.env.SMTP_PORT || "587"),
   secure: false,
@@ -61,7 +60,7 @@ export async function POST(request: Request) {
     };
 
     // Save to Firebase
-    const cateringRef = await addDoc(collection(db, "catering"), {
+    const cateringRef = await getServerDatabase().collection('catering').add({
       ...formData,
       createdAt: new Date(),
       status: "pending",

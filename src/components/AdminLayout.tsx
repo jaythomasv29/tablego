@@ -6,6 +6,8 @@ import { RefreshCw, Sun, Moon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/firebase';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -14,6 +16,7 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const { resolvedTheme, setTheme } = useTheme();
 
   useEffect(() => { setMounted(true); }, []);
@@ -39,6 +42,19 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     window.location.reload();
   };
 
+  const handleLogout = async () => {
+    setSigningOut(true);
+    try {
+      const response = await fetch('/api/auth/logout', { method: 'POST' });
+      if (!response.ok) throw new Error('Logout failed');
+      await signOut(auth);
+      window.location.assign('/login');
+    } catch {
+      setSigningOut(false);
+      alert('Unable to sign out. Please try again.');
+    }
+  };
+
   return (
     <SidebarProvider className="h-screen overflow-hidden">
       <AdminSideBar />
@@ -47,6 +63,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <header className="bg-card border-b border-border px-4 py-2 flex items-center justify-between shrink-0">
           <SidebarTrigger className="text-muted-foreground" />
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={handleLogout} disabled={signingOut}>
+              {signingOut ? 'Signing out…' : 'Sign out'}
+            </Button>
             {mounted && (
               <Button
                 variant="ghost"

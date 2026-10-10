@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
-import client, { toE164 } from '@/lib/twilio';
+import { issueSignedToken } from '@/lib/auth/signedToken';
+import { secureCookie, validMutationOrigin } from '@/lib/auth/admin';
+import { verifyPhoneCode, toE164 } from '@/lib/twilio';
+import { rateLimit } from '@/lib/auth/rateLimit';
 
 export async function POST(request: Request) {
+  if (!validMutationOrigin(request)) return NextResponse.json({ error: 'Invalid request origin' }, { status: 403 });
   try {
     const { phone, code } = await request.json();
     if (!phone || !code) {
@@ -9,12 +13,19 @@ export async function POST(request: Request) {
     }
 
     const to = toE164(phone);
+    const limited = await rateLimit('otp-verify', to, 10, 600);
+    if (limited) return limited;
 
-    const verification = await client.verify.v2
-      .services(process.env.TWILIO_VERIFY_SERVICE_SID!)
-      .verificationChecks.create({ to, code });
-
-    return NextResponse.json({ success: true, valid: verification.status === 'approved' });
+    if (typeof code !== 'string' || !/^\d{4,10}$/.test(code)) {
+      return NextResponse.json({ success: false, error: 'Invalid code' }, { status: 400 });
+    }
+    const valid = await verifyPhoneCode(to, code);
+    const response = NextResponse.json({ success: true, valid });
+    if (valid) {
+      const { token } = await issueSignedToken('phone', { phone: to }, 600);
+      response.cookies.set('phone-verification', token, { path: '/', maxAge: 600, httpOnly: true, sameSite: 'lax', secure: secureCookie(request) });
+    }
+    return response;
   } catch (error) {
     console.error('[otp/verify]', error);
     return NextResponse.json({ success: false, error: 'Failed to verify code' }, { status: 500 });

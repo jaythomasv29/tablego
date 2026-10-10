@@ -1,14 +1,5 @@
-import { db } from '@/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-
 export const trackPageView = async (page: string) => {
-    try {
-        await addDoc(collection(db, 'analytics'), {
-            page,
-            pageViews: 1,
-            timestamp: serverTimestamp()
-        });
-    } catch (error) {
-        console.error('Error tracking page view:', error);
-    }
+  if (page.startsWith('/admin') || /^\/(reservation|reschedule|cancel-reservation)\//.test(page)) return;
+  try { await fetch('/api/analytics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page }) }); }
+  catch { /* Analytics should never interrupt navigation. */ }
 };

@@ -1,4 +1,7 @@
 'use client';
+import { staffReservationAction } from '@/lib/reservations/client';
+import { bookingState, statusLabels } from '@/lib/reservations/domain';
+import ReservationActions from '@/components/ReservationActions';
 
 import React, { useState, useEffect } from 'react';
 import { db } from "@/firebase"
@@ -312,16 +315,14 @@ export default function ReservationAdminPage() {
     // Add handleAttendanceUpdate function inside the component
     const handleAttendanceUpdate = async (reservationId: string, status: 'show' | 'no-show' | 'default') => {
         try {
-            const reservationRef = doc(db, 'reservations', reservationId);
-            await updateDoc(reservationRef, {
-                attendanceStatus: status === 'default' ? null : status
-            });
+            if (status === 'default') throw new Error('Attendance history cannot be cleared. Contact a manager to correct it.');
+            const result = await staffReservationAction(reservationId, status === 'show' ? 'seat' : 'no-show');
 
             // Update local state
             setReservations((prevReservations: Reservation[]) =>
                 prevReservations.map((res: Reservation) =>
                     res.id === reservationId
-                        ? { ...res, attendanceStatus: status === 'default' ? undefined : status }
+                        ? { ...res, status: result.status, attendanceStatus: status }
                         : res
                 )
             );
@@ -718,8 +719,8 @@ export default function ReservationAdminPage() {
                                             className="w-4 h-4 rounded border-border text-primary focus:ring-ring"
                                         />
                                     )}
-                                    <Badge variant={isCancelled ? 'destructive' : reservation.status === 'Confirmed' ? 'success' : 'warning'}>
-                                        {reservation.status}
+                                    <Badge variant={isCancelled ? 'destructive' : bookingState(reservation) === 'confirmed' ? 'success' : 'warning'}>
+                                        {statusLabels[bookingState(reservation)]}
                                     </Badge>
                                     {reservation.attendanceStatus && (
                                         <Badge variant={reservation.attendanceStatus === 'show' ? 'success' : 'destructive'}>
@@ -766,34 +767,7 @@ export default function ReservationAdminPage() {
                             )}
 
                             <div className={`flex flex-wrap items-center justify-between ${isTodayCompact ? 'gap-1.5 pt-2' : 'gap-2 pt-3'} border-t`}>
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className={cn(
-                                            `bg-card border-border ${isTodayCompact ? 'h-7 px-2 text-xs' : ''}`,
-                                            reservation.attendanceStatus === 'show'
-                                                ? "text-green-800 bg-green-50 border-green-200"
-                                                : "hover:bg-green-50 hover:text-green-800"
-                                        )}
-                                        onClick={() => handleAttendanceUpdate(reservation.id, 'show')}
-                                    >
-                                        Show
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className={cn(
-                                            `bg-card border-border ${isTodayCompact ? 'h-7 px-2 text-xs' : ''}`,
-                                            reservation.attendanceStatus === 'no-show'
-                                                ? "text-red-800 bg-red-50 border-red-200"
-                                                : "hover:bg-red-50 hover:text-red-800"
-                                        )}
-                                        onClick={() => handleAttendanceUpdate(reservation.id, 'no-show')}
-                                    >
-                                        No-show
-                                    </Button>
-                                </div>
+                                <ReservationActions reservation={reservation} onUpdated={record => setReservations(prev => prev.map(item => item.id === reservation.id ? { ...item, ...record } : item))} />
                                 <div className="flex items-center gap-2">
                                     <Button
                                         size="sm"

@@ -1,3 +1,4 @@
+import { calendarDate, slotsForDate } from '@/lib/reservations/availability';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Calendar,
@@ -188,6 +189,8 @@ function App() {
   const [modalValidationError, setModalValidationError] = useState<
     string | null
   >(null);
+  const submissionKey = useRef<string | null>(null);
+  const [managementLink, setManagementLink] = useState('');
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [smsOptIn, setSmsOptIn] = useState(false);
   const [bannerData, setBannerData] = useState<BannerData | null>(null);
@@ -305,120 +308,9 @@ function App() {
   }, [isEditingGuests]);
 
   const generateTimeSlots = useCallback((date: Date, hours: BusinessHours): TimeSlot[] => {
-    const days = [
-      "sunday",
-      "monday",
-      "tuesday",
-      "wednesday",
-      "thursday",
-      "friday",
-      "saturday",
-    ];
-    const dayOfWeek = days[date.getDay()];
-    const dayHours = hours[dayOfWeek];
-    if (!dayHours) return [];
-
-    const specialDateForDay = specialDates.find((specialDate) => {
-      const holidayDate = new Date(specialDate.date);
-      return (
-        holidayDate.getMonth() === date.getMonth() &&
-        holidayDate.getDate() === date.getDate()
-      );
-    });
-    const closureType =
-      specialDateForDay?.closureType || (specialDateForDay ? "full" : null);
-    const lunchClosedBySpecialDate =
-      closureType === "full" || closureType === "lunch";
-    const dinnerClosedBySpecialDate =
-      closureType === "full" || closureType === "dinner";
-
-    const slots: TimeSlot[] = [];
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-    const currentMinutes = isToday ? now.getHours() * 60 + now.getMinutes() : 0;
-    const slotDuration = 30;
-
-    const timeToMinutes = (time: string) => {
-      const [h, m] = time.split(":").map(Number);
-      return h * 60 + m;
-    };
-
-    const minutesToTime = (minutes: number) => {
-      const hours = Math.floor(minutes / 60);
-      const mins = minutes % 60;
-      const period = hours >= 12 ? "PM" : "AM";
-      const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
-      return `${displayHours}:${mins.toString().padStart(2, "0")} ${period}`;
-    };
-
-    const pushRangeSlots = (
-      start: number,
-      end: number,
-      period: "lunch" | "dinner",
-    ) => {
-      let adjustedStart = start;
-      if (isToday && adjustedStart < currentMinutes) {
-        adjustedStart =
-          Math.ceil((currentMinutes + minimumLeadTimeMinutes) / slotDuration) * slotDuration;
-      }
-
-      for (
-        let time = adjustedStart;
-        time <= end - reservationCutoffMinutes;
-        time += slotDuration
-      ) {
-        if (!isToday || time >= currentMinutes + minimumLeadTimeMinutes) {
-          slots.push({ time: minutesToTime(time), period });
-        }
-      }
-    };
-
-    if (dayHours.lunch.isOpen && !lunchClosedBySpecialDate) {
-      if (dayHours.lunch.customRanges?.length) {
-        dayHours.lunch.customRanges.forEach((range) => {
-          const start = timeToMinutes(range.start);
-          const end = timeToMinutes(range.end);
-          if (!(isToday && end <= currentMinutes + reservationCutoffMinutes)) {
-            pushRangeSlots(start, end, "lunch");
-          }
-        });
-      } else {
-        pushRangeSlots(
-          timeToMinutes(dayHours.lunch.open),
-          timeToMinutes(dayHours.lunch.close),
-          "lunch",
-        );
-      }
-    }
-
-    if (dayHours.dinner.isOpen && !dinnerClosedBySpecialDate) {
-      if (dayHours.dinner.customRanges?.length) {
-        dayHours.dinner.customRanges.forEach((range) => {
-          const start = timeToMinutes(range.start);
-          const end = timeToMinutes(range.end);
-          if (!(isToday && end <= currentMinutes + reservationCutoffMinutes)) {
-            pushRangeSlots(start, end, "dinner");
-          }
-        });
-      } else {
-        pushRangeSlots(
-          timeToMinutes(dayHours.dinner.open),
-          timeToMinutes(dayHours.dinner.close),
-          "dinner",
-        );
-      }
-    }
-
-    const sortTime = (timeStr: string) => {
-      const [time, period] = timeStr.split(" ");
-      let [h, m] = time.split(":").map(Number);
-      if (period === "PM" && h !== 12) h += 12;
-      if (period === "AM" && h === 12) h = 0;
-      return h * 60 + m;
-    };
-
-    return slots.sort((a, b) => sortTime(a.time) - sortTime(b.time));
-  }, [specialDates, minimumLeadTimeMinutes, reservationCutoffMinutes]);
+    try { return slotsForDate(calendarDate(date), { businessHours: hours, specialDates, timezone, cutoffMinutes: reservationCutoffMinutes, leadTimeMinutes: minimumLeadTimeMinutes }); }
+    catch { return []; }
+  }, [specialDates, timezone, minimumLeadTimeMinutes, reservationCutoffMinutes]);
 
   useEffect(() => {
     if (!businessHours) return;
@@ -448,6 +340,8 @@ function App() {
   const openReserveModal = () => {
     setShowReservationSuccess(false);
     setModalValidationError(null);
+    submissionKey.current = null;
+    setManagementLink('');
     setIsReserveOpen(true);
   };
   const closeReserveModal = () => {
@@ -469,7 +363,6 @@ function App() {
       formData.name.trim() &&
       formData.email.trim() &&
       phoneDigits.length === 10 &&
-      smsOptIn &&
       (!otpEnabled || phoneVerified),
     );
   };
@@ -496,20 +389,20 @@ function App() {
 
     setIsSubmitting(true);
     try {
+      submissionKey.current ??= crypto.randomUUID();
       const response = await fetch("/api/send-confirmation", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": submissionKey.current },
         body: JSON.stringify({
           formData: {
             ...formData,
             date:
               formData.date instanceof Date
-                ? formData.date.toISOString()
+                ? calendarDate(formData.date)
                 : formData.date,
           },
           timezone: timezone || "America/Los_Angeles",
-          phoneVerified: true,
-          smsOptIn: true,
+          smsOptIn,
         }),
       });
 
@@ -519,11 +412,13 @@ function App() {
       }
 
       setModalValidationError(null);
+      setManagementLink(result.managementUrl);
+      submissionKey.current = null;
       setShowReservationSuccess(true);
     } catch (error) {
       console.error("Reservation submission failed:", error);
       setModalValidationError(
-        "Unable to complete reservation right now. Please try again.",
+        error instanceof Error ? error.message : "Unable to complete reservation right now. Please try again.",
       );
     } finally {
       setIsSubmitting(false);
@@ -839,7 +734,7 @@ function App() {
                   style={{ fontFamily: "Cormorant Garamond, serif" }}
                 >
                   {showReservationSuccess
-                    ? "Reservation Confirmed"
+                    ? "Reservation request received"
                     : "Confirm your table"}
                 </h3>
               </div>
@@ -879,7 +774,7 @@ function App() {
                   </h4>
                   <p className="mt-3 text-zinc-600 leading-relaxed">
                     Thank you, {formData.name || "guest"}. We are preparing your
-                    reservation details and will follow up by email shortly.
+                    reservation details. Your request awaits restaurant acceptance; email delivery may be delayed.
                   </p>
                   <div
                     className="mt-6 rounded-2xl border p-4 text-sm text-zinc-700"
@@ -896,6 +791,7 @@ function App() {
                     at {formData.time || "—"} · {formData.guests}{" "}
                     {formData.guests === 1 ? "guest" : "guests"}
                   </div>
+                  {managementLink && <a href={managementLink} className="mt-6 inline-block underline">Manage your reservation</a>}
                   <div className="mt-8 flex justify-center">
                     <MagneticButton
                       onClick={closeReserveModal}

@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true
+        && request.auth.token.sessionExpiresAt > request.time.toMillis() / 1000
+        && get(/databases/$(database)/documents/staffSessions/$(request.auth.token.sessionId)).data.active == true;
+    }
+    match /settings/{id} {
+      allow read: if id in ['businessHours', 'general', 'banner'];
+      allow write: if isAdmin();
+    }
+    match /specialDates/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /menu/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /reservations/{id} {
+      allow read: if isAdmin();
+      allow update: if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['marked', 'markedAt']);
+      match /events/{eventId} { allow read: if isAdmin(); }
+    }
+    // Booking creation and guest actions use server APIs. Internal documents
+    // remain accessible to authenticated staff during incremental migration.
+    match /{collection}/{document=**} {
+      allow read, write: if isAdmin() && !(collection in ['staffSessions', 'reservations', 'managementAccess', 'bookingSubmissions', 'notificationOutbox', 'requestLimits']);
+    }
+  }
+}

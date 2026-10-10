@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
-import { db } from '../../../firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { getServerDatabase } from '@/lib/serverFirebase';
 
 export async function GET() {
     try {
-        await addDoc(collection(db, 'menuDownloads'), {
+        await getServerDatabase().collection('menuDownloads').add({
             type: 'download',
             source: 'email',
-            timestamp: serverTimestamp(),
+            timestamp: new Date(),
         });
     } catch (e) {
         console.error('Failed to track menu download:', e);

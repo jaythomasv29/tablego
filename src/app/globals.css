@@ -3,6 +3,41 @@
 @tailwind components;
 @tailwind utilities;
 
+/* The guest management surface keeps the restaurant's light palette, including
+   when staff have selected dark mode. Scoped fallbacks support legacy Tailwind. */
+.guest-management {
+  --background: #ffffff;
+  --foreground: #121212;
+  --card: #ffffff;
+  --card-foreground: #121212;
+  --primary: #121212;
+  --primary-foreground: #ffffff;
+  --muted: #f4f4f5;
+  --muted-foreground: #52525b;
+  --border: #d4d4d8;
+  --input: #d4d4d8;
+  color: var(--foreground);
+}
+.guest-management [data-slot="card"] {
+  background: var(--card);
+  color: var(--card-foreground);
+  box-shadow: 0 1px 8px rgb(0 0 0 / 8%);
+}
+.guest-management [data-slot="button"] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.guest-management [data-slot="button"][data-variant="outline"],
+.guest-management [data-slot="button"][data-variant="ghost"] {
+  background: transparent;
+  color: var(--foreground);
+  border-color: var(--border);
+}
+.guest-management [data-slot="button"][data-variant="destructive"] {
+  background: #b91c1c;
+  color: #ffffff;
+}
+
 /* Override Tailwind v3's default blue ring color with a neutral */
 *, ::before, ::after {
   --tw-ring-color: var(--border);

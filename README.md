@@ -18,7 +18,7 @@
 1. Always use the provided helper functions for date handling
 2. All date comparisons must be done in PST
 3. Keep date and time separate in Firebase
-4. Use ISO format for storing dates
+4. Store reservation dates as validated YYYY-MM-DD calendar strings; use timestamps for events
 5. Display dates in user's local timezone where appropriate
 
 ## Common Pitfalls
@@ -44,3 +44,5 @@ Use `America/Los_Angeles` for restaurant timezone calculations, including daylig
 Run `npm run typecheck`, `npm run lint`, `npm test`, and `npm run build`, or `npm run check` for all four. The initial test suite covers timezone and date storage behavior. Build-time type and lint failures are no longer suppressed.
 
 See [the refinement plan](docs/tablego-refinement-plan.md), [Phase 0 progress](docs/phase-0-progress.md), and [isolated staging setup](docs/staging-setup.md). Do not exercise booking or notification tests against the live database or real guest recipients.
+
+Local isolated testing: `npm run dev:staging`, `node scripts/staging-smoke.mjs`, and `npm run build:staging`. See [Phase 1](docs/phase-1-progress.md) for the signed-session and secure guest-management contract. Production rollout remains a separate approval.
