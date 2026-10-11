@@ -1,6 +1,8 @@
 import { renderNotification } from './render';
 export { renderNotification } from './render';
 import { renderCateringNotification } from '../catering/notification';
+import { renderReservationInvitation } from './shareRender';
+import { invitationDetails } from './sharing';
 import { restaurantIdentity } from '../restaurant/config';
 import { createEmailTransport } from '../notificationTransport';
 import { getServerDatabase } from '../serverFirebase';
@@ -42,13 +44,18 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
     const current = (await tx.get(db.doc(`reservations/${record.reservationId}`))).data();
     const access = (await tx.get(db.doc(`managementAccess/${record.reservationId}`))).data();
     if (!current || (record.notificationRevision && record.notificationRevision !== (current.notificationRevision || 1)) ||
+      (record.kind === 'reservation-share' && current.status !== 'confirmed') ||
       (record.channel === 'sms' && (current.smsOptIn !== true || current.phoneVerificationSource !== 'server'))) {
       tx.update(ref, { state: 'superseded', lastError: 'reservation-changed-or-consent-revoked' });
       return null;
     }
-    if (!access || access.expiresAt <= Date.now()) { tx.update(ref, { state: 'exhausted', lastError: 'management-link-expired' }); return null; }
+    if (record.kind === 'reservation-share') {
+      try { invitationDetails(current, record.reservation.restaurantTimezone); }
+      catch { tx.update(ref, { state: 'superseded', lastError: 'reservation-no-longer-shareable' }); return null; }
+    }
+    if (record.kind !== 'reservation-share' && (!access || access.expiresAt <= Date.now())) { tx.update(ref, { state: 'exhausted', lastError: 'management-link-expired' }); return null; }
     tx.update(ref, { state: 'sending', lease, leaseUntil: new Date(Date.now() + 120_000), nextAttemptAt: new Date(Date.now() + 120_000), attempts: record.attempts + 1 });
-    return { ...record, encryptedToken: access.encryptedToken } as FirebaseFirestore.DocumentData;
+    return { ...record, ...(record.kind !== 'reservation-share' ? { encryptedToken: access!.encryptedToken } : {}) } as FirebaseFirestore.DocumentData;
   });
   if (!job) return 'skipped';
   let state: 'delivered' | 'failed' = 'failed';
@@ -57,7 +64,8 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
   try {
     const configuration = (await db.doc('settings/general').get()).data();
     const identity = restaurantIdentity(configuration?.restaurant);
-    const message = job.kind === 'catering' ? renderCateringNotification(job as Parameters<typeof renderCateringNotification>[0], identity)
+    const message = job.kind === 'reservation-share' ? renderReservationInvitation(job as Parameters<typeof renderReservationInvitation>[0], identity)
+      : job.kind === 'catering' ? renderCateringNotification(job as Parameters<typeof renderCateringNotification>[0], identity)
       : renderNotification({ ...job, restaurant: identity } as Parameters<typeof renderNotification>[0]);
     if (job.channel === 'sms') {
       const result = await sendSMS({ to: job.reservation.phone, body: message.text });

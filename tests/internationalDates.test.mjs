@@ -17,6 +17,8 @@ for (const zone of ['America/Los_Angeles', 'Asia/Tokyo', 'Europe/London', 'Pacif
       import * as dates from './src/utils/dateUtils.ts';
       import * as service from './src/lib/reservations/service.ts';
       import * as availability from './src/lib/reservations/availability.ts';
+      import { invitationDetails } from './src/lib/reservations/sharing.ts';
+      import { renderReservationInvitation } from './src/lib/reservations/shareRender.ts';
       assert.equal(dates.getLocalDateString('2026-10-11T01:00:00Z', 'America/Los_Angeles'), '2026-10-10');
       assert.equal(dates.formatDateForDisplay('2026-10-10', 'America/Los_Angeles'), 'October 10, 2026');
       assert.equal(dates.formatReadableDatePST('2026-01-02T07:59:00Z'), 'Thursday, January 1, 2026');
@@ -25,6 +27,9 @@ for (const zone of ['America/Los_Angeles', 'Asia/Tokyo', 'Europe/London', 'Pacif
       assert.equal(service.todaySummary([row], 'America/Los_Angeles', new Date('2026-10-11T01:00:00Z')).expectedCovers, 2);
       assert.deepEqual(service.todayService([row], 'America/Los_Angeles', new Date('2026-10-11T01:30:00Z')).arriving.map(row => row.id), ['fixture']);
       assert.deepEqual(service.todayService([row], 'America/Los_Angeles', new Date('2026-10-11T02:00:00Z')).attention.map(row => row.id), ['fixture']);
+      process.env.NEXT_PUBLIC_BASE_URL = 'https://staging.example.invalid';
+      const invitation = renderReservationInvitation({ recipientEmail: 'friend@example.invalid', reservation: invitationDetails(row, 'America/Los_Angeles', new Date('2026-10-11T01:00:00Z')) });
+      assert.ok(invitation.text.includes('Saturday, October 10, 2026 at 7:00 PM (America/Los_Angeles)'));
       assert.ok(dates.formatBusinessTimestamp('2026-10-11T01:00:00Z', 'America/Los_Angeles').includes('Oct 10, 2026'));
       const selected = new Date(2026, 9, 11, 12);
       assert.equal(availability.calendarDate(selected), '2026-10-11');

@@ -10,6 +10,9 @@ import { formatReadableDatePST } from '@/utils/dateUtils';
 import { restaurantClock } from '@/lib/reservations/availability';
 import { Label } from '@/components/ui/label';
 import { statusLabels, isGuestEditable, type BookingState } from '@/lib/reservations/domain';
+import { CalendarDays, Clock, Users, MapPin, ArrowUpRight } from 'lucide-react';
+import ReservationMoment from '@/components/reservations/ReservationMoment';
+import ShareReservation from '@/components/reservations/ShareReservation';
 
 interface Reservation { autoConfirmReservations: boolean; id: string; name: string; date: string; time: string; guests: number; status: BookingState; guestAcknowledged: boolean; comments: string; timezone: string; version: number }
 export default function ManageReservation({ id, initialAction }: { id: string; initialAction?: 'cancel' | 'reschedule' }) {
@@ -26,7 +29,7 @@ export default function ManageReservation({ id, initialAction }: { id: string; i
       const response = await fetch(`/api/reservations/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' });
       const body = await response.json();
       if (!response.ok) { setLoadUnavailable(response.status !== 403); throw new Error(body.error); }
-      setReservation(body.reservation); setDate(body.reservation.date); setTime(body.reservation.time);
+      setReservation(body.reservation); setDate(body.reservation.date); setTime(body.reservation.time); setLoadUnavailable(false);
     } catch (err) { setReservation(null); if (err instanceof TypeError) setLoadUnavailable(true); setError((err as Error).message || 'Unable to load reservation. Please try again.'); }
     finally { setLoading(false); }
   }, [id]);
@@ -80,30 +83,35 @@ export default function ManageReservation({ id, initialAction }: { id: string; i
     finally { setBusy(false); }
   }
   return <main className="guest-management reservation-management min-h-screen bg-[#F9F7F2] px-4 py-8 sm:py-14">
-    <div className="mx-auto max-w-xl space-y-6">
-      <Link href="/" className="inline-block text-xs uppercase tracking-[0.18em] text-zinc-600">{restaurant.shortName} · {restaurant.location}</Link>
-      <Card className="gap-0 overflow-hidden rounded-[1.5rem] border-zinc-900/10 py-0">
-        <CardHeader className="bg-[#121212] px-6 py-9 text-center sm:px-10 sm:py-11">
-          <p className="mb-2 text-[11px] uppercase tracking-[0.18em] text-[#A3B18A]">{restaurant.shortName} · Reservations</p>
+    <div className="mx-auto max-w-2xl space-y-6">
+      <div className="flex items-center justify-between gap-3"><Link href="/" className="inline-block text-xs uppercase tracking-[0.18em] text-zinc-600">{restaurant.shortName} · {restaurant.location}</Link><span className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Your booking</span></div>
+      <Card className="reservation-ticket gap-0 overflow-hidden rounded-[1.75rem] border-zinc-900/10 py-0">
+        <CardHeader className="reservation-hero relative isolate bg-[#121212] px-6 pb-9 pt-5 text-center sm:px-10 sm:pb-11 sm:pt-7">
+          <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-[#A3B18A]">{restaurant.shortName} · Reservations</p>
+          <ReservationMoment status={reservation?.status} />
           <CardTitle className="font-normal text-[#F9F7F2]"><h1 className="text-4xl italic leading-tight sm:text-5xl" style={{ fontFamily: 'var(--font-editorial), Georgia, serif' }}>{reservation?.status === 'confirmed' ? 'Your table is confirmed.' : reservation?.status === 'pending' ? 'Your table request.' : reservation?.status === 'cancelled' ? 'Reservation cancelled.' : 'Your reservation.'}</h1></CardTitle>
-          <p className="pt-2 text-sm leading-relaxed text-[#F9F7F2]/75">Review your booking or update your plans below.</p>
+          <p className="pt-3 text-sm leading-relaxed text-[#F9F7F2]/75">{reservation?.status === 'confirmed' ? 'Good food. Good company. We’ll save you a seat.' : reservation?.status === 'pending' ? 'A little something to look forward to, once your request is accepted.' : 'Your plans, with all the details in one place.'}</p>
           <span className="mx-auto mt-5 h-0.5 w-12 bg-[#A3B18A]" aria-hidden="true" />
         </CardHeader><CardContent className="space-y-6 p-6 sm:p-8">
         {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
         {error && reservation && <Button variant="outline" disabled={busy} onClick={() => load(token)}>Reload latest booking</Button>}
-        {notice && <p role="status" className="rounded-lg bg-green-50 p-3 text-sm text-green-800">{notice}</p>}
+        {notice && <p role="status" className="break-words rounded-lg bg-green-50 p-3 text-sm text-green-800">{notice}</p>}
         {loading ? <p role="status">Loading your reservation…</p> : reservation ? <>
-          <div className="rounded-2xl bg-[#EAE0D5] p-5 space-y-3 sm:p-6">
-            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#586747]">Reservation details</p>
-            <p className="break-words text-2xl italic" style={{ fontFamily: 'var(--font-editorial), Georgia, serif' }}>{reservation.name}</p>
-            <p className="border-t border-zinc-900/10 pt-3 text-sm">{formatReadableDatePST(reservation.date)}</p>
-            <p className="text-sm">{reservation.time} · {reservation.guests} {reservation.guests === 1 ? 'guest' : 'guests'}</p>
-            <p className="text-sm text-muted-foreground">All booking dates and times are local to the restaurant ({reservation.timezone}).</p>
+          <div className="reservation-details relative space-y-5 rounded-2xl bg-[#EAE0D5] p-5 sm:p-7">
+            <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0 flex-1"><p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#586747]">Reserved for</p>
+            <p className="mt-2 break-words text-3xl italic" style={{ fontFamily: 'var(--font-editorial), Georgia, serif' }}>{reservation.name}</p></div>
             <p className="inline-block rounded-full border border-zinc-900/15 bg-white/60 px-3 py-1 text-xs font-medium">{statusLabels[reservation.status]}</p>
+            </div>
+            <div className="space-y-4 border-t border-zinc-900/10 pt-5"><div className="flex items-start gap-3"><CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-[#586747]" aria-hidden="true" /><div><p className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">The day</p><p className="mt-1 text-base font-medium">{formatReadableDatePST(reservation.date, reservation.timezone)}</p></div></div>
+              <div className="grid grid-cols-2 gap-4"><div className="flex items-start gap-3"><Clock className="mt-0.5 h-4 w-4 shrink-0 text-[#586747]" aria-hidden="true" /><div><p className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">Arrival</p><p className="mt-1 text-xl font-medium tabular-nums">{reservation.time}</p></div></div><div className="flex items-start gap-3"><Users className="mt-0.5 h-4 w-4 shrink-0 text-[#586747]" aria-hidden="true" /><div><p className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">Your party</p><p className="mt-1 text-xl font-medium">{reservation.guests} <span className="text-sm">{reservation.guests === 1 ? 'guest' : 'guests'}</span></p></div></div></div>
+            </div>
+            <p className="text-xs leading-relaxed text-zinc-600">Restaurant local time · {reservation.timezone}</p>
             {reservation.guestAcknowledged && <p className="text-sm text-muted-foreground">You told the restaurant you’re coming</p>}
-            {reservation.comments && <p className="break-words whitespace-pre-wrap border-t border-zinc-900/10 pt-3 text-sm leading-relaxed">{reservation.comments}</p>}
+            {reservation.comments && <p className="break-words whitespace-pre-wrap border-t border-zinc-900/10 pt-3 text-sm leading-relaxed"><span className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-zinc-600">Your request</span>{reservation.comments}</p>}
           </div>
+          <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${restaurant.name} ${restaurant.address}`)}`} target="_blank" rel="noreferrer" className="flex items-start gap-3 rounded-xl border border-zinc-900/10 px-4 py-4 text-sm"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#586747]" aria-hidden="true" /><div className="min-w-0 flex-1"><p className="font-medium">{restaurant.name}</p><p className="mt-1 text-xs leading-relaxed text-zinc-600">{restaurant.address}</p></div><ArrowUpRight className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden="true" /></a>
           {reservation.status === 'pending' && <p className="text-sm text-muted-foreground">Your request is saved. The restaurant still needs to accept it before your table is confirmed.</p>}
+          {reservation.status === 'confirmed' && reservation.date >= restaurantClock(reservation.timezone).date && <ShareReservation id={id} token={token} date={reservation.date} time={reservation.time} guests={reservation.guests} timezone={reservation.timezone} disabled={busy || loadUnavailable} preview={process.env.NEXT_PUBLIC_TABLEGO_ENVIRONMENT === 'staging'} onQueued={setNotice} />}
           {isGuestEditable(reservation.status) && <div className="space-y-3">
             {!reservation.guestAcknowledged && <Button className="w-full rounded-full" disabled={busy} onClick={() => act('acknowledge')}>{reservation.status === 'confirmed' ? 'I’m coming' : 'Acknowledge my request'}</Button>}
             <Button variant="outline" className="w-full rounded-full" disabled={busy} onClick={() => { setEditing(!editing); setError(''); setNotice(''); }}>Reschedule</Button>
@@ -111,7 +119,7 @@ export default function ManageReservation({ id, initialAction }: { id: string; i
               <DialogTrigger asChild><Button variant="outline" className="w-full rounded-full" disabled={busy}>Cancel reservation</Button></DialogTrigger>
               <DialogContent className="guest-management" showCloseButton={!busy}>
                 <DialogTitle>Cancel this reservation?</DialogTitle>
-                <DialogDescription>Your booking for {formatReadableDatePST(reservation.date)} at {reservation.time} will be cancelled.</DialogDescription>
+                <DialogDescription>Your booking for {formatReadableDatePST(reservation.date, reservation.timezone)} at {reservation.time} will be cancelled.</DialogDescription>
                 <Button variant="outline" autoFocus disabled={busy} onClick={() => setCancelOpen(false)}>Keep reservation</Button>
                 <Button variant="destructive" disabled={busy} onClick={() => act('cancel')}>{busy ? 'Cancelling…' : 'Yes, cancel reservation'}</Button>
                 {error && <p role="alert" className="text-red-800">{error}</p>}

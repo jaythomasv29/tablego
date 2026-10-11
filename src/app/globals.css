@@ -254,3 +254,18 @@ select::-webkit-scrollbar-thumb {
 .reservation-management [data-slot="button"][data-variant="outline"],
 .reservation-management [data-slot="button"][data-variant="ghost"] { background: transparent; }
 .reservation-management [data-slot="button"][data-variant="destructive"] { background: #b91c1c; color: #ffffff; }
+
+.reservation-management { background-image: radial-gradient(#cfc7bc55 .7px, transparent .7px); background-size: 8px 8px; }
+.guest-management .reservation-ticket { box-shadow: 0 20px 70px #1212120d; animation: reservation-reveal .65s ease-out both; }
+.reservation-hero::before { content: ''; position: absolute; inset: 0; z-index: -1; background: radial-gradient(ellipse at 50% 25%, #A3B18A18, transparent 65%); }
+.reservation-place-setting { transform-origin: 130px 66px; animation: reservation-settle 2s ease-in-out 2; }
+.reservation-illustration-draw { stroke-dasharray: 120; stroke-dashoffset: 120; animation: reservation-draw 1.5s .2s ease-out forwards; }
+.reservation-moment-quiet .reservation-place-setting { animation: none; }
+.reservation-moment-quiet .reservation-illustration-draw { animation: none; stroke-dashoffset: 0; }
+@keyframes reservation-reveal { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes reservation-settle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes reservation-draw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .guest-management .reservation-ticket, .reservation-place-setting, .reservation-illustration-draw { animation: none; }
+  .reservation-illustration-draw { stroke-dashoffset: 0; }
+}

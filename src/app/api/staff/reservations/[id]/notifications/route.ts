@@ -12,7 +12,7 @@ export async function GET(request: Request, context: Context) {
     const records = await getServerDatabase().collection('notificationOutbox').where('reservationId', '==', id).get();
     return privateJson({ notifications: records.docs.map(doc => {
       const record = doc.data();
-      return { id: doc.id, event: record.event, channel: record.channel || 'email', recipient: record.recipient, state: record.state,
+      return { id: doc.id, event: record.event, channel: record.channel || 'email', recipient: record.kind === 'reservation-share' ? record.recipientEmail : record.recipient, state: record.state,
         deliveryMode: record.deliveryMode || null, attempts: record.attempts, lastError: record.lastError || null, createdAt: record.createdAt?.toDate().toISOString(), lastAttemptAt: record.lastAttemptAt?.toDate().toISOString() || null };
     }).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')) });
   } catch (error) { return reservationError(error); }
