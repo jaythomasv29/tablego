@@ -1,4 +1,5 @@
 'use client';
+import { useTimezone } from '@/contexts/TimezoneContext';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { statusLabels, isGuestEditable, type BookingState } from '@/lib/reservat
 
 interface Reservation { id: string; name: string; date: string; time: string; guests: number; status: BookingState; guestAcknowledged: boolean; comments: string; timezone: string; version: number }
 export default function ManageReservation({ id, initialAction }: { id: string; initialAction?: 'cancel' | 'reschedule' }) {
+  const { restaurant } = useTimezone();
   const [token, setToken] = useState(''), [reservation, setReservation] = useState<Reservation | null>(null);
   const [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
   const [loadUnavailable, setLoadUnavailable] = useState(false), [slotsUnavailable, setSlotsUnavailable] = useState(false);
@@ -79,7 +81,7 @@ export default function ManageReservation({ id, initialAction }: { id: string; i
   }
   return <main className="guest-management min-h-screen bg-[#F9F7F2] px-4 py-12 sm:py-20">
     <div className="mx-auto max-w-xl space-y-6">
-      <Link href="/" className="text-sm font-medium">Thaiphoon · Palo Alto</Link>
+      <Link href="/" className="text-sm font-medium">{restaurant.shortName} · {restaurant.location}</Link>
       <Card><CardHeader><CardTitle className="text-2xl"><h1>Manage your reservation</h1></CardTitle></CardHeader><CardContent className="space-y-6">
         {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
         {error && reservation && <Button variant="outline" disabled={busy} onClick={() => load(token)}>Reload latest booking</Button>}
@@ -121,14 +123,14 @@ export default function ManageReservation({ id, initialAction }: { id: string; i
         </> : loadUnavailable ? <div className="space-y-3">
           <p>Your link could not be checked right now. Please retry or call the restaurant.</p>
           <Button disabled={busy} onClick={() => load(token)}>Retry loading reservation</Button>
-          <a className="block underline" href="tel:+16503237700">Call the restaurant</a>
+          <a className="block underline" href={`tel:${restaurant.phone}`}>Call the restaurant</a>
         </div> : <form className="space-y-4" onSubmit={event => { event.preventDefault(); void recover(); }}>
           <p className="text-sm text-muted-foreground">Use the secure link in your latest email, or verify the phone number used for this booking to restore access.</p>
           <Label htmlFor="recovery-phone">Booking phone number</Label><Input id="recovery-phone" type="tel" autoComplete="tel" value={phone} required disabled={codeSent} onChange={event => setPhone(event.target.value)} />
           {codeSent && <><Label htmlFor="recovery-code">Verification code</Label><Input id="recovery-code" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} minLength={4} autoComplete="one-time-code" value={code} required onChange={event => setCode(event.target.value)} /></>}
           <Button type="submit" disabled={busy}>{busy ? 'Please wait…' : codeSent ? 'Verify and restore access' : 'Send verification code'}</Button>
           {codeSent && <Button variant="ghost" type="button" disabled={busy} onClick={() => { setCodeSent(false); setCode(''); }}>Change number or resend</Button>}
-          <p className="text-sm">Need help? <a className="underline" href="tel:+16503237700">Call the restaurant</a>.</p>
+          <p className="text-sm">Need help? <a className="underline" href={`tel:${restaurant.phone}`}>Call the restaurant</a>.</p>
         </form>}
       </CardContent></Card>
       <Link href="/" className="inline-block text-sm underline">Return to restaurant</Link>

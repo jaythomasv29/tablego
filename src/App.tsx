@@ -1,4 +1,8 @@
-import { calendarDate, slotsForDate, restaurantClock } from '@/lib/reservations/availability';
+import { useInitialBusinessDate } from '@/components/reservations/useInitialBusinessDate';
+import { useBusinessPolicy } from '@/components/reservations/useBusinessPolicy';
+import { ReservationReceipt, type ReceiptDetails } from '@/components/reservations/ReservationReceipt';
+import MagneticButton from '@/components/MagneticButton';
+import { calendarDate, slotsForDate, openAt } from '@/lib/reservations/availability';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Calendar,
@@ -14,17 +18,20 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { TrendingModal } from "./components/TrendingModal";
+import dynamic from "next/dynamic";
 import DatePicker from "./components/DatePicker";
 import GuestInfo from "./components/GuestInfo";
 import AdditionalInfo from "./components/AdditionalInfo";
 import ProgressBar from "./components/ProgressBar";
 import { useTimezone } from "./contexts/TimezoneContext";
-import { getDateInTimezone } from "./utils/dateUtils";
-import { gsap } from "gsap";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { db } from "./firebase";
-import { collection, doc, getDoc, getDocs } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { TimeSlot } from "./types/TimeSlot";
+
+const TrendingModal = dynamic(() => import("./components/TrendingModal").then(module => module.TrendingModal), {
+  ssr: false, loading: () => <p role="status" className="fixed bottom-4 left-4 z-50 rounded bg-white p-4 text-zinc-900">Loading menu highlights…</p>,
+});
 
 export interface ReservationData {
   date: Date;
@@ -53,7 +60,7 @@ const initialData: ReservationData = {
 // Add SpecialDate interface
 interface SpecialDate {
   date: string;
-  reason: string;
+  reason?: string;
   closureType?: "full" | "lunch" | "dinner";
 }
 
@@ -77,7 +84,6 @@ interface BusinessHours {
   };
 }
 
-const TAGLINE = "Thai & Pan-Asian Flavors in the heart of Palo Alto.";
 const PILLARS = ["Wok-Fired", "Family Friendly", "Fresh Ingredients"];
 const SIAM_PALETTE = {
   primary: "#F9F7F2",
@@ -87,115 +93,31 @@ const SIAM_PALETTE = {
 };
 const HERO_VIDEO = "/images/slow-mo-hero.mp4";
 
-function MagneticButton({
-  children,
-  className,
-  onClick,
-  style,
-  disabled = false,
-  type = "button",
-}: {
-  children: React.ReactNode;
-  className?: string;
-  onClick?: () => void | Promise<void>;
-  style?: React.CSSProperties;
-  disabled?: boolean;
-  type?: "button" | "submit";
-}) {
-  const buttonRef = useRef<HTMLButtonElement | null>(null);
-
-  const handleMove = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const el = buttonRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const x = e.clientX - rect.left - rect.width / 2;
-    const y = e.clientY - rect.top - rect.height / 2;
-    el.style.transform = `translate(${x * 0.08}px, ${y * 0.08}px) scale(1.05)`;
-  };
-
-  const handleLeave = () => {
-    const el = buttonRef.current;
-    if (!el) return;
-    el.style.transform = "translate(0px, 0px) scale(1)";
-  };
-
-  return (
-    <button
-      ref={buttonRef}
-      type={type}
-      onClick={onClick}
-      style={style}
-      disabled={disabled}
-      onMouseMove={handleMove}
-      onMouseLeave={handleLeave}
-      className={`relative overflow-hidden transition-transform duration-200 disabled:opacity-60 disabled:cursor-not-allowed ${className || ""}`}
-    >
-      <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-500 group-hover:translate-x-full" />
-      <span className="relative z-10">{children}</span>
-    </button>
-  );
-}
-
-function computeIsOpen(
-  hours: BusinessHours | null,
-  timezone: string,
-): boolean | null {
-  if (!hours || !timezone) return null;
-  const days = [
-    "sunday",
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-    "saturday",
-  ];
-  const clock = restaurantClock(timezone);
-  const today = days[new Date(`${clock.date}T12:00:00Z`).getUTCDay()];
-  const day = hours[today];
-  if (!day) return false;
-  const cur = clock.minutes;
-  const t = (s: string) => {
-    const [h, m] = s.split(":").map(Number);
-    return h * 60 + m;
-  };
-  if (day.lunch?.isOpen && cur >= t(day.lunch.open) && cur < t(day.lunch.close))
-    return true;
-  if (
-    day.dinner?.isOpen &&
-    cur >= t(day.dinner.open) &&
-    cur < t(day.dinner.close)
-  )
-    return true;
-  return false;
-}
-
 function App() {
-  const { timezone, loading: timezoneLoading } = useTimezone();
+  const { timezone, restaurant, loading: timezoneLoading, error: timezoneError } = useTimezone();
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<ReservationData>(initialData);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
-  const [businessHours, setBusinessHours] = useState<BusinessHours | null>(
-    null,
-  );
+  const { businessHours, specialDates, policy, error: policyError, cutoffMinutes: reservationCutoffMinutes, leadTimeMinutes: minimumLeadTimeMinutes } = useBusinessPolicy();
   const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlot[]>([]);
-  const [reservationCutoffMinutes, setReservationCutoffMinutes] = useState(60);
-  const [minimumLeadTimeMinutes, setMinimumLeadTimeMinutes] = useState(50);
   const [isReserveOpen, setIsReserveOpen] = useState(false);
   const [showReservationSuccess, setShowReservationSuccess] = useState(false);
   const [modalValidationError, setModalValidationError] = useState<
     string | null
   >(null);
-  const submissionKey = useRef<string | null>(null);
+  const submissionKey = useRef<{ key: string; payload: string } | null>(null);
   const [managementLink, setManagementLink] = useState('');
+  const [receipt, setReceipt] = useState<ReceiptDetails | null>(null);
+  const initialBusinessDate = useInitialBusinessDate(timezone, timezoneLoading, timezoneError);
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [smsOptIn, setSmsOptIn] = useState(false);
-  const [bannerData, setBannerData] = useState<BannerData | null>(null);
+  const [savedBanner, setBannerData] = useState<BannerData | null>(null);
+  const bannerData = restaurant.promotion ? { text: restaurant.promotion, link: restaurant.promotionUrl, linkText: 'Details' } : savedBanner;
   const [isEditingGuests, setIsEditingGuests] = useState(false);
   const [guestDraft, setGuestDraft] = useState("2");
   const [showTrending, setShowTrending] = useState(false);
   const [tick, setTick] = useState(0);
+  const openerRef = useRef<HTMLElement | null>(null);
   const reservePanelRef = useRef<HTMLDivElement | null>(null);
 
   // Re-evaluate open status every minute
@@ -205,23 +127,11 @@ function App() {
   }, []);
 
   const isRestaurantOpen = useMemo(
-    () => computeIsOpen(businessHours, timezone),
+    () => { try { return policy ? openAt(policy) : null; } catch { return null; } },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [businessHours, timezone, tick],
+    [policy, tick],
   );
   const guestInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    if (!isReserveOpen) return;
-    const panel = reservePanelRef.current;
-    if (!panel) return;
-
-    gsap.fromTo(
-      panel,
-      { opacity: 0, scale: 1.1 },
-      { opacity: 1, scale: 1, duration: 0.6, ease: "power4.out" },
-    );
-  }, [isReserveOpen]);
 
   useEffect(() => {
     document.body.style.overflow = isReserveOpen ? "hidden" : "";
@@ -230,67 +140,13 @@ function App() {
     };
   }, [isReserveOpen]);
 
-  useEffect(() => {
-    const fetchBannerData = async () => {
-      try {
-        const bannerDoc = await getDoc(doc(db, "settings", "banner"));
-        if (bannerDoc.exists() && bannerDoc.data().text) {
-          setBannerData(bannerDoc.data() as BannerData);
-        } else {
-          setBannerData(null);
-        }
-      } catch (error) {
-        console.error("Error fetching banner data:", error);
-        setBannerData(null);
-      }
-    };
-
-    fetchBannerData();
-  }, []);
+  useEffect(() => onSnapshot(doc(db, 'settings', 'banner'), snapshot => {
+    const data = snapshot.data(); setBannerData(data?.text ? data as BannerData : null);
+  }, () => setBannerData(null)), []);
 
   useEffect(() => {
-    const fetchReservationSettings = async () => {
-      try {
-        const [hoursDoc, generalDoc, specialDatesSnap] = await Promise.all([
-          getDoc(doc(db, "settings", "businessHours")),
-          getDoc(doc(db, "settings", "general")),
-          getDocs(collection(db, "specialDates")),
-        ]);
-
-        if (hoursDoc.exists()) {
-          setBusinessHours(hoursDoc.data() as BusinessHours);
-        }
-
-        if (generalDoc.exists()) {
-          const data = generalDoc.data();
-          if (typeof data.reservationCutoffMinutes === "number") {
-            setReservationCutoffMinutes(data.reservationCutoffMinutes);
-          }
-          if (typeof data.minimumLeadTimeMinutes === "number") {
-            setMinimumLeadTimeMinutes(data.minimumLeadTimeMinutes);
-          }
-        }
-
-        setSpecialDates(
-          specialDatesSnap.docs.map((d) => d.data() as SpecialDate),
-        );
-      } catch (error) {
-        console.error("Error loading reservation settings:", error);
-      }
-    };
-
-    fetchReservationSettings();
-  }, []);
-
-  useEffect(() => {
-    if (!timezoneLoading && timezone) {
-      const restaurantToday = getDateInTimezone(new Date(), timezone);
-      setFormData((prev) => ({
-        ...prev,
-        date: restaurantToday,
-      }));
-    }
-  }, [timezone, timezoneLoading]);
+    if (initialBusinessDate) setFormData(previous => ({ ...previous, date: initialBusinessDate }));
+  }, [initialBusinessDate]);
 
   useEffect(() => {
     if (!isEditingGuests) {
@@ -311,13 +167,13 @@ function App() {
   }, [specialDates, timezone, minimumLeadTimeMinutes, reservationCutoffMinutes]);
 
   useEffect(() => {
-    if (!businessHours) return;
+    if (!businessHours || !policy) { setAvailableTimeSlots([]); return; }
     const slots = generateTimeSlots(formData.date, businessHours);
     setAvailableTimeSlots(slots);
-    if (formData.time && !slots.some((slot) => slot.time === formData.time)) {
+    if (!isSubmitting && !showReservationSuccess && formData.time && !slots.some((slot) => slot.time === formData.time)) {
       setFormData((prev) => ({ ...prev, time: "" }));
     }
-  }, [formData.date, formData.time, businessHours, generateTimeSlots]);
+  }, [formData.date, formData.time, businessHours, policy, generateTimeSlots, isSubmitting, showReservationSuccess]);
 
   const steps = [
     { title: "Date & Time", icon: Calendar },
@@ -325,6 +181,7 @@ function App() {
   ];
 
   const updateFormData = (data: Partial<ReservationData>) => {
+    if (isSubmitting) return;
     setModalValidationError(null);
     setFormData((prev) => ({
       ...prev,
@@ -332,17 +189,19 @@ function App() {
     }));
   };
 
-  const nextStep = () =>
-    setStep((prev) => Math.min(prev + 1, steps.length - 1));
-  const prevStep = () => setStep((prev) => Math.max(prev - 1, 0));
+  const nextStep = () => { if (!isSubmitting) setStep((prev) => Math.min(prev + 1, steps.length - 1)); };
+  const prevStep = () => { if (!isSubmitting) setStep((prev) => Math.max(prev - 1, 0)); };
   const openReserveModal = () => {
+    openerRef.current = document.activeElement as HTMLElement;
     setShowReservationSuccess(false);
     setModalValidationError(null);
     submissionKey.current = null;
     setManagementLink('');
+    setReceipt(null);
     setIsReserveOpen(true);
   };
   const closeReserveModal = () => {
+    if (isSubmitting) return;
     setIsReserveOpen(false);
     setShowReservationSuccess(false);
     setModalValidationError(null);
@@ -359,7 +218,7 @@ function App() {
     const phoneDigits = formData.phone.replace(/\D/g, "");
     return Boolean(
       formData.name.trim() &&
-      formData.email.trim() &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim()) &&
       phoneDigits.length === 10 &&
       (!otpEnabled || phoneVerified),
     );
@@ -384,24 +243,14 @@ function App() {
       );
       return;
     }
+    if (!policy || policyError) { setModalValidationError(policyError || 'Booking settings are still loading. Please try again.'); return; }
 
     setIsSubmitting(true);
     try {
-      submissionKey.current ??= crypto.randomUUID();
-      const response = await fetch("/api/send-confirmation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Idempotency-Key": submissionKey.current },
-        body: JSON.stringify({
-          formData: {
-            ...formData,
-            date:
-              formData.date instanceof Date
-                ? calendarDate(formData.date)
-                : formData.date,
-          },
-          timezone: timezone || "America/Los_Angeles",
-          smsOptIn,
-        }),
+      const payload = JSON.stringify({ formData: { ...formData, date: calendarDate(formData.date) }, smsOptIn });
+      if (submissionKey.current?.payload !== payload) submissionKey.current = { key: crypto.randomUUID(), payload };
+      const response = await fetch('/api/send-confirmation', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': submissionKey.current.key }, body: payload,
       });
 
       const result = await response.json();
@@ -411,6 +260,8 @@ function App() {
 
       setModalValidationError(null);
       setManagementLink(result.managementUrl);
+      const details = result.reservationDetails;
+      setReceipt({ name: details.name, date: details.date, time: details.time, guests: details.guests, timezone: details.timezone });
       submissionKey.current = null;
       setShowReservationSuccess(true);
     } catch (error) {
@@ -424,6 +275,7 @@ function App() {
   };
 
   const handleDateChange = (date: Date) => {
+    if (isSubmitting) return;
     setFormData((prev) => ({ ...prev, date, time: "" }));
   };
 
@@ -459,16 +311,7 @@ function App() {
         color: SIAM_PALETTE.text,
       }}
     >
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link
-        rel="preconnect"
-        href="https://fonts.gstatic.com"
-        crossOrigin="anonymous"
-      />
-      <link
-        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,600;1,700&family=Inter:wght@400;500;600;700&display=swap"
-        rel="stylesheet"
-      />
+
 
       <svg
         className="pointer-events-none fixed inset-0 z-0 opacity-[0.04]"
@@ -517,10 +360,10 @@ function App() {
           <div className="mx-auto w-full md:w-auto inline-flex items-center gap-4 rounded-full border border-black/10 bg-white/85 backdrop-blur-xl px-5 py-3 shadow-[0_20px_40px_-20px_rgba(0,0,0,0.25)]">
             <div
               className="flex items-center gap-2 font-semibold tracking-tight"
-              style={{ fontFamily: "Inter, sans-serif" }}
+              style={{ fontFamily: "var(--font-sans), sans-serif" }}
             >
               <Utensils className="w-4 h-4" />
-              <span>Thaiphoon</span>
+              <span>{restaurant.shortName}</span>
             </div>
             <div className="hidden md:flex items-center gap-4 text-sm text-zinc-700">
               <button
@@ -537,7 +380,7 @@ function App() {
                 Catering
               </Link>
               <a
-                href="https://order.online/business/Thaiphoon-450?utm_source=sdk&visitorId=193be2bc7cf1d9e9c"
+                href={restaurant.orderUrl}
                 className="inline-flex items-center gap-1 hover:text-zinc-950"
                 target="_blank"
                 rel="noreferrer"
@@ -573,19 +416,19 @@ function App() {
           <div>
             <p
               className="text-zinc-100/85 text-sm md:text-base tracking-[0.14em] uppercase mb-4"
-              style={{ fontFamily: "Inter, sans-serif" }}
+              style={{ fontFamily: "var(--font-sans), sans-serif" }}
             >
-              Thaiphoon · Palo Alto
+              {restaurant.shortName} · {restaurant.location}
             </p>
             <h1 className="text-4xl md:text-6xl leading-none tracking-tight text-white">
               <span
-                style={{ fontFamily: "Inter, sans-serif", fontWeight: 600 }}
+                style={{ fontFamily: "var(--font-sans), sans-serif", fontWeight: 600 }}
               >
                 Flavor is the
               </span>{" "}
               <span
                 style={{
-                  fontFamily: "Playfair Display, serif",
+                  fontFamily: "var(--font-display), serif",
                   fontStyle: "italic",
                 }}
               >
@@ -594,9 +437,9 @@ function App() {
             </h1>
             <p
               className="mt-6 max-w-[60ch] text-zinc-100/85 text-base leading-relaxed"
-              style={{ fontFamily: "Inter, sans-serif" }}
+              style={{ fontFamily: "var(--font-sans), sans-serif" }}
             >
-              {TAGLINE}
+              {restaurant.tagline}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <MagneticButton
@@ -623,7 +466,7 @@ function App() {
                 Catering
               </Link>
               <a
-                href="https://order.online/business/Thaiphoon-450?utm_source=sdk&visitorId=193be2bc7cf1d9e9c"
+                href={restaurant.orderUrl}
                 className="rounded-full border border-white/40 px-6 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors inline-flex items-center gap-2"
                 target="_blank"
                 rel="noreferrer"
@@ -640,7 +483,7 @@ function App() {
                   key={pillar}
                   className="rounded-full border border-white/30 bg-white/10 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-white/90 tracking-wide"
                   style={{
-                    fontFamily: "Cormorant Garamond, serif",
+                    fontFamily: "var(--font-editorial), serif",
                     fontSize: "0.85rem",
                   }}
                 >
@@ -659,7 +502,7 @@ function App() {
               >
                 <div
                   className="mt-1 text-lg"
-                  style={{ fontFamily: "Cormorant Garamond, serif" }}
+                  style={{ fontFamily: "var(--font-editorial), serif" }}
                 >
                   {pillar}
                 </div>
@@ -676,7 +519,7 @@ function App() {
         transition={{ delay: 1.4, duration: 0.4 }}
         onClick={() => setShowTrending(true)}
         className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 rounded-full bg-white border border-zinc-200 px-4 py-2.5 shadow-[0_8px_30px_-8px_rgba(0,0,0,0.25)] hover:shadow-[0_12px_36px_-8px_rgba(0,0,0,0.3)] transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
-        style={{ fontFamily: "Inter, sans-serif" }}
+        style={{ fontFamily: "var(--font-sans), sans-serif" }}
       >
         {isRestaurantOpen ? (
           <>
@@ -685,7 +528,7 @@ function App() {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
             </span>
             <span className="text-xs font-bold uppercase tracking-[0.1em] text-red-500">
-              Live
+              Open
             </span>
           </>
         ) : (
@@ -694,13 +537,13 @@ function App() {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-400" />
             </span>
             <span className="text-xs font-bold uppercase tracking-[0.1em] text-zinc-400">
-              Closed
+              {isRestaurantOpen === null ? 'Checking hours' : 'Closed'}
             </span>
           </>
         )}
         <div className="h-3 w-px bg-zinc-200" />
         <span className="text-xs font-medium text-zinc-700">
-          The Wok is Hot 🍲
+          Menu highlights
         </span>
       </motion.button>
 
@@ -711,32 +554,31 @@ function App() {
         )}
       </AnimatePresence>
 
-      {isReserveOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-black/45 backdrop-blur-2xl p-4 md:p-10"
-          onClick={closeReserveModal}
-        >
-          <div
-            ref={reservePanelRef}
-            className="max-w-4xl mx-auto h-full overflow-auto rounded-[2rem] bg-white/85 border border-white/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_24px_60px_-28px_rgba(0,0,0,0.45)] p-6 md:p-8"
-            onClick={(e) => e.stopPropagation()}
-          >
+      <DialogPrimitive.Root open={isReserveOpen} onOpenChange={open => { if (!open) closeReserveModal(); }}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/45 backdrop-blur-sm" />
+          <DialogPrimitive.Content ref={reservePanelRef}
+            onEscapeKeyDown={event => { if (isSubmitting) event.preventDefault(); }}
+            onPointerDownOutside={event => { if (isSubmitting) event.preventDefault(); }}
+            onCloseAutoFocus={event => { event.preventDefault(); openerRef.current?.focus(); }}
+            className="guest-management fixed inset-4 md:inset-10 z-50 max-w-4xl mx-auto overflow-auto rounded-[2rem] bg-white border shadow-xl p-6 md:p-8">
+            <DialogPrimitive.Description className="sr-only">Request a table using the restaurant&apos;s local calendar and time. The restaurant must accept your request.</DialogPrimitive.Description>
             <div className="flex items-center justify-between mb-6">
               <div>
                 <p className="text-xs uppercase tracking-[0.12em] text-zinc-500">
                   Reserve Now
                 </p>
-                <h3
+                <DialogPrimitive.Title asChild><h3
                   className="text-2xl md:text-3xl tracking-tight"
-                  style={{ fontFamily: "Cormorant Garamond, serif" }}
+                  style={{ fontFamily: "var(--font-editorial), serif" }}
                 >
                   {showReservationSuccess
                     ? "Reservation request received"
-                    : "Confirm your table"}
-                </h3>
+                    : "Request a table"}
+                </h3></DialogPrimitive.Title>
               </div>
               <button
-                onClick={closeReserveModal}
+                onClick={closeReserveModal} disabled={isSubmitting} aria-label="Close reservation form"
                 className="rounded-full p-2 hover:bg-zinc-100"
               >
                 <X className="w-5 h-5" />
@@ -747,7 +589,7 @@ function App() {
               <ProgressBar
                 currentStep={step}
                 steps={steps}
-                onStepClick={(index) => setStep(index)}
+                onStepClick={(index) => { if (!isSubmitting) setStep(index); }}
               />
             )}
 
@@ -763,32 +605,7 @@ function App() {
                       style={{ color: SIAM_PALETTE.accent }}
                     />
                   </div>
-                  <h4
-                    className="text-2xl font-semibold text-zinc-900"
-                    style={{ fontFamily: "Cormorant Garamond, serif" }}
-                  >
-                    Your table request is in
-                  </h4>
-                  <p className="mt-3 text-zinc-600 leading-relaxed">
-                    Thank you, {formData.name || "guest"}. We are preparing your
-                    reservation details. Your request awaits restaurant acceptance; email delivery may be delayed.
-                  </p>
-                  <div
-                    className="mt-6 rounded-2xl border p-4 text-sm text-zinc-700"
-                    style={{
-                      borderColor: `${SIAM_PALETTE.accent}66`,
-                      backgroundColor: `${SIAM_PALETTE.accent}22`,
-                    }}
-                  >
-                    {formData.date.toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}{" "}
-                    at {formData.time || "—"} · {formData.guests}{" "}
-                    {formData.guests === 1 ? "guest" : "guests"}
-                    <p className="mt-2 text-sm">Restaurant local time · {timezone}</p>
-                  </div>
+                  {receipt && <ReservationReceipt details={receipt} />}
                   {managementLink && <a href={managementLink} className="mt-6 inline-block underline">Manage your reservation</a>}
                   <div className="mt-8 flex justify-center">
                     <MagneticButton
@@ -919,13 +736,14 @@ function App() {
                     onPhoneVerified={setPhoneVerified}
                     smsOptIn={smsOptIn}
                     onSmsOptIn={setSmsOptIn}
+                    restaurantName={restaurant.name}
                     otpEnabled={otpEnabled}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || Boolean(policyError) || !policy}
                   />
                   <AdditionalInfo
                     comments={formData.comments}
                     onUpdate={updateFormData}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || Boolean(policyError) || !policy}
                   />
                 </div>
               )}
@@ -935,7 +753,7 @@ function App() {
               <div className="mt-8 flex justify-between">
                 {step > 0 && (
                   <button
-                    onClick={prevStep}
+                    onClick={prevStep} disabled={isSubmitting}
                     className="flex items-center px-4 py-2 text-sm font-medium text-zinc-700 hover:text-zinc-900 active:scale-[0.98] transition-transform"
                   >
                     <ChevronLeft className="w-4 h-4 mr-1" />
@@ -964,26 +782,26 @@ function App() {
                         backgroundColor: SIAM_PALETTE.accent,
                       } as React.CSSProperties
                     }
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || Boolean(policyError) || !policy}
                   >
                     <span className="inline-flex items-center gap-2">
                       {isSubmitting && (
                         <span className="inline-block w-4 h-4 rounded-full border-2 border-zinc-900/30 border-t-zinc-900 animate-spin" />
                       )}
-                      Confirm Table
+                      Request Table
                     </span>
                   </MagneticButton>
                 )}
               </div>
             )}
-            {!showReservationSuccess && modalValidationError && (
-              <p className="mt-4 text-sm text-red-600">
-                {modalValidationError}
+            {!showReservationSuccess && (modalValidationError || policyError) && (
+              <p role="alert" className="mt-4 text-sm text-red-600">
+                {modalValidationError || policyError}
               </p>
             )}
-          </div>
-        </div>
-      )}
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
     </div>
   );
 }

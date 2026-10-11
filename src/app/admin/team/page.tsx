@@ -1,8 +1,11 @@
 'use client';
 
+import { useTeam } from '@/components/team/useTeam';
+import { useTimezone } from '@/contexts/TimezoneContext';
+import { DISPLAY_DAYS, capitalize, formatDisplayName, type EmployeeRole, type Employee, type WeeklyShift, type DayOfWeek, type Period, type RoleTab } from '@/components/team/model';
 import AdminLayout from '@/components/AdminLayout';
-import { useEffect, useState, useRef } from 'react';
-import { collection, addDoc, deleteDoc, doc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { useState, useRef } from 'react';
+import { collection, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import toast, { Toaster } from 'react-hot-toast';
 import {
@@ -28,49 +31,10 @@ import PageTransition from '@/components/PageTransition';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-type EmployeeRole = 'front' | 'kitchen' | 'both' | 'unassigned';
-type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
-type Period = 'lunch' | 'dinner';
-type RoleTab = 'front' | 'kitchen';
-
-interface Employee {
-    id: string;
-    name: string;
-    role: EmployeeRole;
-}
-
-interface WeeklyShift {
-    id: string;
-    employeeId: string;
-    employeeName: string;
-    role: RoleTab;
-    dayOfWeek: DayOfWeek;
-    period: Period;
-}
-
-// ─── Constants ──────────────────────────────────────────────────────────────
-
-const DISPLAY_DAYS: DayOfWeek[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-function capitalize(s: string): string {
-    return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-function formatDisplayName(name: string): string {
-    const parts = name.trim().split(/\s+/);
-    if (parts.length === 1) return parts[0];
-    return `${parts[0]} ${parts[parts.length - 1].charAt(0)}.`;
-}
-
-// ─── Component ──────────────────────────────────────────────────────────────
-
 export default function AdminTeam() {
-    const [employees, setEmployees] = useState<Employee[]>([]);
-    const [weeklyShifts, setWeeklyShifts] = useState<WeeklyShift[]>([]);
+    const { employees, weeklyShifts, loading, dataError } = useTeam();
+    const { restaurant } = useTimezone();
     const [activeTab, setActiveTab] = useState<RoleTab>('front');
-    const [loading, setLoading] = useState(true);
     const [showSidebar, setShowSidebar] = useState(true);
 
     // Drag state
@@ -82,27 +46,6 @@ export default function AdminTeam() {
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
     const [isAddingEmployee, setIsAddingEmployee] = useState(false);
     const [newEmployee, setNewEmployee] = useState<{ name: string; role: EmployeeRole }>({ name: '', role: 'unassigned' });
-
-    // ─── Firestore listeners ───────────────────────────────────────────────
-
-    useEffect(() => {
-        const unsub = onSnapshot(collection(db, 'employees'), (snap) => {
-            setEmployees(
-                snap.docs
-                    .map(d => ({ id: d.id, ...d.data() } as Employee))
-                    .sort((a, b) => a.name.localeCompare(b.name))
-            );
-        });
-        return unsub;
-    }, []);
-
-    useEffect(() => {
-        const unsub = onSnapshot(collection(db, 'weeklySchedule'), (snap) => {
-            setWeeklyShifts(snap.docs.map(d => ({ id: d.id, ...d.data() } as WeeklyShift)));
-            setLoading(false);
-        });
-        return unsub;
-    }, []);
 
     // ─── Derived data ──────────────────────────────────────────────────────
 
@@ -190,8 +133,10 @@ export default function AdminTeam() {
 
     const handleCellDrop = (e: React.DragEvent, day: DayOfWeek, period: Period, role: RoleTab) => {
         e.preventDefault();
-        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-        handleAddWeeklyShift(data.id, day, period, role);
+        try {
+            const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+            if (typeof data?.id === 'string') void handleAddWeeklyShift(data.id, day, period, role).catch(() => toast.error('Shift could not be saved'));
+        } catch { toast.error('Choose a staff member from the team list'); }
         setDragOverCell(null);
         setDraggedEmployee(null);
         draggedRef.current = null;
@@ -202,7 +147,7 @@ export default function AdminTeam() {
     const handlePrint = () => window.print();
 
     const handleShare = async () => {
-        const lines: string[] = ['📅 Thaiphoon Weekly Schedule\n'];
+        const lines: string[] = [`${restaurant.name} Weekly Schedule\n`];
 
         for (const [sectionLabel, role] of [['👥 Front of House', 'front'], ['🍳 Kitchen', 'kitchen']] as [string, RoleTab][]) {
             lines.push(sectionLabel);
@@ -220,7 +165,7 @@ export default function AdminTeam() {
 
         if (navigator.share) {
             try {
-                await navigator.share({ title: 'Thaiphoon Weekly Schedule', text });
+                await navigator.share({ title: `${restaurant.name} Weekly Schedule`, text });
             } catch {
                 // user cancelled — do nothing
             }
@@ -335,6 +280,7 @@ export default function AdminTeam() {
     return (
         <AdminLayout>
             <PageTransition>
+                {dataError && <p role="alert" className="mb-4 text-red-600">{dataError}</p>}
                 <Toaster
                     position="top-center"
                     toastOptions={{
@@ -646,7 +592,7 @@ export default function AdminTeam() {
                 {/* ─── Print-only view ───────────────────────────────────── */}
                 <div id="print-schedule" className="hidden">
                     <div style={{ marginBottom: 24 }}>
-                        <div style={{ fontSize: 11, color: '#A3B18A', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4 }}>Thaiphoon Restaurant</div>
+                        <div style={{ fontSize: 11, color: '#A3B18A', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4 }}>{restaurant.name}</div>
                         <div style={{ fontSize: 22, fontWeight: 700, color: '#121212' }}>Weekly Schedule</div>
                     </div>
                     {(['front', 'kitchen'] as RoleTab[]).map(role => (

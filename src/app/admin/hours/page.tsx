@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '../../../firebase';
-import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { closureDate } from '@/lib/reservations/availability';
+import { formatDateForDisplay } from '@/utils/dateUtils';
 import AdminLayout from '@/components/AdminLayout';
 
 interface TimeRange { start: string; end: string; }
@@ -36,6 +38,7 @@ const defaultHours: BusinessHours = {
 export default function BusinessHoursAdmin() {
     const [hours, setHours] = useState<BusinessHours>(defaultHours);
     const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
+    const [error, setError] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
@@ -77,12 +80,13 @@ export default function BusinessHoursAdmin() {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            await setDoc(doc(db, 'settings', 'businessHours'), hours);
+            const response = await fetch('/api/staff/hours', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(hours) });
+            const result = await response.json(); if (!response.ok) throw new Error(result.error || 'Failed to save business hours');
             alert('Business hours saved successfully');
             router.push('/admin/home');
         } catch (error) {
             console.error('Error saving business hours:', error);
-            alert('Failed to save business hours');
+            setError(error instanceof Error ? error.message : 'Failed to save business hours');
         } finally {
             setIsSaving(false);
         }
@@ -125,6 +129,7 @@ export default function BusinessHoursAdmin() {
 
     return (
         <AdminLayout>
+            {error && <p role="alert" className="p-4 text-red-600">{error}</p>}
             <div className="max-w-4xl mx-auto p-6">
                 <Link href="/admin/home" className="inline-flex items-center mb-4 text-muted-foreground hover:text-foreground transition-colors text-sm">
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,11 +145,11 @@ export default function BusinessHoursAdmin() {
                         <h2 className="text-base font-semibold text-foreground mb-4">Holiday Closures</h2>
                         <div className="flex flex-wrap gap-2">
                             {specialDates.map((sd) => {
-                                const date = new Date(sd.date);
+                                const date = closureDate(sd.date);
                                 return (
                                     <div key={sd.id} className="inline-flex items-center bg-muted px-3 py-1 rounded-full border border-border text-sm">
                                         <span className="font-medium text-foreground">
-                                            {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                            {date ? formatDateForDisplay(date) : 'Date needs review'}
                                         </span>
                                         <span className="mx-1 text-muted-foreground">•</span>
                                         <span className="text-muted-foreground">

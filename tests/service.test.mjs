@@ -37,3 +37,11 @@ test('invalid imported dates never erase cancellation history', () => {
   const record = booking('invalid-cancel', { date: '2026-02-30', status: 'cancelled', attendanceStatus: 'show' });
   assert.equal(record.status, 'cancelled'); assert.equal(record.needsReview, true); assert.equal(record.date, '');
 });
+test('guest last visit and average party include completed service only; preferences remain explicit', () => {
+  const profile = guestProfiles([booking('a', { status: 'completed', guests: 2, date: '2026-09-10' }),
+    booking('b', { status: 'completed', guests: 4, date: '2026-09-20', dietaryPreferences: 'Guest requests vegetarian options', seatingPreference: 'Window', preferencesUpdatedAt: new Date('2026-09-20T18:00:00Z') }),
+    booking('unknown-party', { status: 'completed', guests: undefined, date: '2026-09-11' }),
+    booking('c', { status: 'cancelled', guests: 10, date: '2026-10-10', comments: 'Allergy request' })])[0];
+  assert.equal(profile.lastVisit, '2026-09-20'); assert.equal(profile.averagePartySize, 3);
+  assert.equal(profile.seatingPreference, 'Window'); assert.equal(profile.dietaryPreferences, 'Guest requests vegetarian options');
+});

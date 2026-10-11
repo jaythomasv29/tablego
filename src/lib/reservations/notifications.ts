@@ -1,16 +1,19 @@
+import { renderNotification } from './render';
+export { renderNotification } from './render';
+import { renderCateringNotification } from '../catering/notification';
+import { restaurantIdentity } from '../restaurant/config';
 import { createEmailTransport } from '../notificationTransport';
 import { getServerDatabase } from '../serverFirebase';
-import { decryptToken, managementUrl } from './managementToken';
 import { randomUUID } from 'node:crypto';
 import type { Transaction } from 'firebase-admin/firestore';
-import { statusLabels, type BookingState } from './domain';
+import { type BookingState } from './domain';
 import type { BookingInput } from './input';
 import { sendSMS } from '../twilio';
 
 const transport = createEmailTransport({ host: process.env.SMTP_HOST || 'smtp.gmail.com', port: Number(process.env.SMTP_PORT || 587), secure: false,
   connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000,
   auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS } });
-export const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
+export { escapeHtml } from '../formatting/html';
 export type ReservationEvent = 'created' | 'confirmed' | 'rescheduled' | 'cancelled' | 'reminder' | 'recovered' | 'seated' | 'completed' | 'no-show';
 export function notificationIntent(tx: Transaction, id: string, eventId: string, event: ReservationEvent,
   reservation: BookingInput & { status: BookingState; notificationRevision?: number; restaurantTimezone?: string }, encryptedToken: string, channel: 'email' | 'sms' = 'email') {
@@ -23,17 +26,6 @@ export function notificationIntent(tx: Transaction, id: string, eventId: string,
     });
   }
 }
-export function renderNotification(job: { event: ReservationEvent; recipient: string; reservationId: string; encryptedToken: string; reservation: BookingInput & { status: BookingState; restaurantTimezone?: string } }) {
-  const reservation = job.reservation;
-  const titles: Record<ReservationEvent, string> = { created: 'Reservation request received', confirmed: 'Reservation accepted', rescheduled: 'Reservation change requested',
-    cancelled: 'Reservation cancelled', reminder: 'Upcoming reservation reminder', recovered: 'Your secure reservation link', seated: 'Guest seated', completed: 'Visit completed', 'no-show': 'Reservation marked no-show' };
-  const url = managementUrl(job.reservationId, decryptToken(job.encryptedToken));
-  const date = new Date(`${reservation.date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
-  const text = `${titles[job.event]}. ${reservation.name}: ${date} at ${reservation.time} (${reservation.restaurantTimezone || "America/Los_Angeles"}), ${reservation.guests} guests. Status: ${statusLabels[reservation.status]}. ${reservation.status === 'pending' ? 'The restaurant still needs to accept this request. ' : ''}Manage reservation: ${url}`;
-  return { from: process.env.EMAIL_USER, to: job.recipient === 'guest' ? reservation.email : process.env.EMAIL_USER,
-    subject: `${titles[job.event]} — Thaiphoon Restaurant`, text,
-    html: `<main style="max-width:600px;margin:32px auto;padding:32px;font-family:Arial,sans-serif;color:#121212;background:#f9f7f2;border-radius:16px"><p>Thaiphoon · Palo Alto</p><h1>${escapeHtml(titles[job.event])}</h1><p>Hello ${escapeHtml(reservation.name)},</p><p>${escapeHtml(date)} at ${escapeHtml(reservation.time)} (${escapeHtml(reservation.restaurantTimezone || "America/Los_Angeles")}) · ${reservation.guests} guests</p><p><strong>${escapeHtml(statusLabels[reservation.status])}</strong></p>${reservation.status === 'pending' ? '<p>The restaurant still needs to accept this request. Guest acknowledgement does not confirm a table.</p>' : ''}<p>${escapeHtml(reservation.comments)}</p><p><a href="${escapeHtml(url)}" style="display:inline-block;padding:14px 20px;background:#121212;color:#fff;border-radius:8px">Manage reservation</a></p></main>` };
-}
 // Durable intents are committed with the booking. A failed send never reverses it.
 export async function deliverNotification(id: string): Promise<'delivered' | 'failed' | 'skipped'> {
   const db = getServerDatabase(), ref = db.doc(`notificationOutbox/${id}`), lease = randomUUID();
@@ -42,6 +34,11 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
     if (!record || !['queued', 'failed', 'sending'].includes(record.state) || record.nextAttemptAt.toMillis() > Date.now() ||
       (record.state === 'sending' && record.leaseUntil?.toMillis() > Date.now())) return null;
     if (record.attempts >= 5) { tx.update(ref, { state: 'exhausted', lastError: 'attempt-limit-reached' }); return null; }
+    if (record.kind === 'catering') {
+      if (!(await tx.get(db.doc(`catering/${record.entityId}`))).exists) { tx.update(ref, { state: 'superseded', lastError: 'inquiry-missing' }); return null; }
+      tx.update(ref, { state: 'sending', lease, leaseUntil: new Date(Date.now() + 120_000), nextAttemptAt: new Date(Date.now() + 120_000), attempts: record.attempts + 1 });
+      return record;
+    }
     const current = (await tx.get(db.doc(`reservations/${record.reservationId}`))).data();
     const access = (await tx.get(db.doc(`managementAccess/${record.reservationId}`))).data();
     if (!current || (record.notificationRevision && record.notificationRevision !== (current.notificationRevision || 1)) ||
@@ -56,7 +53,10 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
   if (!job) return 'skipped';
   let state: 'delivered' | 'failed' = 'failed';
   try {
-    const message = renderNotification(job as Parameters<typeof renderNotification>[0]);
+    const configuration = (await db.doc('settings/general').get()).data();
+    const identity = restaurantIdentity(configuration?.restaurant);
+    const message = job.kind === 'catering' ? renderCateringNotification(job as Parameters<typeof renderCateringNotification>[0], identity)
+      : renderNotification({ ...job, restaurant: identity } as Parameters<typeof renderNotification>[0]);
     if (job.channel === 'sms') await sendSMS({ to: job.reservation.phone, body: message.text });
     else {
       const host = new URL(process.env.NEXT_PUBLIC_BASE_URL!).hostname;
@@ -70,7 +70,7 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
     if (current?.lease !== lease) return;
     tx.update(ref, { state: state === 'failed' && current.attempts >= 5 ? 'exhausted' : state, lastAttemptAt: new Date(), nextAttemptAt: new Date(Date.now() + Math.min(3600, 60 * 2 ** current.attempts) * 1000),
       lastError: state === 'failed' ? 'provider-delivery-failed' : null, leaseUntil: null });
-    tx.create(db.doc(`reservations/${job.reservationId}/events/${randomUUID()}`), {
+    tx.create(db.doc(`${job.kind === 'catering' ? `catering/${job.entityId}` : `reservations/${job.reservationId}`}/events/${randomUUID()}`), {
       event: `notification.${state}`, actor: 'system', channel: job.channel || 'email', recipient: job.recipient, notificationId: id, timestamp: new Date(),
     });
     if (state === 'delivered' && job.event === 'reminder') tx.update(db.doc(`reservations/${job.reservationId}`),

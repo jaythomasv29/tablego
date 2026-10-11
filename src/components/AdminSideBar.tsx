@@ -1,5 +1,6 @@
 'use client';
 
+import { useTimezone } from '@/contexts/TimezoneContext';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -51,6 +52,7 @@ const NAV_GROUPS = [
 ];
 
 export default function AdminSidebar() {
+  const { restaurant } = useTimezone();
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState(0);
   const [hiddenLinks, setHiddenLinks] = useState<string[]>(DEFAULT_HIDDEN);
@@ -153,7 +155,7 @@ export default function AdminSidebar() {
             T
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-sm font-semibold text-sidebar-foreground truncate">Thaiphoon Restaurant</span>
+            <span className="text-sm font-semibold text-sidebar-foreground truncate">{restaurant.name}</span>
             <span className="text-xs text-sidebar-foreground/50 truncate">Admin Panel</span>
           </div>
         </div>

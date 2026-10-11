@@ -1,7 +1,9 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { getLocalDateString as businessDate } from '@/utils/dateUtils';
+import { restaurantIdentity, defaultRestaurant, type RestaurantIdentity } from '@/lib/restaurant/config';
 import { db } from '@/firebase';
 
 // Common timezone options for restaurants
@@ -23,13 +25,15 @@ export const TIMEZONE_OPTIONS = [
 
 interface TimezoneContextType {
     timezone: string;
+    restaurant: RestaurantIdentity;
     loading: boolean;
     error: string | null;
     refreshTimezone: () => Promise<void>;
 }
 
 const TimezoneContext = createContext<TimezoneContextType>({
-    timezone: 'America/Los_Angeles', // Default fallback
+    timezone: 'America/Los_Angeles', // Used only while loading; availability fails closed.
+    restaurant: defaultRestaurant,
     loading: true,
     error: null,
     refreshTimezone: async () => {},
@@ -49,31 +53,29 @@ interface TimezoneProviderProps {
 
 export function TimezoneProvider({ children }: TimezoneProviderProps) {
     const [timezone, setTimezone] = useState<string>('America/Los_Angeles');
+    const [restaurant, setRestaurant] = useState<RestaurantIdentity>(defaultRestaurant);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchTimezone = async () => {
+    const applySettings = (data: Record<string, unknown> | undefined) => {
+        if (!data || typeof data.timezone !== 'string') throw new Error('Missing business timezone');
+        new Intl.DateTimeFormat('en-US', { timeZone: data.timezone }).format();
+        setTimezone(data.timezone);
+        setRestaurant(restaurantIdentity(data.restaurant));
         setError(null);
-        try {
-            const settingsDoc = await getDoc(doc(db, 'settings', 'general'));
-            if (settingsDoc.exists()) {
-                const data = settingsDoc.data();
-                if (data.timezone) {
-                    new Intl.DateTimeFormat('en-US', { timeZone: data.timezone }).format();
-                    setTimezone(data.timezone);
-                }
-            } else { throw new Error('Missing business settings'); }
-        } catch (error) {
-            setError('Business timezone could not be loaded. Please refresh or check settings.');
-            // Keep default timezone on error
-        } finally {
-            setLoading(false);
-        }
+        setLoading(false);
     };
-
-    useEffect(() => {
-        fetchTimezone();
-    }, []);
+    const settingsError = () => {
+        setError('Business settings could not be loaded. Please refresh or check settings.');
+        setLoading(false);
+    };
+    const fetchTimezone = async () => {
+        try { applySettings((await getDoc(doc(db, 'settings', 'general'))).data()); }
+        catch { settingsError(); }
+    };
+    useEffect(() => onSnapshot(doc(db, 'settings', 'general'), snapshot => {
+        try { applySettings(snapshot.data()); } catch { settingsError(); }
+    }, settingsError), []);
 
     const refreshTimezone = async () => {
         setLoading(true);
@@ -81,7 +83,7 @@ export function TimezoneProvider({ children }: TimezoneProviderProps) {
     };
 
     return (
-        <TimezoneContext.Provider value={{ timezone, loading, error, refreshTimezone }}>
+        <TimezoneContext.Provider value={{ timezone, restaurant, loading, error, refreshTimezone }}>
             {children}
         </TimezoneContext.Provider>
     );
@@ -91,5 +93,6 @@ export function TimezoneProvider({ children }: TimezoneProviderProps) {
 export { getDateInTimezone, getLocalDateString, getCurrentTimeInTimezone, getTodayInTimezone, getDayOfWeekInTimezone } from '@/utils/dateUtils';
 export const formatDateInTimezone = (date: Date | string, timezone: string, options?: Intl.DateTimeFormatOptions): string => {
     const calendar = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date);
+    businessDate(date, timezone); // Validate calendar dates and require offsets on timestamp strings.
     return new Intl.DateTimeFormat('en-US', { ...options, timeZone: calendar ? 'UTC' : timezone }).format(calendar ? new Date(`${date}T12:00:00Z`) : new Date(date));
 };

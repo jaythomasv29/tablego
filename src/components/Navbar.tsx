@@ -1,9 +1,11 @@
+import { useTimezone } from '@/contexts/TimezoneContext';
 import Link from 'next/link';
 import { Utensils, ShoppingBag, Search, X, Menu as MenuIcon } from 'lucide-react';
 import { useState } from 'react';
 import ReservationModal from './ReservationModal';
 
 export default function Navbar() {
+    const { restaurant } = useTimezone();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -19,7 +21,7 @@ export default function Navbar() {
                         >
                             <Utensils className="h-6 w-6 text-indigo-600" />
                             <div className="relative">
-                                <span className="text-xl font-semibold text-gray-900">Thaiphoon</span>
+                                <span className="text-xl font-semibold text-gray-900">{restaurant.shortName}</span>
                                 {/* <span className="absolute -bottom-3 right-0 text-[10px] text-gray-400">
                                     by tablego
                                 </span> */}
@@ -47,7 +49,7 @@ export default function Navbar() {
                                 <span className="text-sm font-medium">Cater</span>
                             </Link> */}
                             <Link
-                                href="https://order.online/business/Thaiphoon-450?utm_source=sdk&visitorId=193be2bc7cf1d9e9c"
+                                href={restaurant.orderUrl}
                                 className="flex items-center space-x-2 text-gray-600 hover:text-indigo-600 transition-colors"
                             >
                                 <ShoppingBag className="h-5 w-5" />
@@ -65,7 +67,7 @@ export default function Navbar() {
                         {/* Mobile Menu Button */}
                         <button
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                            className="md:hidden p-2 text-gray-600 hover:text-indigo-600"
+                            aria-label="Toggle navigation" aria-expanded={isMobileMenuOpen} className="md:hidden p-2 text-gray-600 hover:text-indigo-600"
                         >
                             {isMobileMenuOpen ? (
                                 <X className="h-6 w-6" />
@@ -98,7 +100,7 @@ export default function Navbar() {
                                     <span className="text-sm font-medium">Cater</span>
                                 </Link>
                                 <Link
-                                    href="https://order.online/business/Thaiphoon-450?utm_source=sdk&visitorId=193be2bc7cf1d9e9c"
+                                    href={restaurant.orderUrl}
                                     className="flex items-center space-x-2 text-gray-600 hover:text-indigo-600 transition-colors px-2"
                                 >
                                     <ShoppingBag className="h-5 w-5" />

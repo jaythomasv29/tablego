@@ -5,6 +5,9 @@ import AdminLayout from '@/components/AdminLayout';
 import { collection, getDocs, query, orderBy, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import toast from 'react-hot-toast';
+import { useTimezone } from '@/contexts/TimezoneContext';
+import { formatBusinessTimestamp } from '@/utils/dateUtils';
+import { timestampString } from '@/lib/reservations/service';
 import PageTransition from '@/components/PageTransition';
 
 interface Message {
@@ -12,11 +15,12 @@ interface Message {
     name: string;
     email: string;
     message: string;
-    timestamp: Date;
+    timestamp: string | null;
     status: 'read' | 'unread';
 }
 
 export default function MessagesPage() {
+    const { timezone } = useTimezone();
     const [messages, setMessages] = useState<Message[]>([]);
     const [isMarkingRead, setIsMarkingRead] = useState<string>('');
     const [loading, setLoading] = useState(true);
@@ -29,7 +33,7 @@ export default function MessagesPage() {
             const messagesList = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
-                timestamp: doc.data().timestamp?.toDate() || new Date()
+                timestamp: timestampString(doc.data().timestamp)
             })) as Message[];
             setMessages(messagesList);
         } catch (error) {
@@ -89,8 +93,7 @@ export default function MessagesPage() {
                                             <p className="font-medium text-gray-900">{message.name}</p>
                                             <p className="text-sm text-gray-600">{message.email}</p>
                                             <p className="text-sm text-gray-500 mt-1">
-                                                {message.timestamp.toLocaleDateString()} at{' '}
-                                                {message.timestamp.toLocaleTimeString()}
+                                                {message.timestamp ? formatBusinessTimestamp(message.timestamp, timezone) : 'Timestamp not recorded'}
                                             </p>
                                             <p className="mt-2 text-gray-700">{message.message}</p>
                                         </div>

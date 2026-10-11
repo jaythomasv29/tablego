@@ -7,12 +7,12 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/staffSessions/$(request.auth.token.sessionId)).data.active == true;
     }
     match /settings/{id} {
-      allow read: if id in ['businessHours', 'general', 'banner'];
-      allow write: if isAdmin();
+      allow read: if id in ['businessHours', 'general', 'banner'] || isAdmin();
+      allow write: if isAdmin() && !(id in ['general', 'businessHours']);
     }
     match /specialDates/{id} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if false;
     }
     match /menu/{id} {
       allow read: if true;
@@ -26,7 +26,7 @@ service cloud.firestore {
     // Booking creation and guest actions use server APIs. Internal documents
     // remain accessible to authenticated staff during incremental migration.
     match /{collection}/{document=**} {
-      allow read, write: if isAdmin() && !(collection in ['staffSessions', 'reservations', 'managementAccess', 'bookingSubmissions', 'notificationOutbox', 'requestLimits', 'stagingCaptures', 'stagingOtpChallenges']);
+      allow read, write: if isAdmin() && !(collection in ['settings', 'specialDates', 'staffSessions', 'reservations', 'managementAccess', 'bookingSubmissions', 'notificationOutbox', 'requestLimits', 'stagingCaptures', 'stagingOtpChallenges']);
     }
   }
 }

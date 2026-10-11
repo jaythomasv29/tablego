@@ -1,105 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
-    collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc,
-    serverTimestamp, orderBy, query, limit, writeBatch, Timestamp
+    collection, addDoc, updateDoc, deleteDoc, doc,
+    serverTimestamp, writeBatch
 } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { Plus, X, Package, ChevronDown, ChevronUp, Share2, Trash2, Phone, Flame, ArrowUp, ArrowDown } from 'lucide-react';
+import { useInventory } from '@/components/inventory/useInventory';
+import { CATEGORIES, STATUS_CONFIG, BLANK_ITEM, BLANK_VENDOR, OVERDUE_DAYS, daysSinceNum, daysSinceLabel, formatDate, type ItemStatus, type InventoryItem, type Vendor, type ActiveTab } from '@/components/inventory/model';
+import { useTimezone } from '@/contexts/TimezoneContext';
 import toast from 'react-hot-toast';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type ItemStatus = 'ok' | 'low' | 'out';
-
-interface LocationDoc {
-    id: string;
-    name: string;
-    sortOrder: number;
-}
-
-interface InventoryItem {
-    id: string;
-    name: string;
-    category: string;
-    vendorId: string;
-    vendorName: string;
-    location: string;       // display name, matched against LocationDoc.name
-    status: ItemStatus;
-    isHot: boolean;
-    lastCheckedAt: Timestamp | null;
-    lastOrderedAt: Timestamp | null;
-}
-
-interface Vendor {
-    id: string;
-    name: string;
-    phone: string;
-    notes?: string;
-}
-
-interface OrderRecord {
-    id: string;
-    createdAt: Timestamp;
-    vendorId: string;
-    vendorName: string;
-    items: { itemId: string; name: string; status: 'low' | 'out' }[];
-}
-
-// ─── Constants ───────────────────────────────────────────────────────────────
-
-const OVERDUE_DAYS = 14;
-
-const CATEGORIES = [
-    'Produce',
-    'Protein & Seafood',
-    'Noodles & Rice',
-    'Sauces & Condiments',
-    'Pantry & Dry Goods',
-    'Frozen',
-    'Packaging & Supplies',
-    'Beverages',
-];
-
-const STATUS_CONFIG: Record<ItemStatus, { label: string; activeClass: string; inactiveClass: string }> = {
-    ok:  { label: '✓ OK',   activeClass: 'bg-green-100 text-green-700 border-green-300 font-semibold', inactiveClass: 'bg-white text-gray-400 border-gray-200 hover:border-green-200 hover:text-green-600' },
-    low: { label: '⚡ Low', activeClass: 'bg-amber-100 text-amber-700 border-amber-300 font-semibold', inactiveClass: 'bg-white text-gray-400 border-gray-200 hover:border-amber-200 hover:text-amber-600' },
-    out: { label: '✕ Out',  activeClass: 'bg-red-100 text-red-700 border-red-300 font-semibold',      inactiveClass: 'bg-white text-gray-400 border-gray-200 hover:border-red-200 hover:text-red-600' },
-};
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function daysSinceNum(ts: Timestamp | null): number | null {
-    if (!ts) return null;
-    return Math.floor((Date.now() - ts.toMillis()) / 86_400_000);
-}
-
-function daysSinceLabel(ts: Timestamp | null): string | null {
-    const d = daysSinceNum(ts);
-    if (d === null) return null;
-    return d === 0 ? 'today' : `${d}d ago`;
-}
-
-function formatDate(ts: Timestamp): string {
-    return ts.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-// ─── Blank form state ─────────────────────────────────────────────────────────
-
-const BLANK_ITEM = { name: '', category: CATEGORIES[0], vendorId: '', location: '' };
-const BLANK_VENDOR = { name: '', phone: '' };
-
-// ─── Component ───────────────────────────────────────────────────────────────
-
-type ActiveTab = 'stockcheck' | 'orderlist' | 'history';
-
 export default function InventoryPage() {
-    const [items, setItems] = useState<InventoryItem[]>([]);
-    const [vendors, setVendors] = useState<Vendor[]>([]);
-    const [locations, setLocations] = useState<LocationDoc[]>([]);
-    const [orderHistory, setOrderHistory] = useState<OrderRecord[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { timezone } = useTimezone();
+    const { items, vendors, locations, orderHistory, loading, dataError } = useInventory();
     const [activeTab, setActiveTab] = useState<ActiveTab>('stockcheck');
 
     // Modals
@@ -117,29 +34,6 @@ export default function InventoryPage() {
 
     // History
     const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
-
-    // ── Firestore listeners ──────────────────────────────────────────────────
-
-    useEffect(() => {
-        const unsubs = [
-            onSnapshot(collection(db, 'inventoryVendors'), snap => {
-                setVendors(snap.docs.map(d => ({ id: d.id, ...d.data() } as Vendor)));
-            }),
-            onSnapshot(
-                query(collection(db, 'inventoryLocations'), orderBy('sortOrder')),
-                snap => setLocations(snap.docs.map(d => ({ id: d.id, ...d.data() } as LocationDoc)))
-            ),
-            onSnapshot(collection(db, 'inventoryItems'), snap => {
-                setItems(snap.docs.map(d => ({ id: d.id, isHot: false, ...d.data() } as InventoryItem)));
-                setLoading(false);
-            }),
-            onSnapshot(
-                query(collection(db, 'inventoryOrders'), orderBy('createdAt', 'desc'), limit(100)),
-                snap => setOrderHistory(snap.docs.map(d => ({ id: d.id, ...d.data() } as OrderRecord)))
-            ),
-        ];
-        return () => unsubs.forEach(u => u());
-    }, []);
 
     // ── Handlers ────────────────────────────────────────────────────────────
 
@@ -325,7 +219,8 @@ export default function InventoryPage() {
                 <div className="flex items-center gap-3">
                     <Package className="w-6 h-6 text-gray-600" />
                     <div>
-                        <h1 className="text-xl font-bold text-gray-900">Inventory & Ordering</h1>
+                        {dataError && <p role="alert" className="mb-4 text-red-600">{dataError}</p>}
+                <h1 className="text-xl font-bold text-gray-900">Inventory & Ordering</h1>
                         <p className="text-sm text-gray-500">Nightly stock check and order management</p>
                     </div>
                 </div>
@@ -603,7 +498,7 @@ export default function InventoryPage() {
                                         <span className="text-xs text-gray-400 ml-2">{record.items.length} item{record.items.length !== 1 ? 's' : ''}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-xs text-gray-400">{formatDate(record.createdAt)}</span>
+                                        <span className="text-xs text-gray-400">{formatDate(record.createdAt, timezone)}</span>
                                         {expandedOrder === record.id
                                             ? <ChevronUp className="w-4 h-4 text-gray-400" />
                                             : <ChevronDown className="w-4 h-4 text-gray-400" />

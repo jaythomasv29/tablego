@@ -9,7 +9,7 @@ npm run dev      # Start Next.js dev server (port 3000)
 npm run build    # Production build with TypeScript and ESLint validation
 npm run lint     # ESLint check
 npm run typecheck # TypeScript check
-npm test         # Date/timezone regression tests
+npm test         # Domain, security, component and international date regression tests
 npm run check    # All quality checks and build
 npm run start    # Serve production build
 ```
@@ -35,15 +35,15 @@ Other public routes: `/menu`, `/cater`, `/reservation` (deep-link to reserve), `
 
 ### Admin area (`/admin/*`)
 
-Root middleware verifies a signed, expiring HttpOnly cookie. Privileged API handlers also verify its server-owned revocation record and mutation origin. The admin layout authenticates Firebase with a scoped custom token before mounting data consumers; rules check session expiry/revocation. There is no NextAuth session.
+`src/middleware.ts`, alongside `src/app`, verifies a signed, expiring HttpOnly cookie. Privileged API handlers also verify its server-owned revocation record and mutation origin. The admin layout authenticates Firebase with a scoped custom token before mounting data consumers; rules check session expiry/revocation. There is no NextAuth session.
 
 Key admin pages:
-- `/admin/home` — dashboard
-- `/admin/reservation` — view/manage reservations (Past / Yesterday / Today / Tomorrow / Future tabs)
+- `/admin/home` — Today service console
+- `/admin/reservation` — shared service console with search/date/status filters, private notes and delivery history
 - `/admin/hours` — configure business hours (lunch + dinner per weekday, custom ranges supported)
 - `/admin/special-dates` — add closures (`full`, `lunch`, or `dinner` closureType)
 - `/admin/team` — drag-and-drop weekly staff schedule
-- `/admin/settings` — timezone + reservation cutoff minutes
+- `/admin/settings` — validated restaurant identity, timezone, lead time and cutoff
 - `/admin/banner` — manage the announcement banner on the landing page
 
 ### API routes (`src/app/api/`)
@@ -66,22 +66,23 @@ Key admin pages:
 |---|---|
 | `reservations/{id}` | `date` (YYYY-MM-DD string), `time` (e.g. "7:00 PM"), `name`, `email`, `phone`, `guests`, `comments`, `status` (pending/confirmed/seated/completed/cancelled/no-show), `reminderSent`, `reminderSentAt`, `attendanceStatus` |
 | `settings/businessHours` | Keyed by lowercase day name; each day has `lunch` and `dinner` objects with `isOpen`, `open`, `close`, and optional `customRanges[]` |
-| `settings/general` | `timezone` (IANA string), `reservationCutoffMinutes` |
+| `settings/general` | `timezone` (IANA string), `reservationCutoffMinutes`, `minimumLeadTimeMinutes`, `restaurant` public identity, conflict `version` |
 | `settings/banner` | `text`, `link`, `linkText` |
-| `specialDates/{id}` | `date` (ISO string), `reason`, `closureType: 'full'|'lunch'|'dinner'` |
+| `specialDates/{id}` | `date` (YYYY-MM-DD string; legacy ISO closures retain their leading calendar date), `reason`, `closureType: 'full'|'lunch'|'dinner'` |
 | `employees/{id}` | `name`, `role: 'front'|'kitchen'` |
 | `schedules/{id}` | Recurring weekly staff shifts: `employeeId`, `dayOfWeek`, `period`, `startTime`, `endTime` |
 | `scheduleOverrides/{id}` | Per-week overrides on `schedules`: `scheduleId`, `date`, `action: 'modify'|'cancel'` |
 
 ### Timezone handling
 
-The restaurant's timezone is stored in `settings/general.timezone` (default `America/Los_Angeles`). It is loaded app-wide via `TimezoneContext` (`src/contexts/TimezoneContext.tsx`) and made available via the `useTimezone()` hook.
+The restaurant's timezone is stored in `settings/general.timezone`. It is subscribed to app-wide via `TimezoneContext` (`src/contexts/TimezoneContext.tsx`) and made available via the `useTimezone()` hook.
 
 **Critical rules:**
 - Reservation dates are stored as bare `YYYY-MM-DD` strings (not Timestamps, not ISO datetimes).
-- To get today's `YYYY-MM-DD` in the restaurant's timezone: `new Date().toLocaleDateString('en-CA', { timeZone: timezone })`.
+- To get today's business calendar date, use `restaurantClock(timezone).date` or `getTodayInTimezone(timezone)`.
 - To display a `YYYY-MM-DD` string without timezone shift, parse it as UTC noon: `new Date(Date.UTC(y, m-1, d, 12, 0, 0))` then format with `timeZone: 'UTC'`.
-- Always convert times through the restaurant timezone before comparing, never raw UTC.
+- Booking times are business wall-clock times. Compare them with `restaurantClock`; display real event timestamps with `formatBusinessTimestamp`. Never shift a user-selected calendar day between timezones.
+- Ambiguous timestamp strings without offsets, missing dates and impossible dates require review; do not interpret them as today.
 
 The `src/utils/dateUtils.ts` file exports the canonical helpers (`getLocalDateString`, `formatReadableDatePST`, `getTodayInTimezone`, etc.). Use these rather than inline conversions.
 
@@ -92,12 +93,11 @@ Chat-widget scripts in `src/app/layout.tsx` are currently commented out. The wid
 ### Key dependencies
 
 - **shadcn/ui** (`src/components/ui/`) — component primitives (Button, Badge, Dialog, DropdownMenu…)
-- **Framer Motion + GSAP** — animations (GSAP used in `App.tsx` for modal open)
+- **Framer Motion** — public animation; accessible Radix dialogs handle booking and management
 - **Lucide React** — icons
 - **react-hot-toast** — toast notifications in admin
-- **@tanstack/react-query** — available but not widely used yet
 - **Vercel Analytics** — included in root layout
 
 ### Build notes
 
-`next.config.mjs` validates TypeScript and ESLint during builds. The build still forces aggressive cache-busting headers site-wide and a timestamp-based `generateBuildId`; caching changes are planned for a later phase. Standalone lint enforces zero errors and the documented existing performance-warning budget. See `docs/phase-0-progress.md` for staging gates and validation status.
+`next.config.mjs` validates TypeScript and ESLint during builds. Public pages use framework caching and images have a short revalidating cache. Staff, API, login and management routes use private/no-store policies. Dynamic data uses live subscriptions. One Tailwind v3 configuration defines the UI tokens. Standalone lint requires zero errors and warnings. See `docs/release-readiness.md` for validation and remaining external release gates.

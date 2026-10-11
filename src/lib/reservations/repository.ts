@@ -39,7 +39,8 @@ export async function createReservation(input: BookingInput, phoneVerified: bool
     if (existing) {
       if (existing.fingerprint !== fingerprint) throw new ReservationError('This submission key belongs to different reservation details', 409);
       const currentAccess = (await tx.get(db.doc(`managementAccess/${existing.reservationId}`))).data();
-      return { id: existing.reservationId as string, token: decryptToken(currentAccess?.encryptedToken || existing.encryptedToken), eventId: existing.eventId as string, repeated: true };
+      const currentRecord = (await tx.get(db.doc(`reservations/${existing.reservationId}`))).data();
+      return { id: existing.reservationId as string, token: decryptToken(currentAccess?.encryptedToken || existing.encryptedToken), eventId: existing.eventId as string, timezone: currentRecord?.restaurantTimezone || (await loadPolicy(tx)).timezone, repeated: true };
     }
     const policy = await loadPolicy(tx);
     if (!checkAvailability(input.date, input.time, policy).available) throw new ReservationError('This time is unavailable. Please choose another time.', 409);
@@ -49,11 +50,11 @@ export async function createReservation(input: BookingInput, phoneVerified: bool
     tx.create(submission, { fingerprint, reservationId: ref.id, encryptedToken, eventId, createdAt: new Date() });
     tx.create(ref.collection('events').doc(eventId), { event: 'reservation.created', actor: 'guest', timestamp: new Date(), correlationId: eventId });
     notificationIntent(tx, ref.id, eventId, 'created', reservation, encryptedToken);
-    return { id: ref.id, token, eventId, repeated: false };
+    return { id: ref.id, token, eventId, timezone: policy.timezone, repeated: false };
   });
   scheduleDelivery(result.eventId);
   return { success: true, reservationId: result.id, managementUrl: managementUrl(result.id, result.token),
-    reservationDetails: { ...input, reservationId: result.id, status: 'pending' }, notificationStatus: 'queued-or-delivered', repeated: result.repeated };
+    reservationDetails: { ...input, timezone: result.timezone, reservationId: result.id, status: 'pending' }, notificationStatus: 'queued-or-delivered', repeated: result.repeated };
 }
 export async function readGuestReservation(id: string, token: unknown) {
   const db = getServerDatabase(), hash = tokenHash(token);

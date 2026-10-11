@@ -2,8 +2,7 @@
 
 import AdminLayout from '@/components/AdminLayout';
 import { useEffect, useState } from 'react';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '@/firebase';
+import { defaultRestaurant, type RestaurantIdentity } from '@/lib/restaurant/config';
 import toast, { Toaster } from 'react-hot-toast';
 import { Globe, Save, RefreshCw, Clock, Mail, Send, Trash2, Bell } from 'lucide-react';
 import PageTransition from '@/components/PageTransition';
@@ -20,9 +19,13 @@ export default function AdminSettings() {
     const [selectedTimezone, setSelectedTimezone] = useState<string>('America/Los_Angeles');
     const [reservationCutoffMinutes, setReservationCutoffMinutes] = useState<number>(60); // Default 1 hour
     const [minimumLeadTimeMinutes, setMinimumLeadTimeMinutes] = useState<number>(50);
+    const [restaurant, setRestaurant] = useState<RestaurantIdentity>(defaultRestaurant);
+    const [version, setVersion] = useState(0);
+    const [loadError, setLoadError] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [testEmail, setTestEmail] = useState('');
+    const staging = process.env.NEXT_PUBLIC_TABLEGO_ENVIRONMENT === 'staging';
     const [sendingTest, setSendingTest] = useState(false);
     const [deletingTest, setDeletingTest] = useState(false);
     const [notificationSound, setNotificationSound] = useState<SoundType>('chime');
@@ -38,21 +41,17 @@ export default function AdminSettings() {
     useEffect(() => {
         const fetchSettings = async () => {
             try {
-                const settingsDoc = await getDoc(doc(db, 'settings', 'general'));
-                if (settingsDoc.exists()) {
-                    const data = settingsDoc.data();
-                    if (data.timezone) {
-                        setSelectedTimezone(data.timezone);
-                    }
-                    if (data.reservationCutoffMinutes !== undefined) {
-                        setReservationCutoffMinutes(data.reservationCutoffMinutes);
-                    }
-                    if (data.minimumLeadTimeMinutes !== undefined) {
-                        setMinimumLeadTimeMinutes(data.minimumLeadTimeMinutes);
-                    }
-                }
+                const response = await fetch('/api/staff/settings', { cache: 'no-store' });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Failed to load settings');
+                setSelectedTimezone(data.timezone);
+                setReservationCutoffMinutes(data.reservationCutoffMinutes);
+                setMinimumLeadTimeMinutes(data.minimumLeadTimeMinutes);
+                setRestaurant(data.restaurant);
+                setVersion(data.version);
             } catch (error) {
                 console.error('Error fetching settings:', error);
+                setLoadError('Failed to load settings. Reload before saving.');
                 toast.error('Failed to load settings');
             } finally {
                 setLoading(false);
@@ -91,12 +90,11 @@ export default function AdminSettings() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            await setDoc(doc(db, 'settings', 'general'), {
-                timezone: selectedTimezone,
-                reservationCutoffMinutes: reservationCutoffMinutes,
-                minimumLeadTimeMinutes: minimumLeadTimeMinutes,
-                updatedAt: new Date(),
-            }, { merge: true });
+            const response = await fetch('/api/staff/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ timezone: selectedTimezone, reservationCutoffMinutes, minimumLeadTimeMinutes, restaurant, version }) });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Failed to save settings');
+            setVersion(result.version);
 
             // Refresh the global timezone context
             await refreshTimezone();
@@ -104,7 +102,7 @@ export default function AdminSettings() {
             toast.success('Settings saved successfully!');
         } catch (error) {
             console.error('Error saving settings:', error);
-            toast.error('Failed to save settings');
+            toast.error(error instanceof Error ? error.message : 'Failed to save settings');
         } finally {
             setSaving(false);
         }
@@ -121,7 +119,7 @@ export default function AdminSettings() {
             });
             const data = await res.json();
             if (data.success) {
-                toast.success(`Test email sent to ${testEmail}`);
+                toast.success('Synthetic request saved; test notifications queued for capture.');
                 setTestEmail('');
             } else {
                 toast.error(data.error || 'Failed to send test email');
@@ -188,8 +186,17 @@ export default function AdminSettings() {
                     <p className="text-gray-600 mt-1">Configure your restaurant&apos;s settings</p>
                 </div>
 
+                {loadError && <p role="alert" className="mb-4 rounded-md border border-red-300 p-3 text-red-700">{loadError}</p>}
+                <section className="bg-white text-zinc-900 rounded-xl border p-6 mb-6 space-y-4" aria-label="Restaurant identity">
+                    <h2 className="text-lg font-semibold">Restaurant identity &amp; public links</h2>
+                    <p className="text-sm text-zinc-600">Used across guest pages and reservation messages. Save Settings applies identity, timezone and booking policies together.</p>
+                    <div className="grid gap-4 sm:grid-cols-2">{(Object.keys(defaultRestaurant) as (keyof RestaurantIdentity)[]).map(key => <div key={key}>
+                        <label htmlFor={`identity-${key}`} className="block text-sm font-medium mb-2">{key.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase())}</label>
+                        <input id={`identity-${key}`} value={restaurant[key]} maxLength={500} className="w-full rounded-md border bg-white text-zinc-900 p-2" onChange={event => setRestaurant(previous => ({ ...previous, [key]: event.target.value }))} />
+                    </div>)}</div>
+                </section>
                 {/* Timezone Settings Card */}
-                <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+                <div className="bg-white text-zinc-900 rounded-xl shadow-md p-6 mb-6">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="p-3 bg-blue-50 rounded-full">
                             <Globe className="w-6 h-6 text-blue-500" />
@@ -247,7 +254,7 @@ export default function AdminSettings() {
                     {/* Save Button */}
                     <button
                         onClick={handleSave}
-                        disabled={saving}
+                        disabled={saving || Boolean(loadError)}
                         className="flex items-center gap-2 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {saving ? (
@@ -265,7 +272,7 @@ export default function AdminSettings() {
                 </div>
 
                 {/* Reservation Cutoff Settings Card */}
-                <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+                <div className="bg-white text-zinc-900 rounded-xl shadow-md p-6 mb-6">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="p-3 bg-orange-50 rounded-full">
                             <Clock className="w-6 h-6 text-orange-500" />
@@ -291,6 +298,7 @@ export default function AdminSettings() {
                         >
                             <option value={30}>30 minutes</option>
                             <option value={45}>45 minutes</option>
+                            <option value={50}>50 minutes</option>
                             <option value={60}>1 hour</option>
                             <option value={90}>1.5 hours</option>
                             <option value={120}>2 hours</option>
@@ -320,7 +328,7 @@ export default function AdminSettings() {
                 </div>
 
                 {/* Minimum Booking Lead Time Card */}
-                <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+                <div className="bg-white text-zinc-900 rounded-xl shadow-md p-6 mb-6">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="p-3 bg-purple-50 rounded-full">
                             <Clock className="w-6 h-6 text-purple-500" />
@@ -345,6 +353,7 @@ export default function AdminSettings() {
                         >
                             <option value={30}>30 minutes</option>
                             <option value={45}>45 minutes</option>
+                            <option value={50}>50 minutes</option>
                             <option value={60}>1 hour</option>
                             <option value={90}>1.5 hours</option>
                             <option value={120}>2 hours</option>
@@ -364,13 +373,13 @@ export default function AdminSettings() {
                     <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                         <p className="text-sm text-gray-600">
                             <strong>Example:</strong> If a guest tries to book at 6:40 PM with a 60-minute lead time,
-                            the earliest available slot they&apos;ll see is 7:40 PM.
+                            the earliest eligible slot is at or after 7:40 PM, aligned with the restaurant&apos;s booking intervals.
                         </p>
                     </div>
                 </div>
 
                 {/* Test Email Card */}
-                <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+                <div className="bg-white text-zinc-900 rounded-xl shadow-md p-6 mb-6">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="p-3 bg-green-50 rounded-full">
                             <Mail className="w-6 h-6 text-green-500" />
@@ -378,7 +387,7 @@ export default function AdminSettings() {
                         <div>
                             <h2 className="text-lg font-semibold">Send Test Email</h2>
                             <p className="text-sm text-gray-500">
-                                Creates a real test reservation in Firebase and sends both the customer and restaurant confirmation emails — with working cancel, reschedule, and menu download links.
+                                Available in isolated staging only. Creates a synthetic booking and queues captured notifications without sending real messages.
                             </p>
                         </div>
                     </div>
@@ -394,7 +403,7 @@ export default function AdminSettings() {
                         />
                         <button
                             onClick={handleSendTestEmail}
-                            disabled={sendingTest || !testEmail.trim()}
+                            disabled={!staging || sendingTest || !testEmail.trim()}
                             className="flex items-center gap-2 px-5 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                         >
                             {sendingTest ? (
@@ -430,7 +439,7 @@ export default function AdminSettings() {
                 </div>
 
                 {/* Notification Sound Card */}
-                <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+                <div className="bg-white text-zinc-900 rounded-xl shadow-md p-6 mb-6">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="p-3 bg-indigo-50 rounded-full">
                             <Bell className="w-6 h-6 text-indigo-500" />
@@ -473,7 +482,7 @@ export default function AdminSettings() {
                 </div>
 
                 {/* Additional Info */}
-                <div className="bg-white rounded-xl shadow-md p-6">
+                <div className="bg-white text-zinc-900 rounded-xl shadow-md p-6">
                     <h3 className="text-lg font-semibold mb-4">How Timezone Settings Work</h3>
                     <ul className="space-y-3 text-gray-600">
                         <li className="flex items-start gap-2">

@@ -7,7 +7,7 @@ The test project is `tablego-staging-1d712` (display name **TableGo Staging**). 
 - Separate Firebase project, web app and standard Firestore database in `nam5`.
 - Firebase Authentication initialized through the console, with custom staff-token sign-in verified.
 - Staging-only service account with database/authentication roles; no access to the live project.
-- Repository Firestore rules and six index definitions (including notification retry ordering) deployed **only to staging**. Guest browsers cannot read reservations or alter them by document ID. Staff state changes and private session/link/job records are server controlled.
+- Repository Firestore rules and six index definitions (including notification retry ordering) deployed **only to staging**. Guest browsers cannot read reservations or alter them by document ID. Staff state changes, notes/preferences, general settings, hours, closures and private session/link/job records are server controlled.
 - Synthetic hours/settings and reservations only. No real guest data copied.
 - `.env.staging.local` and `.staging/server-credentials.json` are ignored by Git and have private filesystem permissions. Do not copy their values into tickets, Git or chat.
 - Email, SMS and OTP are captured locally under `.staging/`, or privately in staging Firestore on Vercel; staging cannot activate real delivery. Missing staging variables are explicitly blanked so Next cannot reload live secrets from `.env.local`.
@@ -19,8 +19,12 @@ The test project is `tablego-staging-1d712` (display name **TableGo Staging**). 
 npm run dev:staging
 # In another terminal, with the staging server running:
 node scripts/staging-smoke.mjs
+node scripts/staging-config-smoke.mjs
+# Stop the development server before building/restarting.
 npm run build:staging
 npm run start:staging
+# Against the optimized staging server in another terminal:
+node scripts/staging-http-smoke.mjs
 ```
 
 Open http://127.0.0.1:3100. Staff credentials are in the private local staging environment file. Use the **staging-admin** account for local staff testing. Staging OTP codes are captured locally instead of sent to phones. The smoke runner uses synthetic example.invalid email addresses, verifies that both configuration and credentials point at staging, and retains its test reservations for review.

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { verifySignedToken } from './src/lib/auth/signedToken';
+import { verifySignedToken } from './lib/auth/signedToken';
 
 export async function middleware(request: NextRequest) {
     if (request.nextUrl.pathname.startsWith('/admin')) {
@@ -12,7 +12,9 @@ export async function middleware(request: NextRequest) {
             const loginUrl = new URL('/login', request.url);
             loginUrl.searchParams.set('callbackUrl', callbackUrl);
 
-            return NextResponse.redirect(loginUrl);
+            const response = NextResponse.redirect(loginUrl);
+            response.headers.set('Cache-Control', 'private, no-store');
+            return response;
         }
     }
     return NextResponse.next();

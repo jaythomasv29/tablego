@@ -65,3 +65,28 @@ export function checkAvailability(date: string, time: string, policy: Availabili
   const available = slotsForDate(date, policy, now).some(slot => timeMinutes(slot.time) === minutes);
   return { available, outcome: available ? 'available' : 'unavailable', reason: available ? undefined : 'This time is outside our available booking hours. Please choose another time.' };
 }
+// Legacy closures were stored as ISO strings, but have always represented the
+// leading calendar date in the booking policy. Preserve that interpretation.
+export function closureDate(value: unknown): string | null {
+  const date = typeof value === 'string' ? value.split('T')[0] : '';
+  return validDate(date) ? date : null;
+}
+export function openAt(policy: AvailabilityPolicy, now = new Date()): boolean {
+  const clock = restaurantClock(policy.timezone, now);
+  const weekday = new Date(`${clock.date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' }).toLowerCase();
+  const hours = policy.businessHours[weekday];
+  if (!hours) throw new Error('Missing business hours');
+  const closures = policy.specialDates.filter(value => closureDate(value.date) === clock.date);
+  if (closures.some(value => !value.closureType || value.closureType === 'full')) return false;
+  return (['lunch', 'dinner'] as const).some(period => {
+    const config = hours[period];
+    if (!config || typeof config.isOpen !== 'boolean') throw new Error('Invalid business hours');
+    if (!config.isOpen || closures.some(value => value.closureType === period)) return false;
+    const ranges = config.customRanges?.length ? config.customRanges : [{ start: config.open, end: config.close }];
+    return ranges.some(range => {
+      const start = timeMinutes(range.start), end = timeMinutes(range.end);
+      if (start === null || end === null || end <= start) throw new Error('Invalid business hours');
+      return clock.minutes >= start && clock.minutes < end;
+    });
+  });
+}

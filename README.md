@@ -1,48 +1,27 @@
-#### Past/Future Tabs
-- Past: Shows reservations before today in PST
-- Future: Shows reservations after today in PST
-- Sorted by date and time
+# TableGo
 
-### Status Handling
-- Prior: Shown for past time slots
-- Confirmed: Active reservations
-- Cancelled: Cancelled reservations
-- Pending: New reservations awaiting confirmation
+Next.js restaurant reservations and staff service tools for Thaiphoon. Refinements are implemented on separate `refinement/phase-*` branches; production has not been deployed.
 
-### Reminder System
-- Tracks reminder status with `reminderSent` and `reminderSentAt`
-- Prevents duplicate reminders within 24 hours
-- Displays reminder status on reservation cards
+```sh
+npm ci
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
 
-## Important Notes
-1. Always use the provided helper functions for date handling
-2. All date comparisons must be done in PST
-3. Keep date and time separate in Firebase
-4. Store reservation dates as validated YYYY-MM-DD calendar strings; use timestamps for events
-5. Display dates in user's local timezone where appropriate
+Use Node 22.14 or newer (CI uses Node 22.22.2). Builds enforce type and lint checks; standalone lint permits zero warnings. Run `npm run dev:staging` or `build:staging` / `start:staging` with the private staging environment. The launcher binds to http://127.0.0.1:3100, requires the isolated Firebase project, and captures all messages.
 
-## Common Pitfalls
-1. Direct UTC comparisons without timezone conversion
-2. Mixing date formats (Timestamp vs ISO string)
-3. Not accounting for PST in date filtering
-4. Comparing full datetime instead of just dates
+Bookings follow `pending → confirmed → seated → completed`. Cancellation and no-show have restricted transitions. Guest acknowledgement does not accept a request; rescheduling returns to pending. Only completed service counts as a completed guest visit. Legacy records are adapted during reads, preserving terminal history and flagging invalid details.
 
-## Future Considerations
-1. Consider storing timezone information with reservations
-2. Add timezone conversion utilities for international expansion
-3. Implement date format validation before storage
+Dates and times always use the **business IANA timezone**, including international viewers and daylight saving changes. Store booking dates as validated `YYYY-MM-DD` calendar strings and times separately. Do not parse calendar strings as timestamps or convert user-selected calendar dates between timezones. Event timestamps are real instants with an offset, displayed in the business zone. Use `src/utils/dateUtils.ts` and `src/lib/reservations/availability.ts`; never use the viewer's local timezone for staff dates.
 
-### Important Timezone Note
-- Dates stored as "2025-02-16T20:00:00.000Z" (UTC) need to be converted to PST
-- Example: 8:00 PM UTC Feb 16 = 12:00 PM PST Feb 16
-- Always convert to PST before date comparisons
+The pure availability engine controls slots, hours, closures, lead time and cutoff. Server writes revalidate it transactionally. Availability means hours eligibility; table capacity and overnight service are not implemented. Missing/invalid policy fails closed with a retry/call message.
 
-## Quality checks and phased refinement
+Booking writes atomically save a request, secure management authorization, timeline event and notification jobs. Stable submission keys prevent duplicates on retries. Durable workers retry independent recipients; a provider failure does not undo the booking. SMTP does not guarantee exactly-once delivery if a send succeeds before its completion record is stored.
 
-Use `America/Los_Angeles` for restaurant timezone calculations, including daylight saving time; PST is not a year-round fixed offset.
+Staff use signed, expiring, revocable server sessions and scoped Firebase tokens. Lifecycle changes, settings, hours, closures and private notes use authenticated server APIs. Guest management uses high-entropy reservation tokens in URL fragments; ID-only legacy links require phone verification to recover access. Private notes and preferences never appear in guest responses. Internal database rules and code must roll out together.
 
-Run `npm run typecheck`, `npm run lint`, `npm test`, and `npm run build`, or `npm run check` for all four. The initial test suite covers timezone and date storage behavior. Build-time type and lint failures are no longer suppressed.
+Public identity, contacts, links and promotions live in `settings/general.restaurant`, with validated defaults. Booking policies remain in that document; hours and closures retain their existing documents. Credentials and provider recipients belong only in server environment variables. Live subscriptions refresh guest and staff screens when configuration changes. This prepares configuration reuse; it does not implement tenant isolation.
 
-See [the refinement plan](docs/tablego-refinement-plan.md), [Phase 0 progress](docs/phase-0-progress.md), and [isolated staging setup](docs/staging-setup.md). Do not exercise booking or notification tests against the live database or real guest recipients.
-
-Local isolated testing: `npm run dev:staging`, `node scripts/staging-smoke.mjs`, and `npm run build:staging`. See [Phase 1](docs/phase-1-progress.md) for the signed-session and secure guest-management contract. Production rollout remains a separate approval.
+See [delivery plan](docs/tablego-refinement-plan.md), [isolated staging](docs/staging-setup.md) and [release review](docs/release-readiness.md) for progress, validation, environment requirements and coordinated rollback. Hosted preview, real provider delivery, Storage uploads and frequent worker scheduling require separate release verification. Vercel Hobby's daily cron is a recovery sweep, not a sufficient time-sensitive retry scheduler.

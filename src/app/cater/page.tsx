@@ -1,4 +1,7 @@
 'use client';
+import MagneticButton from '@/components/MagneticButton';
+import { restaurantClock } from '@/lib/reservations/availability';
+import { useTimezone } from '@/contexts/TimezoneContext';
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, ChevronDown, Utensils, X } from 'lucide-react';
@@ -36,54 +39,6 @@ const initialFormData: FormData = {
   specialRequests: '',
 };
 
-function MagneticButton({
-  children,
-  className,
-  onClick,
-  style,
-  disabled = false,
-  type = 'button',
-}: {
-  children: React.ReactNode;
-  className?: string;
-  onClick?: () => void | Promise<void>;
-  style?: React.CSSProperties;
-  disabled?: boolean;
-  type?: 'button' | 'submit';
-}) {
-  const buttonRef = useRef<HTMLButtonElement | null>(null);
-
-  const handleMove = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const el = buttonRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const x = e.clientX - rect.left - rect.width / 2;
-    const y = e.clientY - rect.top - rect.height / 2;
-    el.style.transform = `translate(${x * 0.08}px, ${y * 0.08}px) scale(1.05)`;
-  };
-
-  const handleLeave = () => {
-    const el = buttonRef.current;
-    if (!el) return;
-    el.style.transform = 'translate(0px, 0px) scale(1)';
-  };
-
-  return (
-    <button
-      ref={buttonRef}
-      type={type}
-      onClick={onClick}
-      style={style}
-      disabled={disabled}
-      onMouseMove={handleMove}
-      onMouseLeave={handleLeave}
-      className={`relative overflow-hidden transition-transform duration-200 disabled:opacity-60 disabled:cursor-not-allowed ${className || ''}`}
-    >
-      <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-500 group-hover:translate-x-full" />
-      <span className="relative z-10">{children}</span>
-    </button>
-  );
-}
 
 const EVENT_TYPES = ['Corporate', 'Wedding', 'Birthday', 'Private Party', 'Other'];
 
@@ -106,6 +61,8 @@ const inputClass =
 const labelClass = 'block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-1.5';
 
 export default function CateringPage() {
+  const { restaurant, timezone } = useTimezone();
+  const submissionRef = useRef<{ key: string; payload: string } | null>(null);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -149,24 +106,12 @@ export default function CateringPage() {
     setSubmitError('');
 
     try {
-      const response = await fetch('/api/send-proposal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          formData: {
-            ...formData,
-            address: '',
-            time: '',
-            selectedDishes: selectedDishes.map(d => ({
-              id: d.id,
-              name: d.name,
-              description: '',
-            })),
-          },
-        }),
-      });
-
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const payload = JSON.stringify({ formData: { ...formData, address: '', time: '', selectedDishes: selectedDishes.map(dish => ({ id: dish.id, name: dish.name })) } });
+      if (submissionRef.current?.payload !== payload) submissionRef.current = { key: crypto.randomUUID(), payload };
+      const response = await fetch('/api/send-proposal', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': submissionRef.current.key }, body: payload });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || 'Your inquiry could not be saved.');
+      submissionRef.current = null;
 
       setShowSuccess(true);
       setFormData(initialFormData);
@@ -174,23 +119,18 @@ export default function CateringPage() {
       setActiveCategory(null);
     } catch (error) {
       console.error('Error submitting form:', error);
-      setSubmitError('Failed to send your inquiry. Please call us at (650) 323-7700.');
+      setSubmitError(`Failed to send your inquiry. Please call us at ${restaurant.phoneLabel}.`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = restaurantClock(timezone).date;
   const firstName = formData.name.trim().split(' ')[0];
 
   return (
     <div className="min-h-[100dvh] text-zinc-900" style={{ backgroundColor: 'transparent' }}>
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link
-        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,600;1,700&family=Inter:wght@400;500;600;700&display=swap"
-        rel="stylesheet"
-      />
+
 
       {/* Film noise texture */}
       <svg className="pointer-events-none fixed inset-0 z-0 opacity-[0.04]" aria-hidden="true">
@@ -206,10 +146,10 @@ export default function CateringPage() {
           <div className="inline-flex items-center gap-4 rounded-full border border-black/10 bg-white/85 backdrop-blur-xl px-5 py-3 shadow-[0_20px_40px_-20px_rgba(0,0,0,0.25)]">
             <div
               className="flex items-center gap-2 font-semibold tracking-tight"
-              style={{ fontFamily: 'Inter, sans-serif' }}
+              style={{ fontFamily: 'var(--font-sans), sans-serif' }}
             >
               <Utensils className="w-4 h-4" />
-              <span>Thaiphoon</span>
+              <span>{restaurant.shortName}</span>
             </div>
             <div className="h-4 w-px bg-zinc-300" />
             <Link href="/" className="text-sm text-zinc-600 hover:text-zinc-900 transition-colors">
@@ -247,22 +187,22 @@ export default function CateringPage() {
           >
             <p
               className="text-xs uppercase tracking-[0.14em] text-white/70 mb-4"
-              style={{ fontFamily: 'Inter, sans-serif' }}
+              style={{ fontFamily: 'var(--font-sans), sans-serif' }}
             >
-              Thaiphoon · Palo Alto
+              {restaurant.shortName} · {restaurant.location}
             </p>
             <h1
               className="text-4xl md:text-5xl lg:text-6xl font-semibold leading-tight mb-4"
-              style={{ fontFamily: 'Inter, sans-serif' }}
+              style={{ fontFamily: 'var(--font-sans), sans-serif' }}
             >
               Bring the Wok{' '}
-              <span className="italic font-normal" style={{ fontFamily: 'Playfair Display, serif' }}>
+              <span className="italic font-normal" style={{ fontFamily: 'var(--font-display), serif' }}>
                 to Your Event.
               </span>
             </h1>
             <p
               className="text-white/75 text-base md:text-lg leading-relaxed max-w-md mb-8"
-              style={{ fontFamily: 'Inter, sans-serif' }}
+              style={{ fontFamily: 'var(--font-sans), sans-serif' }}
             >
               Thai & Pan-Asian catering for corporate events, weddings, and private parties in the Bay Area.
             </p>
@@ -271,7 +211,7 @@ export default function CateringPage() {
                 <div
                   key={stat}
                   className="rounded-full border border-white/30 bg-white/10 backdrop-blur-sm px-4 py-2 text-white text-sm"
-                  style={{ fontFamily: 'Inter, sans-serif' }}
+                  style={{ fontFamily: 'var(--font-sans), sans-serif' }}
                 >
                   {stat}
                 </div>
@@ -296,7 +236,7 @@ export default function CateringPage() {
                 </div>
                 <h3
                   className="text-2xl tracking-tight text-zinc-900 mb-2"
-                  style={{ fontFamily: 'Cormorant Garamond, serif' }}
+                  style={{ fontFamily: 'var(--font-editorial), serif' }}
                 >
                   {firstName ? `We're on it, ${firstName}.` : "We're on it."}
                 </h3>
@@ -308,12 +248,12 @@ export default function CateringPage() {
                   style={{ backgroundColor: `${ACCENT}22`, borderColor: `${ACCENT}44`, border: '1px solid' }}
                 >
                   For immediate inquiries, call{' '}
-                  <a href="tel:+16503237700" className="font-semibold hover:underline">
-                    (650) 323-7700
+                  <a href={`tel:${restaurant.phone}`} className="font-semibold hover:underline">
+                    {restaurant.phoneLabel}
                   </a>
                 </div>
                 <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-800 transition-colors">
-                  ← Back to Thaiphoon
+                  ← Back to {restaurant.shortName}
                 </Link>
               </div>
             ) : (
@@ -321,11 +261,11 @@ export default function CateringPage() {
                 <div className="mb-6">
                   <h2
                     className="text-2xl tracking-tight text-zinc-900"
-                    style={{ fontFamily: 'Cormorant Garamond, serif' }}
+                    style={{ fontFamily: 'var(--font-editorial), serif' }}
                   >
                     Catering Inquiry
                   </h2>
-                  <p className="text-zinc-500 text-sm mt-1" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  <p className="text-zinc-500 text-sm mt-1" style={{ fontFamily: 'var(--font-sans), sans-serif' }}>
                     We&apos;ll follow up within 24 hours.
                   </p>
                 </div>

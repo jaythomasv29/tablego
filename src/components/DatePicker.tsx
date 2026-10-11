@@ -8,7 +8,7 @@ import { useTimezone } from '@/contexts/TimezoneContext';
 
 interface SpecialDate {
   date: string;
-  reason: string;
+  reason?: string;
   closureType?: 'full' | 'lunch' | 'dinner';
 }
 

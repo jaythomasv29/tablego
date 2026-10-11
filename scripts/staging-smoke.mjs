@@ -75,6 +75,8 @@ try {
   assert.equal(simultaneous[0].data.reservationId, simultaneous[1].data.reservationId, 'A stable key must create one reservation');
   const created = simultaneous[0].data, id = created.reservationId, token = tokenFrom(created.managementUrl); fixtureIds.push(id);
   const record = (await server.doc(`reservations/${id}`).get()).data();
+  assert.equal(created.reservationDetails.date, record.date);
+  assert.equal(created.reservationDetails.timezone, record.restaurantTimezone);
   assert.equal(record.status, 'pending'); assert.equal(record.phoneVerified, true); assert.equal(record.admin, undefined);
   assert.equal((await server.doc(`reservations/${id}`).collection('events').where('event', '==', 'reservation.created').get()).size, 1);
   console.log('PASS one pending booking per submission key; arbitrary fields excluded');
@@ -94,13 +96,17 @@ try {
   status(await request(`/api/staff/reservations/${id}`, { method: 'POST', cookie: staffCookie, body: { action: 'confirm' } }), 200, 'staff acceptance');
   status(await request(`/api/staff/reservations/${id}`, { method: 'POST', cookie: staffCookie, body: { action: 'no-show' } }), 409, 'future arrivals cannot be marked no-show');
   status(await request(`/api/staff/reservations/${id}/history`), 401, 'private notes and timeline require staff authorization');
-  const savedNote = await request(`/api/staff/reservations/${id}/history`, { method: 'PATCH', cookie: staffCookie, body: { internalNotes: 'Synthetic private service note', noteVersion: 0 } });
+  const savedNote = await request(`/api/staff/reservations/${id}/history`, { method: 'PATCH', cookie: staffCookie, body: { internalNotes: 'Synthetic private service note', dietaryPreferences: 'Guest-stated vegetarian', seatingPreference: 'Window', noteVersion: 0 } });
   status(savedNote, 200, 'authorized staff note saved');
   status(await request(`/api/staff/reservations/${id}/history`, { method: 'PATCH', cookie: staffCookie, body: { internalNotes: 'Conflicting note', noteVersion: 0 } }), 409, 'concurrent staff note cannot overwrite another change');
   const guestWithNote = await request(`/api/reservations/${id}`, { token });
   assert.equal(guestWithNote.data.reservation.internalNotes, undefined);
+  assert.equal(guestWithNote.data.reservation.dietaryPreferences, undefined);
+  assert.equal(guestWithNote.data.reservation.seatingPreference, undefined);
   const history = await request(`/api/staff/reservations/${id}/history`, { cookie: staffCookie });
   assert.equal(history.data.internalNotes, 'Synthetic private service note');
+  assert.equal(history.data.dietaryPreferences, 'Guest-stated vegetarian');
+  assert.equal(history.data.seatingPreference, 'Window');
   assert.equal(history.data.events.filter(event => event.event === 'reservation.internal_note_updated').length, 1);
   await permissionDenied(() => updateDoc(doc(client, 'reservations', id), { internalNotes: 'Bypass' }), 'staff clients cannot bypass audited note changes');
   console.log('PASS staff notes excluded from guest API and audit preserved');

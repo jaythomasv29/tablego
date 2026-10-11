@@ -1,5 +1,9 @@
 "use client";
 
+import { useBusinessPolicy } from '@/components/reservations/useBusinessPolicy';
+import { openAt } from '@/lib/reservations/availability';
+import MenuImage from '@/components/menu/MenuImage';
+import { useTimezone } from '@/contexts/TimezoneContext';
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Download, Share2, Utensils } from "lucide-react";
@@ -7,15 +11,16 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   addDoc,
   collection,
-  doc,
-  getDoc,
-  getDocs,
+  onSnapshot,
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/firebase";
-import { TrendingModal } from "@/components/TrendingModal";
+import dynamic from "next/dynamic";
 
-const PDF_PATH = "/images/Thaiphoon_Food_Pics/Thaiphoon Dinner Menu.pdf";
+const TrendingModal = dynamic(() => import("@/components/TrendingModal").then(module => module.TrendingModal), {
+  ssr: false, loading: () => <p role="status" className="fixed bottom-4 left-4 z-50 rounded bg-white p-4 text-zinc-900">Loading menu highlights…</p>,
+});
+
 const ACCENT = "#A3B18A";
 
 const CATEGORY_ORDER = [
@@ -50,7 +55,10 @@ function categoryId(cat: string) {
 // ─── MenuPage ─────────────────────────────────────────────────────────────────
 
 export default function MenuPage() {
+  const { restaurant } = useTimezone();
+  const { policy } = useBusinessPolicy();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [menuError, setMenuError] = useState('');
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string>(
     CATEGORY_ORDER[0],
@@ -61,55 +69,9 @@ export default function MenuPage() {
   const [tick, setTick] = useState(0);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
-  // Fetch business hours + timezone and compute open status
   useEffect(() => {
-    const compute = async () => {
-      try {
-        const [hoursDoc, generalDoc] = await Promise.all([
-          getDoc(doc(db, "settings", "businessHours")),
-          getDoc(doc(db, "settings", "general")),
-        ]);
-        if (!hoursDoc.exists()) return;
-        const hours = hoursDoc.data() as Record<string, any>;
-        const timezone =
-          (generalDoc.exists() && generalDoc.data().timezone) ||
-          "America/Los_Angeles";
-        const days = [
-          "sunday",
-          "monday",
-          "tuesday",
-          "wednesday",
-          "thursday",
-          "friday",
-          "saturday",
-        ];
-        const localNow = new Date(
-          new Date().toLocaleString("en-US", { timeZone: timezone }),
-        );
-        const day = hours[days[localNow.getDay()]];
-        if (!day) {
-          setIsOpen(false);
-          return;
-        }
-        const cur = localNow.getHours() * 60 + localNow.getMinutes();
-        const t = (s: string) => {
-          const [h, m] = s.split(":").map(Number);
-          return h * 60 + m;
-        };
-        const open =
-          (day.lunch?.isOpen &&
-            cur >= t(day.lunch.open) &&
-            cur < t(day.lunch.close)) ||
-          (day.dinner?.isOpen &&
-            cur >= t(day.dinner.open) &&
-            cur < t(day.dinner.close));
-        setIsOpen(open);
-      } catch {
-        setIsOpen(false);
-      }
-    };
-    compute();
-  }, [tick]);
+    try { setIsOpen(policy ? openAt(policy) : null); } catch { setIsOpen(null); }
+  }, [policy, tick]);
 
   // Re-check every minute
   useEffect(() => {
@@ -131,19 +93,19 @@ export default function MenuPage() {
   const handleDownload = async () => {
     await trackEvent("download");
     const a = document.createElement("a");
-    a.href = PDF_PATH;
-    a.download = "Thaiphoon Dinner Menu.pdf";
+    a.href = restaurant.menuPdf;
+    a.download = `${restaurant.shortName} Menu.pdf`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
   };
 
   const handleShare = async () => {
-    const pdfUrl = window.location.origin + PDF_PATH;
+    const pdfUrl = window.location.origin + restaurant.menuPdf;
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "Thaiphoon Restaurant Menu",
+          title: `${restaurant.name} Menu`,
           url: pdfUrl,
         });
         await trackEvent("share");
@@ -159,14 +121,9 @@ export default function MenuPage() {
   };
 
   useEffect(() => {
-    getDocs(collection(db, "menu"))
-      .then((snap) => {
-        setMenuItems(
-          snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as MenuItem),
-        );
-      })
-      .catch((err) => console.error("Error fetching menu:", err))
-      .finally(() => setLoading(false));
+    return onSnapshot(collection(db, 'menu'), snapshot => {
+      setMenuItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem))); setLoading(false);
+    }, () => { setLoading(false); setMenuError('Menu could not be loaded. Please refresh or call the restaurant.'); });
   }, []);
 
   // Track active category via IntersectionObserver
@@ -209,16 +166,7 @@ export default function MenuPage() {
       className="min-h-screen text-zinc-900"
       style={{ backgroundColor: "transparent" }}
     >
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link
-        rel="preconnect"
-        href="https://fonts.gstatic.com"
-        crossOrigin="anonymous"
-      />
-      <link
-        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Playfair+Display:ital,wght@1,600&family=Inter:wght@400;500;600&display=swap"
-        rel="stylesheet"
-      />
+
 
       {/* Film noise */}
       <svg
@@ -253,10 +201,10 @@ export default function MenuPage() {
           <div className="inline-flex items-center gap-4 rounded-full border border-black/10 bg-white/85 backdrop-blur-xl px-5 py-3 shadow-[0_20px_40px_-20px_rgba(0,0,0,0.25)]">
             <div
               className="flex items-center gap-2 font-semibold tracking-tight text-zinc-900"
-              style={{ fontFamily: "Inter, sans-serif" }}
+              style={{ fontFamily: "var(--font-sans), sans-serif" }}
             >
               <Utensils className="w-4 h-4" />
-              <span>Thaiphoon</span>
+              <span>{restaurant.shortName}</span>
             </div>
             <div className="h-4 w-px bg-zinc-300" />
             <Link
@@ -285,19 +233,19 @@ export default function MenuPage() {
         >
           <p
             className="text-xs uppercase tracking-[0.16em] text-white/60 mb-3"
-            style={{ fontFamily: "Inter, sans-serif" }}
+            style={{ fontFamily: "var(--font-sans), sans-serif" }}
           >
-            Thaiphoon · Palo Alto
+            {restaurant.shortName} · {restaurant.location}
           </p>
           <h1
             className="text-5xl md:text-6xl font-light text-white mb-3"
-            style={{ fontFamily: "'Cormorant Garamond', serif" }}
+            style={{ fontFamily: "var(--font-editorial), serif" }}
           >
             Our Menu
           </h1>
           <p
             className="text-sm text-white/65 mb-6"
-            style={{ fontFamily: "Inter, sans-serif" }}
+            style={{ fontFamily: "var(--font-sans), sans-serif" }}
           >
             Thai &amp; Pan-Asian · Dine-in &amp; Takeout
           </p>
@@ -307,7 +255,7 @@ export default function MenuPage() {
               className="flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-zinc-900 transition-all hover:opacity-90 active:scale-95"
               style={{
                 backgroundColor: ACCENT,
-                fontFamily: "Inter, sans-serif",
+                fontFamily: "var(--font-sans), sans-serif",
               }}
             >
               <Download className="w-4 h-4" />
@@ -316,7 +264,7 @@ export default function MenuPage() {
             <button
               onClick={handleShare}
               className="flex items-center gap-2 rounded-full border border-white/40 bg-white/10 backdrop-blur-sm px-5 py-2.5 text-sm font-medium text-white transition-all hover:bg-white/20 active:scale-95"
-              style={{ fontFamily: "Inter, sans-serif" }}
+              style={{ fontFamily: "var(--font-sans), sans-serif" }}
             >
               <Share2 className="w-4 h-4" />
               {shareLabel || "Share"}
@@ -356,6 +304,7 @@ export default function MenuPage() {
 
         {/* Menu content */}
         <div className="max-w-6xl mx-auto px-4 py-10 space-y-16">
+          {menuError && <p role="alert" className="my-4 text-red-700">{menuError}</p>}
           {loading ? (
             <div className="flex flex-col items-center justify-center py-32 gap-4">
               <div
@@ -364,12 +313,12 @@ export default function MenuPage() {
               />
               <p
                 className="text-sm text-zinc-400"
-                style={{ fontFamily: "Inter, sans-serif" }}
+                style={{ fontFamily: "var(--font-sans), sans-serif" }}
               >
                 Loading menu…
               </p>
             </div>
-          ) : (
+          ) : !menuItems.length && !menuError ? <p className="py-12 text-center text-zinc-600">Our online menu is being updated. Please call {restaurant.phoneLabel} for current dishes.</p> : (
             grouped.map(({ category, items }) => (
               <div
                 key={category}
@@ -379,7 +328,7 @@ export default function MenuPage() {
                 <div className="mb-6 flex items-center gap-5">
                   <h2
                     className="text-2xl font-light text-zinc-900 shrink-0"
-                    style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                    style={{ fontFamily: "var(--font-editorial), serif" }}
                   >
                     {category}
                   </h2>
@@ -398,30 +347,19 @@ export default function MenuPage() {
                         }
                       >
                         {hasImage && (
-                          <div className="aspect-[4/3] w-full overflow-hidden bg-zinc-50">
-                            <img
-                              src={item.imageUrl}
-                              alt={item.name}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                (
-                                  e.currentTarget as HTMLImageElement
-                                ).parentElement!.style.display = "none";
-                              }}
-                            />
-                          </div>
+                          <MenuImage src={item.imageUrl} name={item.name} className="aspect-[4/3] w-full bg-zinc-50" />
                         )}
                         <div className="p-4">
                           <h3
                             className="font-medium text-zinc-900 text-[0.95rem] leading-snug mb-1.5"
-                            style={{ fontFamily: "Inter, sans-serif" }}
+                            style={{ fontFamily: "var(--font-sans), sans-serif" }}
                           >
                             {item.name}
                           </h3>
                           {item.description && (
                             <p
                               className="text-zinc-500 text-sm line-clamp-2"
-                              style={{ fontFamily: "Inter, sans-serif" }}
+                              style={{ fontFamily: "var(--font-sans), sans-serif" }}
                             >
                               {item.description}
                             </p>
@@ -440,14 +378,14 @@ export default function MenuPage() {
         <div className="border-t border-zinc-100 py-8 text-center">
           <p
             className="text-sm text-zinc-400"
-            style={{ fontFamily: "Inter, sans-serif" }}
+            style={{ fontFamily: "var(--font-sans), sans-serif" }}
           >
-            Thaiphoon Restaurant · 543 Emerson St, Palo Alto ·{" "}
+            {restaurant.name} · {restaurant.address} ·{" "}
             <a
-              href="tel:6503237700"
+              href={`tel:${restaurant.phone}`}
               className="hover:text-zinc-600 transition-colors"
             >
-              (650) 323-7700
+              {restaurant.phoneLabel}
             </a>
           </p>
           <div className="mt-4 flex justify-center gap-4">
@@ -475,7 +413,7 @@ export default function MenuPage() {
         transition={{ delay: 1.2, duration: 0.4 }}
         onClick={() => setShowTrending(true)}
         className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 rounded-full bg-white border border-zinc-200 px-4 py-2.5 shadow-[0_8px_30px_-8px_rgba(0,0,0,0.25)] hover:shadow-[0_12px_36px_-8px_rgba(0,0,0,0.3)] transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
-        style={{ fontFamily: "Inter, sans-serif" }}
+        style={{ fontFamily: "var(--font-sans), sans-serif" }}
       >
         {isOpen ? (
           <>
@@ -484,7 +422,7 @@ export default function MenuPage() {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
             </span>
             <span className="text-xs font-bold uppercase tracking-[0.1em] text-red-500">
-              Live
+              Open
             </span>
           </>
         ) : (
@@ -493,13 +431,13 @@ export default function MenuPage() {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-400" />
             </span>
             <span className="text-xs font-bold uppercase tracking-[0.1em] text-zinc-400">
-              Closed
+              {isOpen === null ? 'Checking hours' : 'Closed'}
             </span>
           </>
         )}
         <div className="h-3 w-px bg-zinc-200" />
         <span className="text-xs font-medium text-zinc-700">
-          The Wok is Hot 🍲
+          Menu highlights
         </span>
       </motion.button>
 

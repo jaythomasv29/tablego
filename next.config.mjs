@@ -2,55 +2,16 @@
 const nextConfig = {
   distDir: process.env.TABLEGO_ENVIRONMENT === 'staging' ? '.next-staging' : '.next',
   typescript: { tsconfigPath: process.env.TABLEGO_ENVIRONMENT === 'staging' ? 'tsconfig.staging.json' : 'tsconfig.json' },
-  // Add cache-busting headers
+  images: { remotePatterns: [{ protocol: 'https', hostname: 'firebasestorage.googleapis.com' }, { protocol: 'https', hostname: 'storage.googleapis.com' }] },
   async headers() {
+    const privateHeaders = [{ key: 'Cache-Control', value: 'private, no-store, max-age=0' }, { key: 'Referrer-Policy', value: 'no-referrer' }];
     return [
-      {
-        // Apply cache-busting headers to all pages
-        source: "/(.*)",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "no-cache, no-store, must-revalidate, max-age=0",
-          },
-          {
-            key: "Pragma",
-            value: "no-cache",
-          },
-          {
-            key: "Expires",
-            value: "0",
-          },
-        ],
-      },
-      {
-        // More aggressive cache busting for admin pages
-        source: "/admin/(.*)",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "no-cache, no-store, must-revalidate, max-age=0, s-maxage=0",
-          },
-          {
-            key: "Pragma",
-            value: "no-cache",
-          },
-          {
-            key: "Expires",
-            value: "0",
-          },
-          {
-            key: "X-Frame-Options",
-            value: "DENY",
-          },
-        ],
-      },
+      { source: '/admin/:path*', headers: [...privateHeaders, { key: 'X-Frame-Options', value: 'DENY' }] },
+      { source: '/api/:path*', headers: privateHeaders },
+      { source: '/login', headers: privateHeaders },
+      ...['reservation', 'cancel-reservation', 'reschedule'].map(route => ({ source: `/${route}/:path*`, headers: privateHeaders })),
+      { source: '/images/:path*', headers: [{ key: 'Cache-Control', value: 'public, max-age=3600, must-revalidate' }] },
     ];
   },
-  // Generate build ID based on timestamp to force cache invalidation
-  generateBuildId: async () => {
-    return `build-${Date.now()}`;
-  },
 };
-
 export default nextConfig;

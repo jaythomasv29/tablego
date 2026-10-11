@@ -4,6 +4,9 @@ import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { Loader2, Calendar, Users, Mail, Phone, MessageSquare, Search, Inbox } from 'lucide-react';
 import AdminLayout from '@/components/AdminLayout';
+import { useTimezone } from '@/contexts/TimezoneContext';
+import { formatDateForDisplay, formatBusinessTimestamp } from '@/utils/dateUtils';
+import { timestampString } from '@/lib/reservations/service';
 import toast from 'react-hot-toast';
 
 interface CateringOrder {
@@ -22,27 +25,15 @@ interface CateringOrder {
 
 type StatusFilter = 'all' | 'pending' | 'completed';
 
-const toDate = (value: { toDate: () => Date } | string | undefined): Date | null => {
-    if (!value) return null;
-    try {
-        if (typeof value === 'object' && 'toDate' in value) return value.toDate();
-        const parsed = new Date(value);
-        return Number.isNaN(parsed.getTime()) ? null : parsed;
-    } catch { return null; }
+const toDate = (value: unknown): Date | null => {
+    const stamp = timestampString(value); return stamp ? new Date(stamp) : null;
 };
-
-const formatDate = (date: { toDate: () => Date } | string) => {
-    if (!date) return '-';
-    try {
-        if (typeof date === 'object' && 'toDate' in date) return date.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-        return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    } catch { return '-'; }
+const formatDate = (date: unknown, timezone: string) => {
+    try { return formatDateForDisplay(date, timezone); } catch { return 'Date needs review'; }
 };
-
-const formatDateTime = (date: { toDate: () => Date } | string) => {
-    const parsed = toDate(date);
-    if (!parsed) return '-';
-    return parsed.toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+const formatDateTime = (date: unknown, timezone: string) => {
+    const stamp = timestampString(date);
+    return stamp ? formatBusinessTimestamp(stamp, timezone) : 'Timestamp not recorded';
 };
 
 const getSelectedDishNames = (order: CateringOrder): string[] => {
@@ -55,6 +46,7 @@ const getSelectedDishNames = (order: CateringOrder): string[] => {
 };
 
 export default function CateringPage() {
+    const { timezone } = useTimezone();
     const [orders, setOrders] = useState<CateringOrder[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -207,7 +199,7 @@ export default function CateringPage() {
                                                 <div>
                                                     <h3 className="font-semibold text-foreground">{order.name}</h3>
                                                     <div className="text-xs text-muted-foreground mt-0.5">
-                                                        Submitted: {formatDateTime(order.createdAt)}
+                                                        Submitted: {formatDateTime(order.createdAt, timezone)}
                                                     </div>
                                                 </div>
                                                 <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
@@ -220,7 +212,7 @@ export default function CateringPage() {
                                             <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted-foreground mb-3">
                                                 <span className="flex items-center">
                                                     <Calendar className="w-3.5 h-3.5 mr-1" />
-                                                    Event Date: {formatDate(order.date)}
+                                                    Event Date: {formatDate(order.date, timezone)}
                                                 </span>
                                                 <span className="flex items-center">
                                                     <Users className="w-3.5 h-3.5 mr-1" />

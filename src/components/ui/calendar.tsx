@@ -6,7 +6,6 @@ import {
   getDefaultClassNames,
   type DayButton,
   type Locale,
-  DateLib,
 } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
@@ -36,7 +35,7 @@ function Calendar({
       locale={locale}
       formatters={{
         formatMonthDropdown: (date) =>
-          new DateLib({ locale }).format(date, "LLL"),
+          new Intl.DateTimeFormat(locale?.code || 'en-US', { month: 'short' }).format(date),
         ...formatters,
       }}
       classNames={{
@@ -195,7 +194,7 @@ function CalendarDayButton({
       ref={ref}
       variant="ghost"
       size="icon"
-      data-day={new DateLib({ locale }).format(day.date, "yyyy-MM-dd")}
+      data-day={`${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, '0')}-${String(day.date.getDate()).padStart(2, '0')}`}
       data-selected-single={
         modifiers.selected &&
         !modifiers.range_start &&

@@ -10,12 +10,13 @@ type Props = {
   smsOptIn: boolean;
   onSmsOptIn: (v: boolean) => void;
   otpEnabled: boolean;
+  restaurantName?: string;
   disabled?: boolean;
 };
 
 const OTP_LENGTH = 4;
 
-const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhoneVerified, smsOptIn, onSmsOptIn, otpEnabled, disabled = false }) => {
+const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhoneVerified, smsOptIn, onSmsOptIn, otpEnabled, restaurantName = 'the restaurant', disabled = false }) => {
   const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [otpSent, setOtpSent] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -160,7 +161,7 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="guest-name" className="block text-sm font-medium text-gray-700 mb-2">
             <div className="flex items-center space-x-2">
               <User className="w-4 h-4" />
               <span>Full Name</span>
@@ -169,7 +170,7 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
           <div className="flex items-center w-full border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
             <input
               type="text"
-              value={formData.name}
+              id="guest-name" autoComplete="name" maxLength={120} value={formData.name}
               onChange={(e) => onUpdate({ name: e.target.value })}
               placeholder="John Doe"
               disabled={disabled}
@@ -179,7 +180,7 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="guest-email" className="block text-sm font-medium text-gray-700 mb-2">
             <div className="flex items-center space-x-2">
               <Mail className="w-4 h-4" />
               <span>Email</span>
@@ -188,7 +189,7 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
           <div className="flex items-center w-full border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
             <input
               type="email"
-              value={formData.email}
+              id="guest-email" autoComplete="email" maxLength={254} value={formData.email}
               onChange={(e) => onUpdate({ email: e.target.value })}
               placeholder="john@example.com"
               disabled={disabled}
@@ -208,13 +209,13 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
               style={{ accentColor: '#A3B18A', colorScheme: 'light' }}
             />
             <span className="text-xs text-gray-500 leading-relaxed">
-              I agree to receive SMS messages from Thaiphoon Restaurant for reservation verification and reminders. Message frequency varies. Message &amp; data rates may apply. Reply <strong className="font-semibold text-gray-600">STOP</strong> to cancel, <strong className="font-semibold text-gray-600">HELP</strong> for help.
+              I agree to receive SMS messages from {restaurantName} for reservation verification and reminders. Message frequency varies. Message &amp; data rates may apply. Reply <strong className="font-semibold text-gray-600">STOP</strong> to cancel, <strong className="font-semibold text-gray-600">HELP</strong> for help.
             </span>
           </label>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="guest-phone" className="block text-sm font-medium text-gray-700 mb-2">
             <div className="flex items-center space-x-2">
               <Phone className="w-4 h-4" />
               <span>Phone Number</span>
@@ -227,7 +228,7 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
             </span>
             <input
               type="tel"
-              value={formData.phone}
+              id="guest-phone" autoComplete="tel-national" maxLength={40} value={formData.phone}
               onChange={(e) => handlePhoneChange(e.target.value)}
               placeholder="(123)-456-7890"
               disabled={disabled}
@@ -261,6 +262,7 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
                     ref={(el) => { inputRefs.current[i] = el; }}
                     type="text"
                     inputMode="numeric"
+                    aria-label={`Verification digit ${i + 1}`}
                     maxLength={1}
                     value={digit}
                     disabled={!otpSent || isVerifying}
@@ -285,7 +287,7 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
               </div>
 
               {otpError && (
-                <p className="text-xs text-red-600 flex items-center gap-1">
+                <p role="alert" className="text-xs text-red-600 flex items-center gap-1">
                   <span>✕</span> {otpError}
                 </p>
               )}

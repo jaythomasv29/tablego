@@ -4,6 +4,7 @@ import { restaurantClock, timeMinutes, displayTime } from './availability.ts';
 export interface ServiceReservation {
   id: string; date: string; time: string; name: string; email: string; phone: string; guests: number;
   status: BookingState; needsReview: boolean; comments: string; internalNotes: string; createdAt: string | null;
+  dietaryPreferences: string; seatingPreference: string; preferencesUpdatedAt: string | null;
   phoneVerified: boolean; smsOptIn: boolean; noteVersion: number; marked: boolean;
 }
 export function timestampString(value: unknown): string | null {
@@ -24,6 +25,7 @@ export function serviceReservation(id: string, record: Record<string, unknown>, 
   if (needsReview && !['cancelled', 'no-show', 'completed'].includes(status)) status = 'needs-review';
   return { id, date, time: minutes === null ? text(record.time, 30) : displayTime(minutes), name: text(record.name, 120) || 'Guest name missing',
     email: text(record.email, 254), phone: text(record.phone, 40), guests: Number.isInteger(record.guests) && Number(record.guests) > 0 ? Number(record.guests) : 0,
+    dietaryPreferences: text(record.dietaryPreferences, 300), seatingPreference: text(record.seatingPreference, 200), preferencesUpdatedAt: timestampString(record.preferencesUpdatedAt),
     status, needsReview, comments: text(record.comments), internalNotes: text(record.internalNotes), createdAt: timestampString(record.createdAt),
     phoneVerified: record.phoneVerified === true && record.phoneVerificationSource === 'server', smsOptIn: record.smsOptIn === true,
     noteVersion: Number.isInteger(record.noteVersion) ? Number(record.noteVersion) : 0, marked: record.marked === true };
@@ -64,7 +66,12 @@ export function guestProfiles(bookings: ServiceReservation[]) {
   }
   return Array.from(groups.entries()).map(([key, history]) => {
     const latest = [...history].sort((a, b) => b.date.localeCompare(a.date))[0];
-    return { key, name: latest.name, email: latest.email, phone: latest.phone, bookings: history,
+    const completed = history.filter(booking => booking.status === 'completed');
+    const knownParties = completed.filter(booking => booking.guests > 0);
+    const preferences = [...history].filter(booking => booking.preferencesUpdatedAt).sort((a, b) => b.preferencesUpdatedAt!.localeCompare(a.preferencesUpdatedAt!))[0];
+    return { lastVisit: completed.map(booking => booking.date).filter(Boolean).sort().at(-1) || null,
+      averagePartySize: knownParties.length ? knownParties.reduce((sum, booking) => sum + booking.guests, 0) / knownParties.length : null,
+      dietaryPreferences: preferences?.dietaryPreferences || '', seatingPreference: preferences?.seatingPreference || '', key, name: latest.name, email: latest.email, phone: latest.phone, bookings: history,
       requests: history.length, completed: history.filter(booking => booking.status === 'completed').length,
       cancelled: history.filter(booking => booking.status === 'cancelled').length, noShows: history.filter(booking => booking.status === 'no-show').length,
       sharedContact: (contacts.get(`email:${emailKey(latest.email)}`)?.size || 0) > 1 || (contacts.get(`phone:${phoneKey(latest.phone)}`)?.size || 0) > 1 };

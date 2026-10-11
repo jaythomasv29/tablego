@@ -1,18 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getServerDatabase } from '@/lib/serverFirebase';
+import { restaurantIdentity } from '@/lib/restaurant/config';
 
-export async function GET() {
+export async function GET(request: Request) {
+    const db = getServerDatabase();
+    const general = (await db.doc('settings/general').get()).data();
+    const restaurant = restaurantIdentity(general?.restaurant);
     try {
-        await getServerDatabase().collection('menuDownloads').add({
-            type: 'download',
-            source: 'email',
-            timestamp: new Date(),
-        });
-    } catch (e) {
-        console.error('Failed to track menu download:', e);
-    }
-
-    return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/images/Thaiphoon_Food_Pics/Thaiphoon Dinner Menu.pdf`
-    );
+        await db.collection('menuDownloads').add({ type: 'download', source: 'email', timestamp: new Date() });
+    } catch { console.error('Failed to track menu download'); }
+    return NextResponse.redirect(new URL(restaurant.menuPdf, process.env.NEXT_PUBLIC_BASE_URL || request.url));
 }

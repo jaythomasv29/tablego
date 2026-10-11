@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, getDocs, addDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import AdminLayout from '@/components/AdminLayout';
+import { useTimezone } from '@/contexts/TimezoneContext';
 import { Printer, ChevronDown, ChevronRight, Search, X, Pencil, Check } from 'lucide-react';
 
 interface MenuItem {
@@ -15,7 +16,6 @@ interface MenuItem {
 
 type LabelStyle = 'classic' | 'elegant' | 'modern' | 'refined' | 'minimal' | 'rustic' | 'bold';
 
-const RESTAURANT_NAME = 'Thaiphoon Restaurant · Palo Alto';
 
 const PROTEINS = [
   'Chicken', 'Pork', 'Beef', 'Shrimp', 'Sole Fish',
@@ -395,12 +395,14 @@ const DIVIDER_LINE_STYLES: LabelStyle[] = ['elegant', 'modern', 'refined', 'rust
 const NO_DIVIDER_STYLES: LabelStyle[] = ['minimal', 'bold'];
 
 function TentCard({ item, labelStyle, protein }: { item: MenuItem; labelStyle: LabelStyle; protein?: string }) {
+  const { restaurant } = useTimezone();
+  const restaurantName = `${restaurant.name} · ${restaurant.location}`;
   const isDividerLine = DIVIDER_LINE_STYLES.includes(labelStyle);
   const hasDivider = !NO_DIVIDER_STYLES.includes(labelStyle);
   return (
     <div className={`tc tc-${labelStyle}`}>
       <div className="tc-back">
-        <span className="tc-restaurant">{RESTAURANT_NAME}</span>
+        <span className="tc-restaurant">{restaurantName}</span>
       </div>
       <div className="tc-fold" />
       <div className="tc-front">
@@ -411,7 +413,7 @@ function TentCard({ item, labelStyle, protein }: { item: MenuItem; labelStyle: L
           : <span className="tc-divider">· · ·</span>
         )}
         {item.description && <p className="tc-desc">{item.description}</p>}
-        <span className="tc-footer">{RESTAURANT_NAME}</span>
+        <span className="tc-footer">{restaurantName}</span>
       </div>
     </div>
   );
@@ -420,6 +422,8 @@ function TentCard({ item, labelStyle, protein }: { item: MenuItem; labelStyle: L
 // ── Preview card — shows only the front face at screen scale ──────────────────
 // Proportional to 3.5" × 2" (front half only)
 function PreviewCard({ item, labelStyle, protein }: { item: MenuItem; labelStyle: LabelStyle; protein?: string }) {
+  const { restaurant } = useTimezone();
+  const restaurantName = `${restaurant.name} · ${restaurant.location}`;
   const isDividerLine = DIVIDER_LINE_STYLES.includes(labelStyle);
   const hasDivider = !NO_DIVIDER_STYLES.includes(labelStyle);
   // Inline size overrides to keep preview compact
@@ -460,7 +464,7 @@ function PreviewCard({ item, labelStyle, protein }: { item: MenuItem; labelStyle
             {item.description}
           </p>
         )}
-        <span className="tc-footer" style={{ fontSize: 7, bottom: 5 }}>{RESTAURANT_NAME}</span>
+        <span className="tc-footer" style={{ fontSize: 7, bottom: 5 }}>{restaurantName}</span>
       </div>
     </div>
   );

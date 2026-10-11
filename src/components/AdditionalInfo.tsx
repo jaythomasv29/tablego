@@ -15,13 +15,13 @@ const AdditionalInfo: React.FC<Props> = ({ comments, onUpdate, disabled = false 
       </h2>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label htmlFor="guest-comments" className="block text-sm font-medium text-gray-700 mb-2">
           <div className="flex items-center space-x-2">
             <MessageSquare className="w-4 h-4" />
             <span>Special Requests or Comments</span>
           </div>
         </label>
-        <textarea
+        <textarea id="guest-comments" maxLength={2000}
           value={comments}
           onChange={(e) => onUpdate({ comments: e.target.value })}
           placeholder="Any dietary restrictions, special occasions, or seating preferences?"

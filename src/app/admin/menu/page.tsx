@@ -1,5 +1,6 @@
 "use client";
 
+import MenuImage from '@/components/menu/MenuImage';
 import { useState, useEffect } from "react";
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { db } from "@/firebase";
@@ -263,9 +264,7 @@ export default function MenuManagement() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {items.map((item) => (
                         <div key={item.id} className="bg-card border border-border rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-                          <div className="h-48 bg-muted">
-                            <img src={item.imageUrl || "https://placehold.co/400x300/e2e8f0/666666?text=Plate+of+Food"} alt={item.name} className="w-full h-full object-cover" />
-                          </div>
+                          <MenuImage src={item.imageUrl} name={item.name} className="h-48 bg-muted" />
                           <div className="p-4">
                             <div className="flex justify-between items-start mb-2">
                               <h3 className="text-base font-semibold text-foreground">{item.name}</h3>
@@ -305,7 +304,7 @@ export default function MenuManagement() {
                     items.map((item) => (
                       <tr key={item.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <img src={item.imageUrl || "https://placehold.co/400x300/e2e8f0/666666?text=Plate+of+Food"} alt={item.name} className="w-20 h-20 object-cover rounded border border-border" />
+                          <MenuImage src={item.imageUrl} name={item.name} sizes="80px" className="w-20 h-20 rounded border border-border" />
                         </td>
                         {[
                           { key: "name", type: "text" },
