@@ -7,7 +7,7 @@ Updated October 10–11, 2026. Implementation is on sequential local test branch
 | Requested improvement | Implementation |
 | --- | --- |
 | 1. Consistent lifecycle | Phase 1 domain/legacy adapter; pending, accepted, seated, completed, cancellation/no-show rules; shared UI and notification copy. Guest acknowledgement is separate from staff acceptance. |
-| 2. One availability engine | Phase 2 pure policy, creation/rescheduling revalidation; shared public/menu policy subscriptions. Separate chatbot consumer remains disabled pending integration. |
+| 2. One availability engine | Phase 2 pure policy, creation/rescheduling revalidation; shared public/menu policy subscriptions. The separate chatbot is excluded from this rollout by user decision and remains disabled. |
 | 3. Reliable booking | Transactional record, idempotency and per-recipient outbox; provider failure does not undo a saved booking. |
 | 4. Guest management | Phase 3 unified token-authorized flow behind all three legacy URLs, verified phone recovery, deliberate cancellation and pending rescheduling. |
 | 5–7. Today, console, navigation | Phase 4 live service console, meaningful covers/status counts, filters/actions, delivery state and grouped navigation. No invented capacity. |
@@ -49,8 +49,14 @@ Phase 4 optimized home bundle: route 64.8 kB, first load 337 kB. Phase 5 optimiz
 4. Coordinate application and Firestore rules/index deployment. The live rules audited at baseline allow unauthenticated staff/booking access; switching rules without the migrated app breaks old public/staff writes. Existing ID-only links must use verified recovery. Secure current production promptly through the reviewed rollout.
 5. Verify real SMTP/Twilio behavior with explicitly approved controlled recipients, including authenticated sender, SMS consent, provider errors and retries. Captures and SMTP serialization cannot establish deliverability.
 6. Activate and test a frequent notification retry scheduler. The checked-in daily 09:00 UTC Vercel cron is compatible with Hobby but does not provide timely retry service by itself. Supply an authenticated external scheduler or decide on Pro before depending on prompt retries. Immediate post-response attempts are best effort; durable jobs and the scheduled worker are the recovery mechanism.
-7. Review the separate `ai-chat-widget` integration before enabling it. Its current API calculates its own slots, writes its own booking and reports success before TableGo accepts it. It also lacks TableGo's server phone proof. TableGo's embed remains disabled. Consume authoritative API slots and use a verified secure handoff/integration; do not restore the old fire-and-forget webhook or trust a client verification boolean. No changes were made to that repo's main branch.
+7. Keep the chatbot embed disabled in preview and production for this TableGo-only rollout. Chatbot integration work is excluded and is not a prerequisite for releasing TableGo with the embed disabled.
 8. Review the local branch chain and run remote CI, preview guest/staff tests and upload tests before merge/release. Accept the remaining development-tool audit findings or remediate them in a controlled upgrade. Production deployment requires an explicitly accepted release.
+
+## Excluded chatbot scope
+
+On October 11, 2026, the user explicitly limited this rollout to TableGo and directed that the chatbot remain disabled. No changes or testing branch are planned in the separate `ai-chat-widget` repository for this rollout. Source inspection found no chatbot script/embed references in TableGo's active `src`, `public` or Next configuration.
+
+For a future separately authorized integration: the widget currently calculates its own slots, writes its own booking and reports success before TableGo accepts it, and lacks TableGo's server phone proof. It must consume authoritative slots and use a verified secure handoff/integration before being enabled. Do not restore the old fire-and-forget webhook or trust a client verification boolean.
 
 ## Environment manifest (names only)
 

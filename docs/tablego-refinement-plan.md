@@ -4,6 +4,8 @@ Reviewed October 10, 2026. Branch: `review/tablego-phased-refinement`.
 
 The initial source review and plan below are preserved as the delivery baseline. Implementation and current validation are recorded in `phase-0-progress.md`, `phase-1-progress.md`, `phase-2-progress.md`, `phase-3-progress.md`, `phase-4-progress.md`, `phase-5-progress.md`, `release-readiness.md` and `staging-setup.md`. Work proceeds on separate refinement branches; no phase has been deployed to production.
 
+Scope decision, October 11, 2026: this rollout is limited to TableGo. The separate chatbot integration described in the original baseline below is excluded, and the chatbot must remain disabled.
+
 ## Findings and priority corrections
 
 The proposed 20 improvements are broadly supported by the current code. Start with booking correctness and access control, and bring tests forward rather than postponing them until after refactoring.

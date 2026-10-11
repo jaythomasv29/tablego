@@ -1,6 +1,6 @@
 # TableGo
 
-Next.js restaurant reservations and staff service tools for Thaiphoon. Refinements are implemented on separate `refinement/phase-*` branches; production has not been deployed.
+Next.js restaurant reservations and staff service tools for Thaiphoon. Refinements are implemented on separate `refinement/phase-*` branches; production has not been deployed. This rollout is limited to TableGo; the separate chatbot is excluded and its embed remains disabled.
 
 ```sh
 npm ci
