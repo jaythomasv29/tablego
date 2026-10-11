@@ -47,6 +47,24 @@ export function todaySummary(bookings: ServiceReservation[], timezone: string, n
     specialRequests: active.filter(booking => booking.comments.trim()).length, largeParties: active.filter(booking => booking.guests >= 6).length,
     overdue: today.filter(booking => ['pending', 'confirmed'].includes(booking.status) && arrivalDue(booking, timezone, now)).length };
 }
+export function todayService(bookings: ServiceReservation[], timezone: string, now = new Date()) {
+  const clock = restaurantClock(timezone, now);
+  const today = bookings.filter(booking => booking.date === clock.date);
+  const sort = (records: ServiceReservation[]) => records.sort((a, b) =>
+    (timeMinutes(a.time) ?? 1440) - (timeMinutes(b.time) ?? 1440) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+  const attention = sort(bookings.filter(booking =>
+    (booking.date === clock.date && (booking.status === 'pending' || booking.status === 'needs-review' ||
+      (booking.status === 'confirmed' && arrivalDue(booking, timezone, now)))) ||
+    (!booking.date && booking.status === 'needs-review')));
+  const upcoming = sort(today.filter(booking => booking.status === 'confirmed' && !arrivalDue(booking, timezone, now)));
+  return {
+    attention,
+    arriving: upcoming.filter(booking => timeMinutes(booking.time)! <= clock.minutes + 60),
+    later: upcoming.filter(booking => timeMinutes(booking.time)! > clock.minutes + 60),
+    seated: sort(today.filter(booking => booking.status === 'seated')),
+    finished: sort(today.filter(booking => ['completed', 'cancelled', 'no-show'].includes(booking.status))),
+  };
+}
 const nameKey = (value: string) => value.normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ');
 const emailKey = (value: string) => value.trim().toLowerCase();
 const phoneKey = (value: string) => value.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');

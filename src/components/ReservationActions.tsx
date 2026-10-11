@@ -4,9 +4,10 @@ import NotificationStatus from './NotificationStatus';
 import { Button } from './ui/button';
 import { bookingState, type StaffAction } from '@/lib/reservations/domain';
 import { staffReservationAction } from '@/lib/reservations/client';
-export default function ReservationActions({ reservation, onUpdated }: {
+export default function ReservationActions({ reservation, onUpdated, showDelivery = true }: {
   reservation: { id: string; status: string; attendanceStatus?: string; phone?: string; canNoShow?: boolean };
   onUpdated: (record: { status: string; attendanceStatus?: 'show' | 'no-show' }) => void;
+  showDelivery?: boolean;
 }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [confirmAction, setConfirmAction] = useState<StaffAction | null>(null);
   const state = bookingState(reservation);
@@ -31,6 +32,6 @@ export default function ReservationActions({ reservation, onUpdated }: {
     <div className="flex flex-wrap gap-2">{actions.map(({ action, label }) => <Button key={action} size="sm" variant={action === confirmAction ? 'destructive' : 'outline'} disabled={busy} className="h-7 px-2 text-xs" onClick={() => run(action)}>{busy ? 'Saving…' : label}</Button>)}
       {confirmAction && <Button size="sm" variant="ghost" disabled={busy} onClick={() => setConfirmAction(null)}>Keep current status</Button>}
       {reservation.phone && <a className="inline-flex items-center rounded-md border px-2 text-xs" href={`tel:${reservation.phone.replace(/[^\d+]/g, '')}`}>Call</a>}
-    </div><NotificationStatus reservationId={reservation.id} />{error && <p role="alert" className="text-xs text-red-700">{error}</p>}
+    </div>{showDelivery && <NotificationStatus reservationId={reservation.id} />}{error && <p role="alert" className="text-xs text-red-700">{error}</p>}
   </div>;
 }

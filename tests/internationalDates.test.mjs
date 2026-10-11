@@ -23,6 +23,8 @@ for (const zone of ['America/Los_Angeles', 'Asia/Tokyo', 'Europe/London', 'Pacif
       assert.equal(availability.restaurantClock('America/Los_Angeles', new Date('2026-11-01T09:30:00Z')).minutes, 90);
       const row = service.serviceReservation('fixture', { name: 'Guest', date: { toDate: () => new Date('2026-10-11T01:00:00Z') }, time: '7:00 PM', guests: 2, status: 'confirmed' }, 'America/Los_Angeles');
       assert.equal(service.todaySummary([row], 'America/Los_Angeles', new Date('2026-10-11T01:00:00Z')).expectedCovers, 2);
+      assert.deepEqual(service.todayService([row], 'America/Los_Angeles', new Date('2026-10-11T01:30:00Z')).arriving.map(row => row.id), ['fixture']);
+      assert.deepEqual(service.todayService([row], 'America/Los_Angeles', new Date('2026-10-11T02:00:00Z')).attention.map(row => row.id), ['fixture']);
       assert.ok(dates.formatBusinessTimestamp('2026-10-11T01:00:00Z', 'America/Los_Angeles').includes('Oct 10, 2026'));
       const selected = new Date(2026, 9, 11, 12);
       assert.equal(availability.calendarDate(selected), '2026-10-11');
