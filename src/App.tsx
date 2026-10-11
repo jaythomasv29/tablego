@@ -261,7 +261,7 @@ function App() {
       setModalValidationError(null);
       setManagementLink(result.managementUrl);
       const details = result.reservationDetails;
-      setReceipt({ name: details.name, date: details.date, time: details.time, guests: details.guests, timezone: details.timezone });
+      setReceipt({ name: details.name, date: details.date, time: details.time, guests: details.guests, timezone: details.timezone, status: details.status });
       submissionKey.current = null;
       setShowReservationSuccess(true);
     } catch (error) {
@@ -562,7 +562,7 @@ function App() {
             onPointerDownOutside={event => { if (isSubmitting) event.preventDefault(); }}
             onCloseAutoFocus={event => { event.preventDefault(); openerRef.current?.focus(); }}
             className="guest-management fixed inset-4 md:inset-10 z-50 max-w-4xl mx-auto overflow-auto rounded-[2rem] bg-white border shadow-xl p-6 md:p-8">
-            <DialogPrimitive.Description className="sr-only">Request a table using the restaurant&apos;s local calendar and time. The restaurant must accept your request.</DialogPrimitive.Description>
+            <DialogPrimitive.Description className="sr-only">Request a table using the restaurant&apos;s local calendar and time. {policy?.autoConfirmReservations === false ? 'The restaurant must accept your request.' : 'Available reservations are confirmed when submitted.'}</DialogPrimitive.Description>
             <div className="flex items-center justify-between mb-6">
               <div>
                 <p className="text-xs uppercase tracking-[0.12em] text-zinc-500">
@@ -573,8 +573,8 @@ function App() {
                   style={{ fontFamily: "var(--font-editorial), serif" }}
                 >
                   {showReservationSuccess
-                    ? "Reservation request received"
-                    : "Request a table"}
+                    ? (receipt?.status === 'confirmed' ? "Reservation confirmed" : "Reservation saved")
+                    : (policy?.autoConfirmReservations === false ? "Request a table" : "Reserve a table")}
                 </h3></DialogPrimitive.Title>
               </div>
               <button
@@ -606,7 +606,7 @@ function App() {
                     />
                   </div>
                   {receipt && <ReservationReceipt details={receipt} />}
-                  {managementLink && <a href={managementLink} className="mt-6 inline-block underline">Manage your reservation</a>}
+                  {managementLink && <a href={managementLink} className="mt-6 inline-block rounded-full border border-zinc-900/20 px-6 py-3 text-sm font-medium text-zinc-900 transition-colors hover:bg-[#F9F7F2]">Manage your reservation</a>}
                   <div className="mt-8 flex justify-center">
                     <MagneticButton
                       onClick={closeReserveModal}
@@ -788,7 +788,7 @@ function App() {
                       {isSubmitting && (
                         <span className="inline-block w-4 h-4 rounded-full border-2 border-zinc-900/30 border-t-zinc-900 animate-spin" />
                       )}
-                      Request Table
+                      {policy?.autoConfirmReservations === false ? 'Request Table' : 'Reserve Table'}
                     </span>
                   </MagneticButton>
                 )}

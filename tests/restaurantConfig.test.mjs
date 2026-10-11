@@ -12,8 +12,10 @@ test('public identity has safe defaults and rejects secret keys and unsafe links
   assert.equal(validateRestaurant({ ...defaultRestaurant, orderUrl: '/order' }).orderUrl, '/order');
 });
 test('business policy requires a real timezone, bounded integer minutes and conflict version', () => {
+  assert.equal(validateGeneral(valid).autoConfirmReservations, true);
+  assert.equal(validateGeneral({ ...valid, autoConfirmReservations: false }).autoConfirmReservations, false);
   assert.equal(validateGeneral(valid).timezone, 'America/Los_Angeles');
-  for (const changes of [{ timezone: 'No/Such_Zone' }, { minimumLeadTimeMinutes: -1 }, { reservationCutoffMinutes: 0.5 }, { version: undefined }, { apiKey: 'secret' }]) assert.throws(() => validateGeneral({ ...valid, ...changes }));
+  for (const changes of [{ timezone: 'No/Such_Zone' }, { minimumLeadTimeMinutes: -1 }, { reservationCutoffMinutes: 0.5 }, { version: undefined }, { apiKey: 'secret' }, { autoConfirmReservations: 'false' }, { autoConfirmReservations: null }]) assert.throws(() => validateGeneral({ ...valid, ...changes }));
 });
 test('hours saves reject malformed and overnight ranges before disabling bookings', () => {
   const hours = Object.fromEntries(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].map(day => [day, { lunch: { isOpen: true, open: '11:00', close: '15:00' }, dinner: { isOpen: true, open: '17:00', close: '22:00' } }]));

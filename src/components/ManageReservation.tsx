@@ -11,13 +11,13 @@ import { restaurantClock } from '@/lib/reservations/availability';
 import { Label } from '@/components/ui/label';
 import { statusLabels, isGuestEditable, type BookingState } from '@/lib/reservations/domain';
 
-interface Reservation { id: string; name: string; date: string; time: string; guests: number; status: BookingState; guestAcknowledged: boolean; comments: string; timezone: string; version: number }
+interface Reservation { autoConfirmReservations: boolean; id: string; name: string; date: string; time: string; guests: number; status: BookingState; guestAcknowledged: boolean; comments: string; timezone: string; version: number }
 export default function ManageReservation({ id, initialAction }: { id: string; initialAction?: 'cancel' | 'reschedule' }) {
   const { restaurant } = useTimezone();
   const [token, setToken] = useState(''), [reservation, setReservation] = useState<Reservation | null>(null);
   const [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
   const [loadUnavailable, setLoadUnavailable] = useState(false), [slotsUnavailable, setSlotsUnavailable] = useState(false);
-  const [phone, setPhone] = useState(''), [code, setCode] = useState(''), [codeSent, setCodeSent] = useState(false);
+  const [phone, setPhone] = useState(''), [code, setCode] = useState(''), [codeSent, setCodeSent] = useState(false), [codeLength, setCodeLength] = useState(4);
   const [editing, setEditing] = useState(initialAction === 'reschedule'), [cancelOpen, setCancelOpen] = useState(initialAction === 'cancel');
   const [date, setDate] = useState(''), [time, setTime] = useState(''), [slots, setSlots] = useState<string[]>([]), [slotsLoading, setSlotsLoading] = useState(false);
   const load = useCallback(async (accessToken: string) => {
@@ -55,7 +55,7 @@ export default function ManageReservation({ id, initialAction }: { id: string; i
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       setReservation(data.reservation); setDate(data.reservation.date); setTime(data.reservation.time); setEditing(false); setCancelOpen(false);
-      setNotice(action === 'acknowledge' ? 'Your plans are acknowledged. Restaurant acceptance is shown below.' : action === 'cancel' ? 'Your reservation is cancelled.' : 'Your change is saved and awaits restaurant acceptance.');
+      setNotice(action === 'acknowledge' ? 'Your response is saved. The restaurant can see that you plan to come.' : action === 'cancel' ? 'Your reservation is cancelled.' : data.reservation.status === 'confirmed' ? 'Your change is saved and confirmed.' : 'Your change is saved and awaits restaurant acceptance.');
     } catch (err) { setError((err as Error).message || 'Unable to save. Your current reservation is unchanged.'); }
     finally { setBusy(false); }
   }
@@ -66,7 +66,7 @@ export default function ManageReservation({ id, initialAction }: { id: string; i
       if (!codeSent) {
         const response = await fetch('/api/otp/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone }) });
         const data = await response.json(); if (!response.ok) throw new Error(data.error);
-        setCodeSent(true); setNotice('Enter the verification code sent to your phone.'); return;
+        setCodeLength(Number.isInteger(data.codeLength) && data.codeLength >= 4 && data.codeLength <= 10 ? data.codeLength : 4); setCodeSent(true); setNotice('Enter the verification code sent to your phone.'); return;
       }
       const verification = await fetch('/api/otp/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone, code }) });
       const proof = await verification.json(); if (!verification.ok || !proof.valid) throw new Error(proof.error || 'Incorrect or expired verification code.');
@@ -79,28 +79,36 @@ export default function ManageReservation({ id, initialAction }: { id: string; i
     } catch (err) { setError((err as Error).message || 'Unable to recover access. Please call the restaurant.'); }
     finally { setBusy(false); }
   }
-  return <main className="guest-management min-h-screen bg-[#F9F7F2] px-4 py-12 sm:py-20">
+  return <main className="guest-management reservation-management min-h-screen bg-[#F9F7F2] px-4 py-8 sm:py-14">
     <div className="mx-auto max-w-xl space-y-6">
-      <Link href="/" className="text-sm font-medium">{restaurant.shortName} · {restaurant.location}</Link>
-      <Card><CardHeader><CardTitle className="text-2xl"><h1>Manage your reservation</h1></CardTitle></CardHeader><CardContent className="space-y-6">
+      <Link href="/" className="inline-block text-xs uppercase tracking-[0.18em] text-zinc-600">{restaurant.shortName} · {restaurant.location}</Link>
+      <Card className="gap-0 overflow-hidden rounded-[1.5rem] border-zinc-900/10 py-0">
+        <CardHeader className="bg-[#121212] px-6 py-9 text-center sm:px-10 sm:py-11">
+          <p className="mb-2 text-[11px] uppercase tracking-[0.18em] text-[#A3B18A]">{restaurant.shortName} · Reservations</p>
+          <CardTitle className="font-normal text-[#F9F7F2]"><h1 className="text-4xl italic leading-tight sm:text-5xl" style={{ fontFamily: 'var(--font-editorial), Georgia, serif' }}>{reservation?.status === 'confirmed' ? 'Your table is confirmed.' : reservation?.status === 'pending' ? 'Your table request.' : reservation?.status === 'cancelled' ? 'Reservation cancelled.' : 'Your reservation.'}</h1></CardTitle>
+          <p className="pt-2 text-sm leading-relaxed text-[#F9F7F2]/75">Review your booking or update your plans below.</p>
+          <span className="mx-auto mt-5 h-0.5 w-12 bg-[#A3B18A]" aria-hidden="true" />
+        </CardHeader><CardContent className="space-y-6 p-6 sm:p-8">
         {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
         {error && reservation && <Button variant="outline" disabled={busy} onClick={() => load(token)}>Reload latest booking</Button>}
         {notice && <p role="status" className="rounded-lg bg-green-50 p-3 text-sm text-green-800">{notice}</p>}
         {loading ? <p role="status">Loading your reservation…</p> : reservation ? <>
-          <div className="rounded-lg bg-muted p-5 space-y-2">
-            <p className="font-semibold">{reservation.name}</p><p>{formatReadableDatePST(reservation.date)}</p>
-            <p>{reservation.time} · {reservation.guests} {reservation.guests === 1 ? 'guest' : 'guests'}</p>
+          <div className="rounded-2xl bg-[#EAE0D5] p-5 space-y-3 sm:p-6">
+            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#586747]">Reservation details</p>
+            <p className="break-words text-2xl italic" style={{ fontFamily: 'var(--font-editorial), Georgia, serif' }}>{reservation.name}</p>
+            <p className="border-t border-zinc-900/10 pt-3 text-sm">{formatReadableDatePST(reservation.date)}</p>
+            <p className="text-sm">{reservation.time} · {reservation.guests} {reservation.guests === 1 ? 'guest' : 'guests'}</p>
             <p className="text-sm text-muted-foreground">All booking dates and times are local to the restaurant ({reservation.timezone}).</p>
-            <p className="font-medium">{statusLabels[reservation.status]}</p>
-            {reservation.guestAcknowledged && <p className="text-sm text-muted-foreground">Guest plans acknowledged</p>}
-            {reservation.comments && <p className="text-sm">{reservation.comments}</p>}
+            <p className="inline-block rounded-full border border-zinc-900/15 bg-white/60 px-3 py-1 text-xs font-medium">{statusLabels[reservation.status]}</p>
+            {reservation.guestAcknowledged && <p className="text-sm text-muted-foreground">You told the restaurant you’re coming</p>}
+            {reservation.comments && <p className="break-words whitespace-pre-wrap border-t border-zinc-900/10 pt-3 text-sm leading-relaxed">{reservation.comments}</p>}
           </div>
           {reservation.status === 'pending' && <p className="text-sm text-muted-foreground">Your request is saved. The restaurant still needs to accept it before your table is confirmed.</p>}
           {isGuestEditable(reservation.status) && <div className="space-y-3">
-            {!reservation.guestAcknowledged && <Button className="w-full" disabled={busy} onClick={() => act('acknowledge')}>Acknowledge my plans</Button>}
-            <Button variant="outline" className="w-full" disabled={busy} onClick={() => { setEditing(!editing); setError(''); setNotice(''); }}>Reschedule</Button>
+            {!reservation.guestAcknowledged && <Button className="w-full rounded-full" disabled={busy} onClick={() => act('acknowledge')}>{reservation.status === 'confirmed' ? 'I’m coming' : 'Acknowledge my request'}</Button>}
+            <Button variant="outline" className="w-full rounded-full" disabled={busy} onClick={() => { setEditing(!editing); setError(''); setNotice(''); }}>Reschedule</Button>
             <Dialog open={cancelOpen} onOpenChange={open => { if (!busy) setCancelOpen(open); }}>
-              <DialogTrigger asChild><Button variant="outline" className="w-full" disabled={busy}>Cancel reservation</Button></DialogTrigger>
+              <DialogTrigger asChild><Button variant="outline" className="w-full rounded-full" disabled={busy}>Cancel reservation</Button></DialogTrigger>
               <DialogContent className="guest-management" showCloseButton={!busy}>
                 <DialogTitle>Cancel this reservation?</DialogTitle>
                 <DialogDescription>Your booking for {formatReadableDatePST(reservation.date)} at {reservation.time} will be cancelled.</DialogDescription>
@@ -116,8 +124,8 @@ export default function ManageReservation({ id, initialAction }: { id: string; i
               <option value="">{slotsLoading ? 'Checking times…' : 'Choose a time'}</option>{slots.map(slot => <option key={slot}>{slot}</option>)}
             </select>
             {!slotsLoading && !slotsUnavailable && !slots.length && <p className="text-sm text-muted-foreground">No times are available for this date. Choose another day or call the restaurant.</p>}
-            <p className="text-sm text-muted-foreground">Changes require restaurant acceptance. Your existing booking stays in place if the new time is unavailable.</p>
-            <div className="flex flex-wrap gap-3"><Button type="submit" disabled={busy || slotsLoading || !slots.includes(time)}>{busy ? 'Saving…' : 'Request this change'}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => { setEditing(false); setDate(reservation.date); setTime(reservation.time); setError(''); }}>Keep current booking</Button></div>
+            <p className="text-sm text-muted-foreground">{reservation.autoConfirmReservations ? 'Available changes are confirmed immediately.' : 'Changes require restaurant acceptance.'} Your existing booking stays in place if the new time is unavailable.</p>
+            <div className="flex flex-wrap gap-3"><Button type="submit" disabled={busy || slotsLoading || !slots.includes(time)}>{busy ? 'Saving…' : 'Save this change'}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => { setEditing(false); setDate(reservation.date); setTime(reservation.time); setError(''); }}>Keep current booking</Button></div>
           </form>}
           <p className="text-sm text-muted-foreground">Booking updates are saved immediately. Email or SMS updates may arrive later.</p>
         </> : loadUnavailable ? <div className="space-y-3">
@@ -127,13 +135,17 @@ export default function ManageReservation({ id, initialAction }: { id: string; i
         </div> : <form className="space-y-4" onSubmit={event => { event.preventDefault(); void recover(); }}>
           <p className="text-sm text-muted-foreground">Use the secure link in your latest email, or verify the phone number used for this booking to restore access.</p>
           <Label htmlFor="recovery-phone">Booking phone number</Label><Input id="recovery-phone" type="tel" autoComplete="tel" value={phone} required disabled={codeSent} onChange={event => setPhone(event.target.value)} />
-          {codeSent && <><Label htmlFor="recovery-code">Verification code</Label><Input id="recovery-code" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} minLength={4} autoComplete="one-time-code" value={code} required onChange={event => setCode(event.target.value)} /></>}
+          {codeSent && <><Label htmlFor="recovery-code">Verification code</Label><Input id="recovery-code" inputMode="numeric" pattern={`[0-9]{${codeLength}}`} maxLength={codeLength} minLength={codeLength} autoComplete="one-time-code" value={code} required onChange={event => setCode(event.target.value)} /></>}
           <Button type="submit" disabled={busy}>{busy ? 'Please wait…' : codeSent ? 'Verify and restore access' : 'Send verification code'}</Button>
           {codeSent && <Button variant="ghost" type="button" disabled={busy} onClick={() => { setCodeSent(false); setCode(''); }}>Change number or resend</Button>}
           <p className="text-sm">Need help? <a className="underline" href={`tel:${restaurant.phone}`}>Call the restaurant</a>.</p>
         </form>}
       </CardContent></Card>
-      <Link href="/" className="inline-block text-sm underline">Return to restaurant</Link>
+      <footer className="space-y-2 text-center text-xs leading-relaxed text-zinc-600">
+        <p className="text-lg italic text-zinc-900" style={{ fontFamily: 'var(--font-editorial), Georgia, serif' }}>{restaurant.name}</p>
+        <p>{restaurant.address}</p>
+        <p><a href={`tel:${restaurant.phone}`} className="underline underline-offset-4">{restaurant.phoneLabel}</a> · <Link href="/" className="underline underline-offset-4">Return to restaurant</Link></p>
+      </footer>
     </div>
   </main>;
 }

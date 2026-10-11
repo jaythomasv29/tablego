@@ -69,6 +69,7 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
             <div className="flex flex-wrap items-start justify-between gap-3"><div className="space-y-1"><h3 className="text-lg font-semibold">{booking.name}</h3><p>{booking.date ? formatReadableDatePST(booking.date, timezone) : 'Date needs staff review'} · {booking.time || 'Time needs review'}</p><p className="text-sm text-muted-foreground">{booking.phone || 'No phone'} · {booking.email || 'No email'}</p></div>
               <div className="flex flex-wrap gap-2"><span className="rounded-full border px-3 py-1 text-sm font-medium">{booking.guests} {booking.guests === 1 ? 'guest' : 'guests'}</span><span className={`rounded-full border px-3 py-1 text-sm ${stateColors[booking.status]}`}>{statusLabels[booking.status]}</span></div>
             </div>
+            {isGuestEditable(booking.status) && <p className="text-sm text-muted-foreground">Customer response: {booking.guestAcknowledged ? 'Coming — acknowledged through the secure link' : 'No acknowledgement yet'}</p>}
             {booking.needsReview && <p className="text-sm text-orange-700 dark:text-orange-300">Some imported details need review. Contact the guest before acting.</p>}
             {booking.comments && <p className="rounded-md bg-muted p-3 text-sm"><strong>Guest request:</strong> {booking.comments}</p>}
             {booking.internalNotes && <p className="text-sm"><strong>Staff note:</strong> {booking.internalNotes}</p>}

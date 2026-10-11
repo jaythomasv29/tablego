@@ -5,7 +5,7 @@ export interface ServiceReservation {
   id: string; date: string; time: string; name: string; email: string; phone: string; guests: number;
   status: BookingState; needsReview: boolean; comments: string; internalNotes: string; createdAt: string | null;
   dietaryPreferences: string; seatingPreference: string; preferencesUpdatedAt: string | null;
-  phoneVerified: boolean; smsOptIn: boolean; noteVersion: number; marked: boolean;
+  guestAcknowledged: boolean; phoneVerified: boolean; smsOptIn: boolean; noteVersion: number; marked: boolean;
 }
 export function timestampString(value: unknown): string | null {
   try {
@@ -27,7 +27,7 @@ export function serviceReservation(id: string, record: Record<string, unknown>, 
     email: text(record.email, 254), phone: text(record.phone, 40), guests: Number.isInteger(record.guests) && Number(record.guests) > 0 ? Number(record.guests) : 0,
     dietaryPreferences: text(record.dietaryPreferences, 300), seatingPreference: text(record.seatingPreference, 200), preferencesUpdatedAt: timestampString(record.preferencesUpdatedAt),
     status, needsReview, comments: text(record.comments), internalNotes: text(record.internalNotes), createdAt: timestampString(record.createdAt),
-    phoneVerified: record.phoneVerified === true && record.phoneVerificationSource === 'server', smsOptIn: record.smsOptIn === true,
+    guestAcknowledged: Boolean(timestampString(record.guestAcknowledgedAt)), phoneVerified: record.phoneVerified === true && record.phoneVerificationSource === 'server', smsOptIn: record.smsOptIn === true,
     noteVersion: Number.isInteger(record.noteVersion) ? Number(record.noteVersion) : 0, marked: record.marked === true };
 }
 export function arrivalDue(booking: Pick<ServiceReservation, 'date' | 'time'>, timezone: string, now = new Date()) {

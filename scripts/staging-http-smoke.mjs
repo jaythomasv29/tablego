@@ -3,7 +3,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import dotenv from 'dotenv';
 const env = dotenv.parse(await readFile('.env.staging.local'));
 if (env.NEXT_PUBLIC_FIREBASE_PROJECT_ID !== 'tablego-staging-1d712') throw new Error('Staging only');
-const base = 'http://127.0.0.1:3100';
+const base = process.env.TABLEGO_STAGING_TEST_BASE_URL || 'http://127.0.0.1:3100';
+if (!/^http:\/\/127\.0\.0\.1:310[02]$/.test(base)) throw new Error('Smoke tests require a local capture-staging port');
 const results = [];
 async function read(path, headers = {}) { return fetch(`${base}${path}`, { headers, redirect: 'manual' }); }
 for (const headers of [{}, { Cookie: 'company-auth=true' }, { 'x-middleware-subrequest': 'src/middleware:src/middleware:src/middleware:src/middleware:src/middleware' }]) {

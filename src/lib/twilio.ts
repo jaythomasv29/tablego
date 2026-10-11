@@ -1,3 +1,4 @@
+import { liveOtpAllowed } from './providerTest';
 import twilio from 'twilio';
 import { randomInt, createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises';
@@ -21,26 +22,29 @@ function challengePath(phone: string) {
 }
 
 export async function sendVerificationCode(phone: string) {
-  if (capturesNotifications()) {
+  if (capturesNotifications() && !liveOtpAllowed(phone)) {
     if (process.env.TABLEGO_ENVIRONMENT !== 'staging') throw new Error('Captured OTP is restricted to staging');
     const code = String(randomInt(1000, 10000));
     if (persistentCapture()) {
       const { getServerDatabase } = await import('./serverFirebase');
       await getServerDatabase().doc(`stagingOtpChallenges/${createHash('sha256').update(phone).digest('hex')}`).set({ code, expiresAt: Date.now() + 600_000, attempts: 0 });
       await captureNotification('otp', { to: phone, code });
-      return;
+      return { codeLength: 4, captured: true };
     }
     const path = challengePath(phone);
     await mkdir(path.dir, { recursive: true, mode: 0o700 });
     await writeFile(path.file, JSON.stringify({ code, expiresAt: Date.now() + 600_000, attempts: 0 }), { mode: 0o600 });
     await captureNotification('otp', { to: phone, code });
-    return;
+    return { codeLength: 4, captured: true };
   }
+  const service = await getLive().verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID!).fetch();
+  if (!Number.isInteger(service.codeLength) || service.codeLength < 4 || service.codeLength > 10) throw new Error('Invalid verification code length');
   await getLive().verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID!).verifications.create({ to: phone, channel: 'sms' });
+  return { codeLength: service.codeLength, captured: false };
 }
 
 export async function verifyPhoneCode(phone: string, code: string): Promise<boolean> {
-  if (capturesNotifications()) {
+  if (capturesNotifications() && !liveOtpAllowed(phone)) {
     if (process.env.TABLEGO_ENVIRONMENT !== 'staging') throw new Error('Captured OTP is restricted to staging');
     if (persistentCapture()) {
       const { getServerDatabase } = await import('./serverFirebase');

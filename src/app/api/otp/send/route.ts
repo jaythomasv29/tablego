@@ -18,9 +18,9 @@ export async function POST(request: Request) {
     const total = await rateLimit('otp-send-total', 'site', 100, 600);
     if (total) return total;
 
-    await sendVerificationCode(to);
+    const result = await sendVerificationCode(to);
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, codeLength: result.codeLength });
   } catch (error) {
     if (error instanceof SyntaxError) return NextResponse.json({ success: false, error: 'Invalid JSON' }, { status: 400 });
     console.warn('[otp/send] verification provider unavailable');

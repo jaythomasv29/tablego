@@ -12,7 +12,8 @@
     "check": "npm run typecheck && npm run lint && npm test && npm run build",
     "dev:staging": "node scripts/staging.mjs dev",
     "build:staging": "node scripts/staging.mjs build",
-    "start:staging": "node scripts/staging.mjs start"
+    "start:staging": "node scripts/staging.mjs start",
+    "dev:provider-test": "node scripts/staging.mjs dev --provider-test"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

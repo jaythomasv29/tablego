@@ -28,6 +28,7 @@ export default function RootLayout({
         <meta name="format-detection" content="telephone=no" />
       </head>
       <body className="font-sans antialiased" suppressHydrationWarning>
+        {process.env.NEXT_PUBLIC_TABLEGO_PROVIDER_TEST === 'true' && <p className="border-b border-amber-300 bg-amber-50 p-3 text-center text-sm text-amber-950">Staging provider test: the approved test phone receives real verification texts, and the approved email receives real confirmations. Other messages are captured.</p>}
         <Providers>
           <TimezoneProvider>{children}</TimezoneProvider>
         </Providers>

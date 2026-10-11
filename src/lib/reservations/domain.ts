@@ -25,3 +25,11 @@ export const statusLabels: Record<BookingState, string> = {
   pending: 'Awaiting restaurant acceptance', confirmed: 'Confirmed', seated: 'Seated',
   completed: 'Completed', cancelled: 'Cancelled', 'no-show': 'No-show', 'needs-review': 'Needs staff review',
 };
+
+// Missing legacy settings adopt automatic confirmation for future submissions.
+// Existing reservation records are never reclassified by this setting.
+export function automaticConfirmation(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (typeof value !== 'boolean') throw new Error('Invalid automatic confirmation setting');
+  return value;
+}

@@ -14,7 +14,11 @@ test('reservation messages use consistent requested/accepted language and escape
   assert.match(message.text, /November 1, 2026/); assert.match(message.text, /America\/Los_Angeles/);
   assert.ok(!message.html.includes('<script>')); assert.ok(!message.html.includes('<img src=x'));
   const accepted = renderNotification({ ...job, event: 'confirmed', reservation: { ...job.reservation, status: 'confirmed' } });
-  assert.match(accepted.subject, /accepted/); assert.ok(!accepted.text.includes('still needs to accept'));
+  const automatic = renderNotification({ ...job, reservation: { ...job.reservation, status: 'confirmed' } });
+  assert.match(automatic.subject, /Reservation confirmed/); assert.match(automatic.text, /let the restaurant know you are coming/); assert.ok(!automatic.text.includes('still needs to accept'));
+  const rescheduled = renderNotification({ ...job, event: 'rescheduled', reservation: { ...job.reservation, status: 'confirmed' } });
+  assert.match(rescheduled.subject, /change confirmed/);
+  assert.match(accepted.subject, /confirmed/); assert.ok(!accepted.text.includes('still needs to accept'));
 });
 test('catering email describes an inquiry and keeps untrusted requests as text', () => {
   const message = renderCateringNotification({ recipient: 'guest', inquiry: { name: 'Synthetic <guest>', email: 'guest@example.invalid', date: '2026-11-01', partySize: '20', budget: '$1000', eventType: 'Dinner', selectedDishes: [{ name: '<script>bad</script>' }], specialRequests: '<img src=x>' } }, defaultRestaurant);

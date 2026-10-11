@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { Button } from './ui/button';
-interface Delivery { id: string; event: string; channel: string; recipient: string; state: string; attempts: number; lastError: string | null }
+interface Delivery { id: string; event: string; channel: string; recipient: string; state: string; deliveryMode: 'capture' | 'provider' | null; attempts: number; lastError: string | null }
 const labels: Record<string, string> = { queued: 'Queued', sending: 'Sending', delivered: 'Sent', failed: 'Retry scheduled', exhausted: 'Needs attention', superseded: 'Replaced by a newer update' };
 export default function NotificationStatus({ reservationId }: { reservationId: string }) {
   const [open, setOpen] = useState(false), [jobs, setJobs] = useState<Delivery[]>([]), [busy, setBusy] = useState(false), [error, setError] = useState('');
@@ -28,7 +28,7 @@ export default function NotificationStatus({ reservationId }: { reservationId: s
       {error && <p role="alert" className="text-red-700">{error}</p>}
       {!busy && !error && jobs.length === 0 && <p>No messages recorded for this booking.</p>}
       <ul className="space-y-2">{jobs.map(job => <li key={job.id} className="flex flex-wrap items-center gap-2 border-t pt-2">
-        <span>{job.event} · {job.recipient} · {job.channel}: <strong>{labels[job.state] || job.state}</strong> ({job.attempts} attempts)</span>
+        <span>{job.event} · {job.recipient} · {job.channel}: <strong>{job.state === 'delivered' && job.deliveryMode === 'capture' ? 'Captured in staging' : job.state === 'delivered' && job.deliveryMode === 'provider' ? 'Accepted by provider' : labels[job.state] || job.state}</strong> ({job.attempts} attempts)</span>
         {['failed', 'exhausted'].includes(job.state) && <Button size="sm" variant="outline" disabled={busy} onClick={() => load(job.id)}>Retry message</Button>}
       </li>)}</ul>
     </div>}

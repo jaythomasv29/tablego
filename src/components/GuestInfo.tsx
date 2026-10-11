@@ -14,10 +14,9 @@ type Props = {
   disabled?: boolean;
 };
 
-const OTP_LENGTH = 4;
-
 const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhoneVerified, smsOptIn, onSmsOptIn, otpEnabled, restaurantName = 'the restaurant', disabled = false }) => {
-  const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''));
+  const [otpLength, setOtpLength] = useState(4);
+  const [digits, setDigits] = useState<string[]>(Array(otpLength).fill(''));
   const [otpSent, setOtpSent] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -49,14 +48,14 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
     onUpdate({ phone: formatPhoneNumber(value) });
     onPhoneVerified(false);
     setOtpSent(false);
-    setDigits(Array(OTP_LENGTH).fill(''));
+    setDigits(Array(otpLength).fill(''));
     setOtpError(null);
   };
 
   const handleSendCode = async () => {
     setIsSending(true);
     setOtpError(null);
-    setDigits(Array(OTP_LENGTH).fill(''));
+    setDigits(Array(otpLength).fill(''));
     try {
       const res = await fetch('/api/otp/send', {
         method: 'POST',
@@ -65,6 +64,9 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
+      const length = data.codeLength === undefined ? 4 : data.codeLength;
+      if (!Number.isInteger(length) || length < 4 || length > 10) throw new Error('Invalid code length');
+      setOtpLength(length); setDigits(Array(length).fill(''));
       setOtpSent(true);
     } catch {
       setOtpError('Couldn\'t send a code. Check the number and try again.');
@@ -88,7 +90,7 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
         onPhoneVerified(true);
       } else {
         setOtpError('Incorrect code — please try again.');
-        setDigits(Array(OTP_LENGTH).fill(''));
+        setDigits(Array(otpLength).fill(''));
         setShake(true);
         setTimeout(() => {
           setShake(false);
@@ -97,15 +99,15 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
       }
     } catch {
       setOtpError('Verification failed. Please try again.');
-      setDigits(Array(OTP_LENGTH).fill(''));
+      setDigits(Array(otpLength).fill(''));
     } finally {
       setIsVerifying(false);
     }
-  }, [formData.phone, onPhoneVerified]);
+  }, [formData.phone, onPhoneVerified, otpLength]);
 
   // A completed code is submitted once, even when callbacks change identity.
   useEffect(() => {
-    if (code.length !== OTP_LENGTH || !otpSent) {
+    if (code.length !== otpLength || !otpSent) {
       attemptedVerification.current = null;
       return;
     }
@@ -113,7 +115,7 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
     if (isVerifying || phoneVerified || attemptedVerification.current === attempt) return;
     attemptedVerification.current = attempt;
     void handleVerifyCode(code);
-  }, [code, otpSent, isVerifying, phoneVerified, formData.phone, handleVerifyCode]);
+  }, [code, otpLength, otpSent, isVerifying, phoneVerified, formData.phone, handleVerifyCode]);
 
 
   const handleDigitChange = (index: number, value: string) => {
@@ -122,7 +124,7 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
     next[index] = digit;
     setDigits(next);
     setOtpError(null);
-    if (digit && index < OTP_LENGTH - 1) {
+    if (digit && index < otpLength - 1) {
       inputRefs.current[index + 1]?.focus();
     }
   };
@@ -141,12 +143,12 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
 
   const handleDigitPaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LENGTH);
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, otpLength);
     if (!pasted) return;
-    const next = Array(OTP_LENGTH).fill('');
+    const next = Array(otpLength).fill('');
     pasted.split('').forEach((ch, i) => { next[i] = ch; });
     setDigits(next);
-    inputRefs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus();
+    inputRefs.current[Math.min(pasted.length, otpLength - 1)]?.focus();
   };
 
   return (
@@ -209,7 +211,7 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
               style={{ accentColor: '#A3B18A', colorScheme: 'light' }}
             />
             <span className="text-xs text-gray-500 leading-relaxed">
-              I agree to receive SMS messages from {restaurantName} for reservation verification and reminders. Message frequency varies. Message &amp; data rates may apply. Reply <strong className="font-semibold text-gray-600">STOP</strong> to cancel, <strong className="font-semibold text-gray-600">HELP</strong> for help.
+              Send me optional SMS reservation reminders from {restaurantName}. Message frequency varies. Message &amp; data rates may apply. Reply <strong className="font-semibold text-gray-600">STOP</strong> to cancel, <strong className="font-semibold text-gray-600">HELP</strong> for help.
             </span>
           </label>
         </div>
@@ -231,7 +233,7 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
               id="guest-phone" autoComplete="tel-national" maxLength={40} value={formData.phone}
               onChange={(e) => handlePhoneChange(e.target.value)}
               placeholder="(123)-456-7890"
-              disabled={disabled}
+              disabled={disabled || isSending || isVerifying}
               className="w-full px-3 py-2 border-0 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             />
             {otpEnabled && phoneVerified && (
@@ -246,14 +248,14 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
                 <p className="text-sm font-medium text-gray-800">Verify your phone number</p>
                 <p className="text-xs text-gray-500 mt-0.5">
                   {otpSent
-                    ? `Enter the 4-digit code sent to ${formData.phone}`
-                    : `We'll send a 4-digit code to ${formData.phone} to confirm this number.`}
+                    ? `Enter the ${otpLength}-digit code sent to ${formData.phone}`
+                    : `We’ll text a verification code to ${formData.phone} to confirm this number. Message and data rates may apply.`}
                 </p>
               </div>
 
-              {/* 4-digit boxes — always shown, disabled until code is sent */}
+              {/* Code length is supplied by the verification provider. */}
               <div
-                className={`flex gap-2 ${shake ? 'animate-[shake_0.4s_ease-in-out]' : ''}`}
+                className={`flex flex-wrap gap-2 ${shake ? 'animate-[shake_0.4s_ease-in-out]' : ''}`}
                 style={shake ? { animation: 'shake 0.4s ease-in-out' } : {}}
               >
                 {digits.map((digit, i) => (
@@ -265,7 +267,7 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
                     aria-label={`Verification digit ${i + 1}`}
                     maxLength={1}
                     value={digit}
-                    disabled={!otpSent || isVerifying}
+                    disabled={!otpSent || isSending || isVerifying || disabled}
                     onChange={(e) => handleDigitChange(i, e.target.value)}
                     onKeyDown={(e) => handleDigitKeyDown(i, e)}
                     onPaste={i === 0 ? handleDigitPaste : undefined}
@@ -296,8 +298,7 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
               <button
                 type="button"
                 onClick={handleSendCode}
-                disabled={isSending || !smsOptIn || disabled}
-                title={!smsOptIn ? 'Please agree to SMS terms on the previous step' : undefined}
+                disabled={isSending || isVerifying || disabled}
                 className="text-xs text-indigo-600 hover:text-indigo-800 underline underline-offset-2 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
               >
                 {isSending && <Loader2 className="w-3 h-3 animate-spin" />}

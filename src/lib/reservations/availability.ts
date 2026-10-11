@@ -2,6 +2,7 @@ export interface PeriodHours { open: string; close: string; isOpen: boolean; cus
 export interface AvailabilityPolicy {
   businessHours: Record<string, { lunch: PeriodHours; dinner: PeriodHours }>;
   specialDates: { date: string; closureType?: 'full' | 'lunch' | 'dinner'; reason?: string }[];
+  autoConfirmReservations?: boolean;
   timezone: string; cutoffMinutes: number; leadTimeMinutes: number;
 }
 export interface BookingSlot { time: string; period: 'lunch' | 'dinner' }

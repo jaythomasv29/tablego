@@ -248,3 +248,9 @@ select::-webkit-scrollbar-thumb {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+
+/* Restaurant reservation actions retain the homepage's sage and pill shapes. */
+.reservation-management [data-slot="button"] { background: #A3B18A; color: #121212; border-radius: 9999px; }
+.reservation-management [data-slot="button"][data-variant="outline"],
+.reservation-management [data-slot="button"][data-variant="ghost"] { background: transparent; }
+.reservation-management [data-slot="button"][data-variant="destructive"] { background: #b91c1c; color: #ffffff; }

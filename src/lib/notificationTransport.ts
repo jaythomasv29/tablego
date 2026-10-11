@@ -1,3 +1,4 @@
+import { liveEmailAllowed, providerTestConfig } from './providerTest.ts';
 import nodemailer, { type SendMailOptions } from 'nodemailer';
 import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -5,10 +6,11 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 export function capturesNotifications(): boolean {
-  if (process.env.TABLEGO_ENVIRONMENT === 'staging' && process.env.TABLEGO_NOTIFICATION_MODE !== 'capture') {
+  if (process.env.TABLEGO_ENVIRONMENT === 'staging' && !['capture', 'provider-test'].includes(process.env.TABLEGO_NOTIFICATION_MODE || '')) {
     throw new Error('Staging requires captured notifications');
   }
-  return process.env.TABLEGO_NOTIFICATION_MODE === 'capture';
+  providerTestConfig(); // Invalid opt-in configuration must never enable a provider.
+  return ['capture', 'provider-test'].includes(process.env.TABLEGO_NOTIFICATION_MODE || '');
 }
 
 export async function captureNotification(channel: 'email' | 'sms' | 'otp', payload: unknown): Promise<string> {
@@ -36,7 +38,7 @@ export function createEmailTransport(options: SMTPTransport.Options) {
       return getLive().verify();
     },
     async sendMail(message: SendMailOptions) {
-      if (capturesNotifications()) {
+      if (capturesNotifications() && !liveEmailAllowed(message)) {
         const messageId = await captureNotification('email', message);
         return { messageId, captured: true };
       }

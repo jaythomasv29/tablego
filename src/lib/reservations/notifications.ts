@@ -16,7 +16,7 @@ const transport = createEmailTransport({ host: process.env.SMTP_HOST || 'smtp.gm
 export { escapeHtml } from '../formatting/html';
 export type ReservationEvent = 'created' | 'confirmed' | 'rescheduled' | 'cancelled' | 'reminder' | 'recovered' | 'seated' | 'completed' | 'no-show';
 export function notificationIntent(tx: Transaction, id: string, eventId: string, event: ReservationEvent,
-  reservation: BookingInput & { status: BookingState; notificationRevision?: number; restaurantTimezone?: string }, encryptedToken: string, channel: 'email' | 'sms' = 'email') {
+  reservation: BookingInput & { status: BookingState; notificationRevision?: number; restaurantTimezone?: string; providerTestRunId?: string }, encryptedToken: string, channel: 'email' | 'sms' = 'email') {
   for (const recipient of ['guest', 'restaurant'] as const) {
     if (recipient === 'restaurant' && (event === 'reminder' || event === 'recovered')) continue;
     if (recipient === 'guest' && ['seated', 'completed', 'no-show'].includes(event)) continue;
@@ -52,15 +52,21 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
   });
   if (!job) return 'skipped';
   let state: 'delivered' | 'failed' = 'failed';
+  let deliveryMode: 'capture' | 'provider' | null = null;
+  let providerMessageId: string | null = null;
   try {
     const configuration = (await db.doc('settings/general').get()).data();
     const identity = restaurantIdentity(configuration?.restaurant);
     const message = job.kind === 'catering' ? renderCateringNotification(job as Parameters<typeof renderCateringNotification>[0], identity)
       : renderNotification({ ...job, restaurant: identity } as Parameters<typeof renderNotification>[0]);
-    if (job.channel === 'sms') await sendSMS({ to: job.reservation.phone, body: message.text });
+    if (job.channel === 'sms') {
+      const result = await sendSMS({ to: job.reservation.phone, body: message.text });
+      deliveryMode = 'captured' in result && result.captured ? 'capture' : 'provider'; providerMessageId = result.sid;
+    }
     else {
       const host = new URL(process.env.NEXT_PUBLIC_BASE_URL!).hostname;
       const result = await transport.sendMail({ ...message, messageId: `<tablego-${id}@${host}>` });
+      deliveryMode = 'captured' in result && result.captured ? 'capture' : 'provider'; providerMessageId = result.messageId;
       if ('rejected' in result && result.rejected?.length) throw new Error('Recipient rejected');
     }
     state = 'delivered';
@@ -69,7 +75,7 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
     const current = (await tx.get(ref)).data();
     if (current?.lease !== lease) return;
     tx.update(ref, { state: state === 'failed' && current.attempts >= 5 ? 'exhausted' : state, lastAttemptAt: new Date(), nextAttemptAt: new Date(Date.now() + Math.min(3600, 60 * 2 ** current.attempts) * 1000),
-      lastError: state === 'failed' ? 'provider-delivery-failed' : null, leaseUntil: null });
+      deliveryMode, providerMessageId, lastError: state === 'failed' ? 'provider-delivery-failed' : null, leaseUntil: null });
     tx.create(db.doc(`${job.kind === 'catering' ? `catering/${job.entityId}` : `reservations/${job.reservationId}`}/events/${randomUUID()}`), {
       event: `notification.${state}`, actor: 'system', channel: job.channel || 'email', recipient: job.recipient, notificationId: id, timestamp: new Date(),
     });

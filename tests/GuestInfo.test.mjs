@@ -22,13 +22,13 @@ runInNewContext(compiled, {
 });
 const GuestInfo = module.exports.default;
 
-async function mount(t, verify) {
+async function mount(t, verify, codeLength = 4, smsOptIn = true) {
   const requests = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, options) => {
     assert.ok(['/api/otp/send', '/api/otp/verify'].includes(url));
     requests.push({ url, body: JSON.parse(options.body) });
-    return { json: async () => url === '/api/otp/send' ? { success: true } : verify() };
+    return { json: async () => url === '/api/otp/send' ? { success: true, codeLength } : verify() };
   };
   const confirmations = [];
   const props = {
@@ -36,7 +36,7 @@ async function mount(t, verify) {
     onUpdate() {},
     onPhoneVerified: value => confirmations.push(value),
     phoneVerified: false,
-    smsOptIn: true,
+    smsOptIn,
     onSmsOptIn() {},
     otpEnabled: true,
   };
@@ -88,4 +88,21 @@ test('an invalid OTP clears its digits and permits an explicit new attempt', asy
   await enterCode(state.renderer);
   assert.equal(state.requests.filter(request => request.url === '/api/otp/verify').length, 2);
   assert.deepEqual(state.confirmations, []);
+});
+
+test('the OTP fields match the provider code length and verify the full code', async t => {
+  const state = await mount(t, () => ({ success: true, valid: true }), 6);
+  const boxes = state.renderer.root.findAllByType('input').filter(input => input.props.inputMode === 'numeric');
+  assert.equal(boxes.length, 6);
+  await enterCode(state.renderer, '1234');
+  assert.equal(state.requests.filter(request => request.url === '/api/otp/verify').length, 0);
+  await enterCode(state.renderer, '123456');
+  assert.equal(state.requests.at(-1).body.code, '123456'); assert.deepEqual(state.confirmations, [true]);
+});
+
+test('phone verification works without opting into optional reminder texts', async t => {
+ const state = await mount(t, () => ({ success: true, valid: true }), 4, false);
+ assert.equal(state.requests[0].url, '/api/otp/send');
+ assert.equal(state.renderer.root.findByType('button').props.disabled, false);
+ await enterCode(state.renderer); assert.deepEqual(state.confirmations, [true]);
 });

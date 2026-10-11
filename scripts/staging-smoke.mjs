@@ -15,7 +15,8 @@ const credentials = JSON.parse(await readFile(settings.GOOGLE_APPLICATION_CREDEN
 if (credentials.project_id !== project) throw new Error('Credentials must belong to staging');
 const server = serverFirestore(initializeApp({ projectId: project, credential: cert(credentials) }, `smoke-${randomUUID()}`));
 const app = clientApp({ apiKey: settings.NEXT_PUBLIC_FIREBASE_API_KEY, authDomain: settings.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, projectId: project }, `smoke-${randomUUID()}`);
-const auth = getAuth(app), client = getFirestore(app), base = 'http://127.0.0.1:3100';
+const auth = getAuth(app), client = getFirestore(app), base = process.env.TABLEGO_STAGING_TEST_BASE_URL || 'http://127.0.0.1:3100';
+if (!/^http:\/\/127\.0\.0\.1:310[02]$/.test(base)) throw new Error('Smoke tests require a local capture-staging port');
 let staffCookie = '', phoneCookie = '';
 const suffix = String(Math.floor(Math.random() * 100)).padStart(2, '0'), phone = `65055501${suffix}`;
 const fixtureIds = [];
@@ -48,7 +49,9 @@ async function waitForJobs(id, predicate) {
 function tokenFrom(url) { return new URLSearchParams(new URL(url).hash.slice(1)).get('token'); }
 const tomorrow = new Date(Date.now() + 2 * 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
 const later = new Date(Date.now() + 3 * 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+const generalRef = server.doc('settings/general'), originalGeneral = (await generalRef.get()).data();
 try {
+  await generalRef.set({ autoConfirmReservations: false }, { merge: true });
   await permissionDenied(() => getDocs(collection(client, 'reservations')), 'anonymous reservation enumeration denied');
   const login = await request('/api/auth/login', { method: 'POST', body: { username: settings.ADMIN_USERNAME, password: settings.ADMIN_PASSWORD } });
   status(login, 200, 'staff server login'); staffCookie = login.cookie;
@@ -190,9 +193,11 @@ try {
   await permissionDenied(() => getDocs(collection(client, 'reservations')), 'revoked staff ID token immediately denied by database rules');
   await signOut(auth);
   console.log(`Staging smoke tests passed. ${fixtureIds.length} synthetic reservations retained for review.`);
+  await generalRef.set(originalGeneral);
   process.exit(0);
 } catch (error) {
   // Never dump response objects, cookies, credentials, or secure links.
   console.error(`Staging smoke test failed: ${error.message}`);
+  await generalRef.set(originalGeneral);
   process.exit(1);
 }

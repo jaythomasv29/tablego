@@ -45,3 +45,10 @@ test('guest last visit and average party include completed service only; prefere
   assert.equal(profile.lastVisit, '2026-09-20'); assert.equal(profile.averagePartySize, 3);
   assert.equal(profile.seatingPreference, 'Window'); assert.equal(profile.dietaryPreferences, 'Guest requests vegetarian options');
 });
+
+test('service rows show customer acknowledgement only for a valid saved timestamp', () => {
+ const record = { name: 'Guest', date: '2026-10-15', time: '7:00 PM', guests: 2, status: 'confirmed' };
+ assert.equal(serviceReservation('fixture', record, 'America/Los_Angeles').guestAcknowledged, false);
+ assert.equal(serviceReservation('fixture', { ...record, guestAcknowledgedAt: '2026-10-11T07:50:00Z' }, 'America/Los_Angeles').guestAcknowledged, true);
+ assert.equal(serviceReservation('fixture', { ...record, guestAcknowledgedAt: 'invalid' }, 'America/Los_Angeles').guestAcknowledged, false);
+});

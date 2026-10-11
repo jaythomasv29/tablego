@@ -20,6 +20,7 @@ export default function AdminSettings() {
     const [reservationCutoffMinutes, setReservationCutoffMinutes] = useState<number>(60); // Default 1 hour
     const [minimumLeadTimeMinutes, setMinimumLeadTimeMinutes] = useState<number>(50);
     const [restaurant, setRestaurant] = useState<RestaurantIdentity>(defaultRestaurant);
+    const [autoConfirmReservations, setAutoConfirmReservations] = useState(true);
     const [version, setVersion] = useState(0);
     const [loadError, setLoadError] = useState('');
     const [loading, setLoading] = useState(true);
@@ -48,6 +49,7 @@ export default function AdminSettings() {
                 setReservationCutoffMinutes(data.reservationCutoffMinutes);
                 setMinimumLeadTimeMinutes(data.minimumLeadTimeMinutes);
                 setRestaurant(data.restaurant);
+                setAutoConfirmReservations(data.autoConfirmReservations);
                 setVersion(data.version);
             } catch (error) {
                 console.error('Error fetching settings:', error);
@@ -91,7 +93,7 @@ export default function AdminSettings() {
         setSaving(true);
         try {
             const response = await fetch('/api/staff/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ timezone: selectedTimezone, reservationCutoffMinutes, minimumLeadTimeMinutes, restaurant, version }) });
+                body: JSON.stringify({ timezone: selectedTimezone, reservationCutoffMinutes, minimumLeadTimeMinutes, restaurant, version, autoConfirmReservations }) });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'Failed to save settings');
             setVersion(result.version);
@@ -250,6 +252,15 @@ export default function AdminSettings() {
                             </div>
                         </div>
                     </div>
+
+                    <section aria-label="Reservation confirmation" className="my-6 space-y-3 rounded-lg border p-4 text-zinc-900">
+                        <h2 className="text-lg font-semibold">Reservation confirmation</h2>
+                        <label className="flex items-start gap-3">
+                            <input type="checkbox" className="mt-1" checked={autoConfirmReservations} disabled={saving || Boolean(loadError)} onChange={event => setAutoConfirmReservations(event.target.checked)} />
+                            <span><strong>Automatically confirm new reservations</strong><br /><span className="text-sm text-zinc-600">On by default. Eligible submissions and reschedules are confirmed immediately. Turn off to require staff acceptance.</span></span>
+                        </label>
+                        <p className="text-sm text-zinc-600">This applies to future submissions and changed bookings. Existing requests retain their current status. Customers can still let you know they are coming, reschedule or cancel using their secure link.</p>
+                    </section>
 
                     {/* Save Button */}
                     <button

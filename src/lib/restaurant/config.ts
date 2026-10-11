@@ -1,3 +1,4 @@
+import { automaticConfirmation } from '../reservations/domain.ts';
 // Public fields only. Credentials and delivery recipients remain server environment values.
 export const defaultRestaurant = {
   name: 'Thaiphoon Restaurant', shortName: 'Thaiphoon', location: 'Palo Alto',
@@ -37,10 +38,10 @@ export function restaurantIdentity(value: unknown): RestaurantIdentity {
 export function validateGeneral(value: unknown) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Settings are required');
   const input = value as Record<string, unknown>;
-  if (Object.keys(input).some(key => !['timezone', 'reservationCutoffMinutes', 'minimumLeadTimeMinutes', 'restaurant', 'version'].includes(key))) throw new Error('Unknown general setting');
+  if (Object.keys(input).some(key => !['timezone', 'reservationCutoffMinutes', 'minimumLeadTimeMinutes', 'restaurant', 'version', 'autoConfirmReservations'].includes(key))) throw new Error('Unknown general setting');
   if (typeof input.timezone !== 'string' || !input.timezone.trim()) throw new Error('Business timezone is required');
   try { new Intl.DateTimeFormat('en-US', { timeZone: input.timezone }).format(); } catch { throw new Error('Invalid business timezone'); }
   for (const key of ['reservationCutoffMinutes', 'minimumLeadTimeMinutes']) if (!Number.isInteger(input[key]) || Number(input[key]) < 0 || Number(input[key]) > 720) throw new Error(`${key} must be a whole number from 0 to 720`);
   if (!Number.isInteger(input.version) || Number(input.version) < 0) throw new Error('A settings version is required');
-  return { timezone: input.timezone, reservationCutoffMinutes: Number(input.reservationCutoffMinutes), minimumLeadTimeMinutes: Number(input.minimumLeadTimeMinutes), restaurant: validateRestaurant(input.restaurant) };
+  return { autoConfirmReservations: automaticConfirmation(input.autoConfirmReservations), timezone: input.timezone, reservationCutoffMinutes: Number(input.reservationCutoffMinutes), minimumLeadTimeMinutes: Number(input.minimumLeadTimeMinutes), restaurant: validateRestaurant(input.restaurant) };
 }

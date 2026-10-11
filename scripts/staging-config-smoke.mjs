@@ -14,7 +14,8 @@ if (env.NEXT_PUBLIC_FIREBASE_PROJECT_ID !== project || credentials.project_id !=
 const adminApp = initializeApp({ projectId: project, credential: cert(credentials) }, randomUUID());
 const db = getFirestore(adminApp);
 const client = clientApp({ apiKey: env.NEXT_PUBLIC_FIREBASE_API_KEY, projectId: project, authDomain: env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }, randomUUID());
-const auth = getAuth(client), firestore = clientDatabase(client), base = 'http://127.0.0.1:3100';
+const auth = getAuth(client), firestore = clientDatabase(client), base = process.env.TABLEGO_STAGING_TEST_BASE_URL || 'http://127.0.0.1:3100';
+if (!/^http:\/\/127\.0\.0\.1:310[02]$/.test(base)) throw new Error('Smoke tests require a local capture-staging port');
 let cookie, closureId;
 const original = (await db.doc('settings/general').get()).data();
 async function request(path, method = 'GET', body, headers = {}) {
