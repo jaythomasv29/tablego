@@ -18,6 +18,8 @@ The milb Production environment uses its own canonical HTTPS URL, actual Firebas
 
 Firebase Authentication was initialized as standard FIREBASE_AUTH, with no Identity Platform upgrade or billing change. Staff use server-issued custom tokens; no public sign-in provider was enabled.
 
+Node is pinned to 22.x. Hosted API verification found the Firebase Admin 14 / jwks-rsa / jose module chain failing at startup under Vercel's default disabled require(ESM) mode. NODE_OPTIONS=--experimental-require-module applies the [documented Vercel runtime setting](https://vercel.com/docs/functions/runtimes/node-js/advanced-node-configuration). The hosting preflight now checks it before deployment; dependencies and authentication validation remain intact.
+
 The notificationOutbox state/nextAttemptAt composite index was added. Existing indexes and Firestore rules were retained.
 
 Real Twilio Verify and SMTP authentication were checked without sending messages. Phone verification remains independent of optional reservation reminder consent.

@@ -44,7 +44,7 @@ test('new booking alerts ignore first hydration, existing modifications and remo
   assert.deepEqual(newReservationIds(seen, [one, { id: 'two', status: 'pending' }, { id: 'old', status: 'completed' }]), ['two']);
 });
 test('hosted previews reject inherited live credentials and provider test exceptions', () => {
-  const env = { VERCEL_ENV: 'preview', TABLEGO_ENVIRONMENT: 'staging', NEXT_PUBLIC_TABLEGO_ENVIRONMENT: 'staging', TABLEGO_NOTIFICATION_MODE: 'capture',
+  const env = { VERCEL_ENV: 'preview', NODE_OPTIONS: '--experimental-require-module', TABLEGO_ENVIRONMENT: 'staging', NEXT_PUBLIC_TABLEGO_ENVIRONMENT: 'staging', TABLEGO_NOTIFICATION_MODE: 'capture',
     NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'tablego-staging-1d712', FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ project_id: 'tablego-staging-1d712', client_email: 'synthetic', private_key: 'synthetic' }),
     ADMIN_USERNAME: 'synthetic', ADMIN_PASSWORD: 'a-strong-test-password', ADMIN_SESSION_SECRET: 's'.repeat(40), CRON_SECRET: 'c'.repeat(40),
     NEXT_PUBLIC_BASE_URL: 'https://preview.example.invalid', NEXT_PUBLIC_FIREBASE_API_KEY: 'synthetic', NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: 'synthetic', NEXT_PUBLIC_FIREBASE_APP_ID: 'synthetic' };
@@ -52,6 +52,8 @@ test('hosted previews reject inherited live credentials and provider test except
   for (const patch of [{ TABLEGO_ENVIRONMENT: '' }, { NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'tablego-1d712' }, { TABLEGO_NOTIFICATION_MODE: 'provider-test' }, { ADMIN_PASSWORD: '000' }, { NEXT_PUBLIC_BASE_URL: 'http://example.invalid' }, { FIREBASE_SERVICE_ACCOUNT_JSON: '{}' }]) assert.ok(hostingErrors({ ...env, ...patch }).length);
   assert.deepEqual(hostingErrors({}), []);
   assert.ok(hostingErrors({ ...env, VERCEL_ENV: 'production' }).length);
+  assert.ok(hostingErrors({ ...env, NODE_OPTIONS: '' }).some(error => error.includes('NODE_OPTIONS')));
+  assert.ok(hostingErrors({ ...env, NODE_OPTIONS: '--experimental-require-module --no-experimental-require-module' }).some(error => error.includes('NODE_OPTIONS')));
 });
 test('follow-up and staff feedback emails escape text and provide scoped feedback access only', () => {
   process.env.ADMIN_SESSION_SECRET = 'synthetic-secret'.repeat(4);

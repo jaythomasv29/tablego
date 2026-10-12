@@ -1,6 +1,9 @@
 export function hostingErrors(env, { release = false } = {}) {
   const errors = [], hosted = ['preview', 'production'].includes(env.VERCEL_ENV);
   if (!hosted && !release) return errors;
+  if (hosted && (!String(env.NODE_OPTIONS || '').split(/\s+/).includes('--experimental-require-module') || String(env.NODE_OPTIONS).includes('--no-experimental-require-module'))) {
+    errors.push('Vercel requires NODE_OPTIONS=--experimental-require-module for the Firebase Admin SDK dependency chain.');
+  }
   const staging = env.TABLEGO_ENVIRONMENT === 'staging';
   if (env.VERCEL_ENV === 'production' && staging) errors.push('The TableGo production deployment cannot use staging settings.');
   if (env.VERCEL_ENV === 'preview' && !staging) errors.push('Vercel Preview must explicitly use the separate staging environment.');
