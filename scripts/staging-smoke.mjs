@@ -16,7 +16,7 @@ if (credentials.project_id !== project) throw new Error('Credentials must belong
 const server = serverFirestore(initializeApp({ projectId: project, credential: cert(credentials) }, `smoke-${randomUUID()}`));
 const app = clientApp({ apiKey: settings.NEXT_PUBLIC_FIREBASE_API_KEY, authDomain: settings.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, projectId: project }, `smoke-${randomUUID()}`);
 const auth = getAuth(app), client = getFirestore(app), base = process.env.TABLEGO_STAGING_TEST_BASE_URL || 'http://127.0.0.1:3100';
-if (!/^http:\/\/127\.0\.0\.1:310[02]$/.test(base)) throw new Error('Smoke tests require a local capture-staging port');
+if (!/^http:\/\/127\.0\.0\.1:310[025]$/.test(base)) throw new Error('Smoke tests require a local capture-staging port');
 let staffCookie = '', phoneCookie = '';
 const suffix = String(Math.floor(Math.random() * 100)).padStart(2, '0'), phone = `65055501${suffix}`;
 const fixtureIds = [];

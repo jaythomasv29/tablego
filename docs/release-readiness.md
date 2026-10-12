@@ -2,6 +2,8 @@
 
 Updated October 10–11, 2026. Implementation is on sequential local test branches; `main` is unchanged. Controlled local staging OTP and SMTP tests are documented in [automatic confirmation and provider testing](auto-confirm-provider-testing.md). No production deployment, production record migration, live rule change, Vercel credential upload or billing upgrade has occurred.
 
+The final October 11 audit compares against the verified active Vercel production commit 2905408, restores newer deployed follow-up/feedback features securely, and records concrete hosting gaps. See [deployment comparison and audit](pre-deployment-audit.md).
+
 ## Delivery coverage
 
 | Requested improvement | Implementation |
@@ -16,7 +18,7 @@ Updated October 10–11, 2026. Implementation is on sequential local test branch
 | 11. Configuration | Validated public identity/contact/policy/promotions/links; secrets remain server-side. Live configuration updates. |
 | 12. Domain extraction | Service components replace duplicate dashboards; inventory/team models/hooks, public policy, menu images and shared controls. No arbitrary file-size target. |
 | 13. Infrastructure cleanup | One src middleware/Tailwind config; traced unused dependencies/components removed; Express entrypoint explicitly retired. |
-| 14–15. Quality/testing | Enforced TypeScript/lint/build; 72 automated cases, staging API/rule/capture and browser usability checks; CI configuration. |
+| 14–15. Quality/testing | Enforced TypeScript/lint/build; 92 automated cases, staging API/rule/capture and browser usability checks; CI configuration. |
 | 16–17. Access/semantics | Signed/revocable staff sessions, handler authorization/origin checks, server phone proofs, hashed scoped management tokens; missing/bad policy returns unable-to-verify. |
 | 18. Observability | Append-only booking/action/notification events, per-recipient attempts/history, private staff timeline and deliberate retry. |
 | 19. Performance | SMTP verification outside booking; post-response best effort delivery plus durable jobs; private/public cache split, local fonts, on-demand highlights and responsive images. |

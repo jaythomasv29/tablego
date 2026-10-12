@@ -1,3 +1,4 @@
+import { assertHostingEnvironment } from './hostingEnvironment.mjs';
 import { liveEmailAllowed, providerTestConfig } from './providerTest.ts';
 import nodemailer, { type SendMailOptions } from 'nodemailer';
 import type SMTPTransport from 'nodemailer/lib/smtp-transport';
@@ -6,6 +7,7 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 export function capturesNotifications(): boolean {
+  assertHostingEnvironment(process.env);
   if (process.env.TABLEGO_ENVIRONMENT === 'staging' && !['capture', 'provider-test'].includes(process.env.TABLEGO_NOTIFICATION_MODE || '')) {
     throw new Error('Staging requires captured notifications');
   }

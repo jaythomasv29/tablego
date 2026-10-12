@@ -77,3 +77,4 @@ npm-debug.log*
 
 .next-provider-test/
 .next-staging-qa/
+.next-staging-audit/

@@ -6,6 +6,7 @@
 /* The guest management surface keeps the restaurant's light palette, including
    when staff have selected dark mode. Scoped fallbacks support legacy Tailwind. */
 .guest-management {
+  color-scheme: light;
   --background: #ffffff;
   --foreground: #121212;
   --popover: #ffffff;
@@ -48,6 +49,7 @@
 
 @layer base {
     :root {
+        color-scheme: light;
         --background: oklch(1 0 0);
         --foreground: oklch(0.145 0 0);
 
@@ -106,6 +108,7 @@
     }
 
     .dark {
+        color-scheme: dark;
         --background: oklch(0.145 0 0);
         --foreground: oklch(0.985 0 0);
 

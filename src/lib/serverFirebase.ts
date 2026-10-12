@@ -2,8 +2,10 @@ import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { readFileSync } from 'node:fs';
+import { assertHostingEnvironment } from './hostingEnvironment.mjs';
 
 function serverApp() {
+  assertHostingEnvironment(process.env);
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   if (!projectId) throw new Error('Firebase project is not configured');
   if (process.env.TABLEGO_ENVIRONMENT === 'staging' && projectId !== 'tablego-staging-1d712') {

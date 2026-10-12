@@ -2,17 +2,18 @@ import { renderNotification } from './render';
 export { renderNotification } from './render';
 import { renderCateringNotification } from '../catering/notification';
 import { renderReservationInvitation } from './shareRender';
+import { renderFeedbackNotification } from './feedbackRender';
 import { invitationDetails } from './sharing';
 import { restaurantIdentity } from '../restaurant/config';
 import { createEmailTransport } from '../notificationTransport';
 import { getServerDatabase } from '../serverFirebase';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import type { Transaction } from 'firebase-admin/firestore';
-import { type BookingState } from './domain';
+import { bookingState, type BookingState } from './domain';
 import type { BookingInput } from './input';
 import { sendSMS } from '../twilio';
 
-const transport = createEmailTransport({ host: process.env.SMTP_HOST || 'smtp.gmail.com', port: Number(process.env.SMTP_PORT || 587), secure: false,
+const transport = createEmailTransport({ host: process.env.SMTP_HOST || 'smtp.gmail.com', port: Number(process.env.SMTP_PORT || 587), secure: Number(process.env.SMTP_PORT || 587) === 465, requireTLS: Number(process.env.SMTP_PORT || 587) !== 465,
   connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000,
   auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS } });
 export { escapeHtml } from '../formatting/html';
@@ -42,6 +43,22 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
       return record;
     }
     const current = (await tx.get(db.doc(`reservations/${record.reservationId}`))).data();
+    if (['follow-up', 'feedback-received'].includes(record.kind)) {
+      let encryptedToken = record.encryptedToken;
+      if (!current) { tx.update(ref, { state: 'superseded', lastError: 'reservation-missing' }); return null; }
+      if (record.kind === 'follow-up') {
+        const feedbackAccess = (await tx.get(db.doc('managementAccess/' + record.reservationId + '/feedback/access'))).data();
+        const emailHash = createHash('sha256').update(String(current.email || '').trim().toLowerCase()).digest('hex');
+        const preference = (await tx.get(db.doc('managementAccess/_feedback_preferences/preferences/' + emailHash))).data();
+        if (bookingState(current) !== 'completed' || current.feedbackSubmissionHash || current.feedbackRespondedAt || current.privateFeedbackAt || current.privateFeedback || preference?.stopped === true ||
+          record.notificationRevision !== (current.notificationRevision || 1) || !feedbackAccess || feedbackAccess.expiresAt <= Date.now()) {
+          tx.update(ref, { state: 'superseded', lastError: 'feedback-not-eligible' }); return null;
+        }
+        encryptedToken = feedbackAccess.encryptedToken;
+      }
+      tx.update(ref, { state: 'sending', lease, leaseUntil: new Date(Date.now() + 120_000), nextAttemptAt: new Date(Date.now() + 120_000), attempts: record.attempts + 1 });
+      return { ...record, encryptedToken } as FirebaseFirestore.DocumentData;
+    }
     const access = (await tx.get(db.doc(`managementAccess/${record.reservationId}`))).data();
     if (!current || (record.notificationRevision && record.notificationRevision !== (current.notificationRevision || 1)) ||
       (record.kind === 'reservation-share' && current.status !== 'confirmed') ||
@@ -64,7 +81,8 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
   try {
     const configuration = (await db.doc('settings/general').get()).data();
     const identity = restaurantIdentity(configuration?.restaurant);
-    const message = job.kind === 'reservation-share' ? renderReservationInvitation(job as Parameters<typeof renderReservationInvitation>[0], identity)
+    const message = ['follow-up', 'feedback-received'].includes(job.kind) ? renderFeedbackNotification(job as Parameters<typeof renderFeedbackNotification>[0], identity)
+      : job.kind === 'reservation-share' ? renderReservationInvitation(job as Parameters<typeof renderReservationInvitation>[0], identity)
       : job.kind === 'catering' ? renderCateringNotification(job as Parameters<typeof renderCateringNotification>[0], identity)
       : renderNotification({ ...job, restaurant: identity } as Parameters<typeof renderNotification>[0]);
     if (job.channel === 'sms') {
@@ -87,6 +105,7 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
     tx.create(db.doc(`${job.kind === 'catering' ? `catering/${job.entityId}` : `reservations/${job.reservationId}`}/events/${randomUUID()}`), {
       event: `notification.${state}`, actor: 'system', channel: job.channel || 'email', recipient: job.recipient, notificationId: id, timestamp: new Date(),
     });
+    if (state === 'delivered' && job.kind === 'follow-up') tx.update(db.doc('reservations/' + job.reservationId), { followUpSent: true, followUpSentAt: new Date() });
     if (state === 'delivered' && job.event === 'reminder') tx.update(db.doc(`reservations/${job.reservationId}`),
       job.channel === 'sms' ? { smsSent: true, smsSentAt: new Date() } : { reminderSent: true, reminderSentAt: new Date() });
   });

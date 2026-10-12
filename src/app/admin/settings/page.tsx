@@ -21,6 +21,8 @@ export default function AdminSettings() {
     const [minimumLeadTimeMinutes, setMinimumLeadTimeMinutes] = useState<number>(50);
     const [restaurant, setRestaurant] = useState<RestaurantIdentity>(defaultRestaurant);
     const [autoConfirmReservations, setAutoConfirmReservations] = useState(true);
+    const [followUpDelayMinutes, setFollowUpDelayMinutes] = useState(90);
+    const [reviewUrl, setReviewUrl] = useState('');
     const [version, setVersion] = useState(0);
     const [loadError, setLoadError] = useState('');
     const [loading, setLoading] = useState(true);
@@ -50,6 +52,8 @@ export default function AdminSettings() {
                 setMinimumLeadTimeMinutes(data.minimumLeadTimeMinutes);
                 setRestaurant(data.restaurant);
                 setAutoConfirmReservations(data.autoConfirmReservations);
+                setFollowUpDelayMinutes(data.followUpDelayMinutes);
+                setReviewUrl(data.reviewUrl);
                 setVersion(data.version);
             } catch (error) {
                 console.error('Error fetching settings:', error);
@@ -93,7 +97,7 @@ export default function AdminSettings() {
         setSaving(true);
         try {
             const response = await fetch('/api/staff/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ timezone: selectedTimezone, reservationCutoffMinutes, minimumLeadTimeMinutes, restaurant, version, autoConfirmReservations }) });
+                body: JSON.stringify({ timezone: selectedTimezone, reservationCutoffMinutes, minimumLeadTimeMinutes, restaurant, version, autoConfirmReservations, followUpDelayMinutes, reviewUrl }) });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'Failed to save settings');
             setVersion(result.version);
@@ -262,6 +266,15 @@ export default function AdminSettings() {
                         <p className="text-sm text-zinc-600">This applies to future submissions and changed bookings. Existing requests retain their current status. Customers can still let you know they are coming, reschedule or cancel using their secure link.</p>
                     </section>
 
+                    <section aria-label="Visit follow-up settings" className="my-6 space-y-3 rounded-lg border p-4 text-zinc-900">
+                        <h2 className="text-lg font-semibold">Visit follow-ups</h2>
+                        <p className="text-sm text-zinc-600">Staff can queue a feedback email after a visit is marked Completed and this delay has elapsed. Follow-ups are sent from the Follow-ups page.</p>
+                        <label className="block text-sm" htmlFor="followup-delay">Delay after completion (minutes)</label>
+                        <input id="followup-delay" type="number" min={0} max={10080} value={followUpDelayMinutes} onChange={event => setFollowUpDelayMinutes(Number(event.target.value))} className="rounded-md border p-2 text-sm" />
+                        <label className="block text-sm" htmlFor="review-link">Public review link (optional)</label>
+                        <input id="review-link" type="url" value={reviewUrl} onChange={event => setReviewUrl(event.target.value)} placeholder="https://…" className="w-full rounded-md border p-2 text-sm" />
+                        <p className="text-xs text-zinc-600">The same optional review link is available to every guest who submits feedback.</p>
+                    </section>
                     {/* Save Button */}
                     <button
                         onClick={handleSave}

@@ -33,6 +33,8 @@ const NAV_GROUPS = [
   { label: 'Guests & Reservations', items: [
     { id: 'reservations', href: '/admin/reservation', label: 'Reservations', icon: CalendarDays },
     { id: 'guests', href: '/admin/guests', label: 'Guests', icon: Users },
+    { id: 'follow-ups', href: '/admin/follow-ups', label: 'Visit follow-ups', icon: MessageSquare },
+    { id: 'no-shows', href: '/admin/no-shows', label: 'No-show history', icon: Flag },
   ] },
   { label: 'Restaurant Operations', items: [
     { id: 'team', href: '/admin/team', label: 'Team View', icon: Users },

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/firebase';
+import { unlockAudio } from '@/utils/soundUtils';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -19,7 +20,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [signingOut, setSigningOut] = useState(false);
   const { resolvedTheme, setTheme } = useTheme();
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+    window.addEventListener('pointerdown', unlockAudio); window.addEventListener('keydown', unlockAudio);
+    return () => { window.removeEventListener('pointerdown', unlockAudio); window.removeEventListener('keydown', unlockAudio); };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

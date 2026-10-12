@@ -39,7 +39,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     const env = stagingEnvironment(dotenv.parse(readFileSync('.env.staging.local')), process.env, fallbackKeys);
     const providerTest = process.argv.includes('--provider-test');
     const qa = process.argv.includes('--qa');
-    if (providerTest && qa) throw new Error('Choose one staging target');
+    const audit = process.argv.includes('--audit');
+    if ([providerTest, qa, audit].filter(Boolean).length > 1) throw new Error('Choose one staging target');
     if (providerTest) {
       const privateSettings = dotenv.parse(readFileSync('.env.provider-test.local'));
       const allowed = /^(EMAIL_USER|EMAIL_PASS|SMTP_HOST|SMTP_PORT|TWILIO_ACCOUNT_SID|TWILIO_AUTH_TOKEN|TWILIO_VERIFY_SERVICE_SID|TABLEGO_PROVIDER_TEST_EMAIL|TABLEGO_PROVIDER_TEST_PHONE|TABLEGO_PROVIDER_TEST_RUN_ID)$/;
@@ -48,7 +49,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       if (!/^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(env.TABLEGO_PROVIDER_TEST_EMAIL || '') || !/^\+1\d{10}$/.test(env.TABLEGO_PROVIDER_TEST_PHONE || '') || !/^[a-f0-9-]{36}$/.test(env.TABLEGO_PROVIDER_TEST_RUN_ID || '')) throw new Error('Provider tests require approved recipients and a run ID');
       for (const key of ['EMAIL_USER', 'EMAIL_PASS', 'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_VERIFY_SERVICE_SID']) if (!env[key]) throw new Error(`Provider test credential missing: ${key}`);
     } else if (qa) Object.assign(env, { TABLEGO_STAGING_TARGET: 'qa', NEXT_PUBLIC_BASE_URL: 'http://127.0.0.1:3102' });
-    const port = providerTest ? '3101' : qa ? '3102' : '3100';
+    else if (audit) Object.assign(env, { TABLEGO_STAGING_TARGET: 'audit', NEXT_PUBLIC_BASE_URL: 'http://127.0.0.1:3105' });
+    const port = providerTest ? '3101' : qa ? '3102' : audit ? '3105' : '3100';
     const child = spawn(process.execPath, ['node_modules/next/dist/bin/next', command,
       ...(command === 'build' ? [] : ['--hostname', '127.0.0.1', '--port', port])], { env, stdio: 'inherit' });
     for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => child.kill(signal));

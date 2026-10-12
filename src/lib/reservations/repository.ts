@@ -1,3 +1,4 @@
+import { capturesNotifications } from '../notificationTransport';
 import { providerTestTag } from '../providerTest';
 import { createHash, randomUUID } from 'node:crypto';
 import { getServerDatabase } from '../serverFirebase';
@@ -142,6 +143,7 @@ export async function recoverReservation(id: string, verifiedPhone: string) {
   return { success: true, managementUrl: managementUrl(id, token) };
 }
 export async function queueReminder(id: string, channel: 'email' | 'sms') {
+  if (channel === 'sms' && !capturesNotifications() && !process.env.TWILIO_FROM_NUMBER) throw new ReservationError('SMS reminders are unavailable until the restaurant configures its sending number.', 409);
   const db = getServerDatabase(), eventId = randomUUID();
   await db.runTransaction(async tx => {
     const ref = db.doc(`reservations/${reservationId(id)}`), data = (await tx.get(ref)).data(), access = await tx.get(db.doc(`managementAccess/${id}`));

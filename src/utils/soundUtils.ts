@@ -10,11 +10,11 @@ const STORAGE_KEY = 'notification-sound-type';
 
 export function getSoundPreference(): SoundType {
   if (typeof window === 'undefined') return 'chime';
-  return (localStorage.getItem(STORAGE_KEY) as SoundType) ?? 'chime';
+  try { const value = localStorage.getItem(STORAGE_KEY); return SOUND_OPTIONS.some(option => option.value === value) ? value as SoundType : 'chime'; } catch { return 'chime'; }
 }
 
 export function setSoundPreference(type: SoundType) {
-  localStorage.setItem(STORAGE_KEY, type);
+  try { localStorage.setItem(STORAGE_KEY, type); } catch { /* Storage may be unavailable in private browsing. */ }
 }
 
 // Singleton AudioContext — created once, unlocked on first user gesture for iOS
@@ -22,15 +22,15 @@ let _ctx: AudioContext | null = null;
 
 function getContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
-  if (!_ctx) _ctx = new AudioContext();
+  if (!_ctx) { if (typeof AudioContext === 'undefined') return null; _ctx = new AudioContext(); }
   // iOS starts contexts suspended; resume is a no-op on already-running contexts
-  if (_ctx.state === 'suspended') _ctx.resume();
+  if (_ctx.state === 'suspended') void _ctx.resume().catch(() => {});
   return _ctx;
 }
 
 // Call this on any user interaction (e.g. a click on the page) to unlock audio on iOS
 export function unlockAudio() {
-  getContext();
+  try { getContext(); } catch { /* Audio is optional. */ }
 }
 
 export function playNotificationSound(type?: SoundType) {

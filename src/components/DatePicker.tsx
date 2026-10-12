@@ -3,7 +3,7 @@
 import React from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { TimeSlot } from '@/types/TimeSlot';
-import { calendarDate, restaurantClock } from '@/lib/reservations/availability';
+import { calendarDate, closureDate, restaurantClock } from '@/lib/reservations/availability';
 import { useTimezone } from '@/contexts/TimezoneContext';
 
 interface SpecialDate {
@@ -48,6 +48,8 @@ const DatePickerComponent: React.FC<DatePickerProps> = ({
 
   const lunchSlots = availableTimeSlots.filter((s) => s.period === 'lunch');
   const dinnerSlots = availableTimeSlots.filter((s) => s.period === 'dinner');
+  const closures = specialDates.filter(sd => closureDate(sd.date) === calendarDate(date));
+  const partial = closures.filter(sd => sd.closureType === 'lunch' || sd.closureType === 'dinner');
 
   return (
     <div className="space-y-6">
@@ -114,6 +116,9 @@ const DatePickerComponent: React.FC<DatePickerProps> = ({
       </div>
 
       {/* Time Slots */}
+      {partial.length > 0 && <p role="status" className="rounded-lg border border-[#A3B18A]/40 bg-[#A3B18A]/10 p-3 text-sm text-zinc-700">
+        {partial.map((closure, index) => <React.Fragment key={index}>{index > 0 && ' '}{closure.closureType === 'lunch' ? 'Lunch' : 'Dinner'} service is unavailable on this date{closure.reason ? ': ' + closure.reason : '.'}</React.Fragment>)} Select from the available times below.
+      </p>}
       {availableTimeSlots.length === 0 ? (
         <p className="text-sm text-gray-500 bg-gray-50 rounded-lg px-4 py-3 border border-gray-200">
           No time slots available for this date — please select another day.

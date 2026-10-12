@@ -2,6 +2,7 @@ import { getLocalDateString } from '../../utils/dateUtils.ts';
 import { bookingState, type BookingState } from './domain.ts';
 import { restaurantClock, timeMinutes, displayTime } from './availability.ts';
 export interface ServiceReservation {
+  completedAt?: string | null; followUpSent?: boolean; followUpEventId?: string; feedbackReceivedAt?: string | null; feedbackSentiment?: string; privateFeedback?: string;
   id: string; date: string; time: string; name: string; email: string; phone: string; guests: number;
   status: BookingState; needsReview: boolean; comments: string; internalNotes: string; createdAt: string | null;
   dietaryPreferences: string; seatingPreference: string; preferencesUpdatedAt: string | null;
@@ -23,7 +24,7 @@ export function serviceReservation(id: string, record: Record<string, unknown>, 
   const minutes = timeMinutes(record.time);
   if (minutes === null || !Number.isInteger(record.guests) || Number(record.guests) < 1) needsReview = true;
   if (needsReview && !['cancelled', 'no-show', 'completed'].includes(status)) status = 'needs-review';
-  return { id, date, time: minutes === null ? text(record.time, 30) : displayTime(minutes), name: text(record.name, 120) || 'Guest name missing',
+  return { completedAt: timestampString(record.completedAt), followUpSent: record.followUpSent === true, followUpEventId: text(record.followUpEventId, 128), feedbackReceivedAt: timestampString(record.feedbackReceivedAt || record.privateFeedbackAt || record.feedbackRespondedAt), feedbackSentiment: text(record.feedbackSentiment, 30), privateFeedback: text(record.privateFeedback), id, date, time: minutes === null ? text(record.time, 30) : displayTime(minutes), name: text(record.name, 120) || 'Guest name missing',
     email: text(record.email, 254), phone: text(record.phone, 40), guests: Number.isInteger(record.guests) && Number(record.guests) > 0 ? Number(record.guests) : 0,
     dietaryPreferences: text(record.dietaryPreferences, 300), seatingPreference: text(record.seatingPreference, 200), preferencesUpdatedAt: timestampString(record.preferencesUpdatedAt),
     status, needsReview, comments: text(record.comments), internalNotes: text(record.internalNotes), createdAt: timestampString(record.createdAt),

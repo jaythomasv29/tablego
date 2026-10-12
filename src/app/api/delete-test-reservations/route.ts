@@ -11,10 +11,14 @@ export async function DELETE(request: Request) {
   try {
     const db = getServerDatabase();
     const snapshot = await db.collection('reservations').where('isTest', '==', true).get();
-    for (let offset = 0; offset < snapshot.docs.length; offset += 400) {
-      const batch = db.batch();
-      for (const record of snapshot.docs.slice(offset, offset + 400)) batch.delete(record.ref);
-      await batch.commit();
+    for (const record of snapshot.docs) {
+      const [jobs, submissions] = await Promise.all([
+        db.collection('notificationOutbox').where('reservationId', '==', record.id).get(),
+        db.collection('bookingSubmissions').where('reservationId', '==', record.id).get(),
+      ]);
+      for (const related of [...jobs.docs, ...submissions.docs]) await related.ref.delete();
+      await db.recursiveDelete(db.doc('managementAccess/' + record.id));
+      await db.recursiveDelete(record.ref);
     }
     return NextResponse.json({ success: true, deleted: snapshot.size });
   } catch {

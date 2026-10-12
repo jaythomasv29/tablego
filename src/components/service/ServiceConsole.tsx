@@ -19,7 +19,7 @@ import NotificationStatus from '@/components/NotificationStatus';
 type Range = 'today' | 'tomorrow' | 'future' | 'past' | 'all' | 'date';
 const stateColors: Record<BookingState, string> = { pending: 'border-amber-500 text-amber-700 dark:text-amber-300', confirmed: 'border-green-500 text-green-700 dark:text-green-300', seated: 'border-blue-500 text-blue-700 dark:text-blue-300', completed: 'border-slate-400', cancelled: 'border-red-400 text-red-700 dark:text-red-300', 'no-show': 'border-red-600 text-red-700 dark:text-red-300', 'needs-review': 'border-orange-500 text-orange-700 dark:text-orange-300' };
 export default function ServiceConsole({ today = false }: { today?: boolean }) {
-  const { bookings, timezone, loading, error } = useReservations();
+  const { bookings, timezone, loading, error } = useReservations({ alerts: true });
   const [now, setNow] = useState(new Date()), [range, setRange] = useState<Range>('today'), [date, setDate] = useState('');
   const [search, setSearch] = useState(''), [status, setStatus] = useState('all'), [specialOnly, setSpecialOnly] = useState(false), [largeOnly, setLargeOnly] = useState(false);
   const [details, setDetails] = useState<string | null>(null), [message, setMessage] = useState<{ booking: ServiceReservation; channel: 'email' | 'sms' } | null>(null);

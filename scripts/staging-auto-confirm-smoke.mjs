@@ -10,7 +10,7 @@ const credentials = JSON.parse(await readFile(settings.GOOGLE_APPLICATION_CREDEN
 assert.equal(settings.NEXT_PUBLIC_FIREBASE_PROJECT_ID, project); assert.equal(credentials.project_id, project);
 const db = getFirestore(initializeApp({ projectId: project, credential: cert(credentials) }, `auto-${randomUUID()}`));
 const base = process.env.TABLEGO_STAGING_TEST_BASE_URL || 'http://127.0.0.1:3102';
-assert.match(base, /^http:\/\/127\.0\.0\.1:310[02]$/);
+assert.match(base, /^http:\/\/127\.0\.0\.1:310[025]$/);
 let staffCookie, phoneCookie;
 const fixtures = [], generalRef = db.doc('settings/general'), original = (await generalRef.get()).data();
 async function request(path, body, { cookie, token, key } = {}) {

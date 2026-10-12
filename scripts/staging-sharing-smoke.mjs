@@ -12,7 +12,7 @@ assert.equal(settings.NEXT_PUBLIC_FIREBASE_PROJECT_ID, project); assert.equal(cr
 process.env.ADMIN_SESSION_SECRET = settings.ADMIN_SESSION_SECRET;
 const db = getFirestore(initializeApp({ projectId: project, credential: cert(credentials) }, `sharing-${randomUUID()}`));
 const base = process.env.TABLEGO_STAGING_TEST_BASE_URL || 'http://127.0.0.1:3102';
-assert.match(base, /^http:\/\/127\.0\.0\.1:310[02]$/);
+assert.match(base, /^http:\/\/127\.0\.0\.1:310[025]$/);
 const records = [], keep = process.argv.includes('--keep-ui');
 let uiFixture;
 async function fixture(changes = {}) {

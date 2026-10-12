@@ -6,7 +6,8 @@
     "next-env.d.ts",
     ".next-staging/types/**/*.ts",
     ".next-provider-test/types/**/*.ts",
-    ".next-staging-qa/types/**/*.ts"
+    ".next-staging-qa/types/**/*.ts",
+    ".next-staging-audit/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
