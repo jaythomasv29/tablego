@@ -60,7 +60,7 @@
     "typescript": "^5.5.3"
   },
   "engines": {
-    "node": ">=22.14.0"
+    "node": "22.x"
   },
   "overrides": {
     "@grpc/grpc-js": "1.14.6",
