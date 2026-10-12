@@ -10,6 +10,8 @@ The authenticated Vercel **tablego** dashboard shows the current Production depl
 
 The earlier phase branches began at the older local 73c871c. Fetching remote main revealed four later commits adding follow-ups, guest feedback and date/UI refinements. The audit reconciles these features with the replacement architecture. Their absence from the earlier testing branch was a regression, not an intentional removal.
 
+Audit fixes are committed as 386c532. Remote main is also an ancestor of the audit branch through a local reconciliation merge. The merge deliberately retains the tested replacement tree after reviewing all remotely added features; it does not reintroduce unauthenticated mail handlers or GET attendance mutations. Local main and the original preview branch remain unchanged.
+
 ## What changed, and why
 
 | Area | Deployed behavior | Release candidate | Purpose |
@@ -42,7 +44,7 @@ Remaining capacity, deposits, loyalty rewards, campaigns, inbound email/SMS repl
 - Restored partial-closure explanations using the full calendar date, including year. Guest rescheduling retains a native date input with authoritative slots and server revalidation.
 - Restored native light/dark control color schemes; guest pages retain the restaurant light palette.
 - Added build/runtime guards for hosted previews: explicit staging, independent Firebase project/credentials, capture mode and no hosted provider-test exception. Production rejects staging/capture settings and weak/missing staff/session/worker setup.
-- Added a secret-safe release preflight, implicit SMTP TLS on 465 and required STARTTLS on other configured ports. Live SMS reminder queuing refuses a missing sender number.
+- Added a secret-safe release preflight, implicit SMTP TLS on 465 and required STARTTLS on other configured ports, following [Nodemailer transport options](https://nodemailer.com/smtp). Live SMS reminder queuing refuses a missing sender number.
 - Staging cleanup now removes related events, access, outbox and idempotency documents. Broad cleanup was not invoked; other retained fixtures were left intact.
 
 ## Validation
