@@ -6,6 +6,8 @@ The final October 11 audit compares against the verified active Vercel productio
 
 ## Delivery coverage
 
+**October 12 hosted update:** the user authorized tablego-milb deployment with the real tablego-1d712 database. The new version is hosted and validated there; the original tablego application is unchanged. Firebase Authentication, a dedicated server identity and the additive outbox index are configured. Legacy live rules remain for old-client compatibility, and an existing Twilio sender rejection blocks reminder SMS. See [live test deployment and evidence](tablego-milb-live-test.md). Hosted Firebase Admin deployments require NODE_OPTIONS=--experimental-require-module.
+
 | Requested improvement | Implementation |
 | --- | --- |
 | 1. Consistent lifecycle | Phase 1 domain/legacy adapter; automatic confirmation by default (manual opt-out), pending, confirmed, seated, completed, cancellation/no-show rules; shared UI and notification copy. Guest acknowledgement is separate from staff acceptance. |

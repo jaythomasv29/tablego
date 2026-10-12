@@ -51,3 +51,18 @@ The new staff credentials are stored privately in /Users/james/Desktop/code/tabl
 Use your own contact details for test bookings. Reservations are real records. Avoid editing or deleting another customer's reservation while testing. No broad test-cleanup endpoint is enabled outside staging.
 
 Deployment validation must verify HTTPS staff auth, the real business-local availability/settings, notification-worker authentication/index availability, provider configuration, core guest pages and the unchanged original site's deployment.
+
+## Deployed validation result — October 12
+
+Release code: dad0fe0. Ready deployment: dpl_22oGetpGNkNSE3J4hH4KBQ4HTgCY, Node 22.x, promoted to tablego-milb.vercel.app after the runtime fix.
+
+- Canonical HTTPS staff login succeeds with Secure/HttpOnly cookies. Firebase accepts the hosted custom staff token; Today loads existing live reservations.
+- Availability returns real America/Los_Angeles policy and slots. Public menu, catering, login and guest route shells respond successfully. Desktop and 390 × 844 mobile booking controls were reviewed.
+- Authenticated notification-worker invocation succeeds against the ready index; unauthenticated staff and worker requests are rejected.
+- A single clearly labeled owned-contact fixture was created for staff confirmation testing. The hosted confirmation API saved Confirmed; both guest and restaurant emails were accepted by the real SMTP provider on the first attempt. Inbox receipt of this new test has not been independently confirmed.
+- Secure guest access rejected ID-only access and returned the correct business-local booking details without contact fields. Browser cancellation succeeded; the fixture is Cancelled and its cancellation emails were also accepted. No other customer reservation was modified.
+- The hosted Twilio OTP send succeeded to the previously approved test number. Entering/verifying that new code awaits the test recipient; the seeded staff-confirmation fixture was explicitly unverified and does not claim to test the public OTP booking submission.
+- The current runtime error log was empty after successful API checks. This is evidence for these requests, not a guarantee against all future failures.
+- The original tablego deployment remains dpl_9vRS5KSwugfWZ2bze7cEwfJc3AxF; its home and availability endpoint still respond successfully.
+
+The test fixture, its private links and provider logs are retained locally for review; the fixture remains cancelled. Credential material and local logs are excluded from Git and Vercel source uploads.
