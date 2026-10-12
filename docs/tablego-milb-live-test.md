@@ -40,7 +40,7 @@ Live Firestore rules currently allow public access to several legacy collections
 
 The daily Vercel Hobby cron is the retry fallback. Initial sends happen after the saved transaction; staff can inspect and retry failed deliveries. Frequent unattended retries still need the separate scheduler decision recorded in release-readiness.md.
 
-Remote CI has not been run; local typecheck, zero-warning lint and 113 automated tests pass. Vercel performs the optimized build. Uploaded source excludes local credentials, captures, node_modules and build outputs through .vercelignore.
+Remote CI has not been run; local typecheck, zero-warning lint and 121 automated tests pass. Vercel performs the optimized build. Uploaded source excludes local credentials, captures, node_modules and build outputs through .vercelignore.
 
 ## Access and testing
 
@@ -54,7 +54,7 @@ Deployment validation must verify HTTPS staff auth, the real business-local avai
 
 ## Deployed validation result — October 12
 
-Initial hosted runtime fix: dad0fe0 / dpl_22oGetpGNkNSE3J4hH4KBQ4HTgCY. OTP recovery release: a7e3a4d / dpl_8yLgfxioWiyHVEaW9CPKi5Cx9xPE. Today activity release: 684b2a8 / dpl_HLSeykZzMrkiLPiefb5EsyQ86fxb. Current release code: 247aefe. Ready deployment: dpl_2WJNQ4cbbdqDQZEPCz9E5xjiB12t, Node 22.x, promoted to tablego-milb.vercel.app after the optimized build, hosted business-local availability and catering phone-proof rejection checks passed.
+Initial hosted runtime fix: dad0fe0 / dpl_22oGetpGNkNSE3J4hH4KBQ4HTgCY. OTP recovery release: a7e3a4d / dpl_8yLgfxioWiyHVEaW9CPKi5Cx9xPE. Today activity release: 684b2a8 / dpl_HLSeykZzMrkiLPiefb5EsyQ86fxb. Verified-phone release: 247aefe / dpl_2WJNQ4cbbdqDQZEPCz9E5xjiB12t. Current release code: 5db8759. Ready deployment: dpl_BR1YmzWA5iEj6kGNYQzWUFPMVeMY, Node 22.x, promoted to tablego-milb.vercel.app after the optimized build and hosted business-local availability / secure guest receipt checks passed.
 
 - Canonical HTTPS staff login succeeds with Secure/HttpOnly cookies. Firebase accepts the hosted custom staff token; Today loads existing live reservations.
 - Availability returns real America/Los_Angeles policy and slots. Public menu, catering, login and guest route shells respond successfully. Desktop and 390 × 844 mobile booking controls were reviewed.
@@ -92,3 +92,15 @@ Tests verify absent, forged, expired, wrong-kind and mismatched-phone proofs are
 The catering lead view also reads current partySize and specialRequests fields while retaining support for legacy guests/message fields, so the verified inquiry's party size and request remain visible to staff.
 
 Hosted verification: an unverified request with caller-supplied true/server fields returned 403 without creating a lead. The business availability endpoint returned America/Los_Angeles and valid slots. The canonical Today page showed the badge next to an existing legitimately verified number, and the public catering page showed the required verification step with submission disabled. No new live OTP or email was sent for this patch; its send/check endpoints were previously tested with the user's real Twilio code, and the new catering end-to-end submission was tested using captured staging codes.
+
+## Guest reservation editing and cancellation reasons — October 12
+
+The guest management page now offers Edit reservation with date, time, party size (1–20) and optional special requests (up to 2,000 characters). Requests can be cleared. Existing date/time stays selected when changing only party size or requests, even when that booked slot is no longer offered for new bookings or availability temporarily fails. New date/time selections still require the restaurant's availability check. Dates and times remain in the restaurant timezone.
+
+Timing and party changes follow the existing automatic/manual confirmation setting and reset guest acknowledgement. Requests-only changes retain status and acknowledgement. Updates validate the current booking version, preserve omitted fields for older clients, save a before/after timeline and queue durable emails containing the saved details. Repeating an already saved change creates no duplicate update or notification.
+
+Cancellation offers Plans changed, The time no longer works, My party can’t attend, Booked somewhere else and Other. The selection is optional; Other requires a typed reason of up to 500 characters. The reason is visible on the guest receipt, staff booking card/timeline and cancellation email. Repeated cancellation preserves the original reason. Staff cancellations and older clients without a reason remain compatible.
+
+Validation: 121 automated tests, typecheck and zero-warning lint pass. Isolated staging API checks cover partial and combined edits, request clearing, stale versions, invalid inputs, unavailable times, automatic/manual acceptance, idempotent edits/cancellations, both reason formats, staff history and captured guest/restaurant emails. The 390 × 844 browser flow saved six guests and a multiline request, then cancelled with Other; no horizontal overflow was observed. All three owned synthetic reservations are cancelled. These checks sent no real messages and changed no live customer records.
+
+Source commit: 5db8759. Ready Vercel deployment: dpl_BR1YmzWA5iEj6kGNYQzWUFPMVeMY, https://tablego-milb-frj6360ja-jaythomasv29s-projects.vercel.app. Vercel's optimized build, lint and type checks passed. The protected deployment returned 200 for business-local availability and authorized read-only access to the previously cancelled owned live fixture, including the new cancellationReason field without exposing phone/email fields. After promotion, the canonical URL passed the same checks. No live guest updates or new provider sends were performed for this patch.
