@@ -7,7 +7,7 @@ Authorized October 12, 2026: deploy the audited version to tablego-milb and use 
 - Hosted URL: https://tablego-milb.vercel.app
 - Vercel project: tablego-milb / prj_6uZ0zWNkY65eOT14odbkTklD7oO7
 - Firebase project: tablego-1d712, shared with https://tablego.vercel.app
-- Branch: refinement/pre-deployment-audit; deploy directly through the CLI to this project.
+- Current branch: refinement/catering-admin-workflow, based on refinement/pre-deployment-audit; deploy directly through the CLI to this project.
 - The existing tablego project, its environment and application deployment are not changed. Both sites see the same live records, so reservation/settings/staff changes in the new site affect the real restaurant database.
 
 This is a live-data test deployment. It does not use staging capture or mock OTP. Test actions can send real email and affect real reservations.
@@ -40,7 +40,7 @@ Live Firestore rules currently allow public access to several legacy collections
 
 The daily Vercel Hobby cron is the retry fallback. Initial sends happen after the saved transaction; staff can inspect and retry failed deliveries. Frequent unattended retries still need the separate scheduler decision recorded in release-readiness.md.
 
-Remote CI has not been run; local typecheck, zero-warning lint and 121 automated tests pass. Vercel performs the optimized build. Uploaded source excludes local credentials, captures, node_modules and build outputs through .vercelignore.
+Remote CI has not been run; local typecheck, zero-warning lint and 135 automated tests pass. Vercel performs the optimized build. Uploaded source excludes local credentials, captures, node_modules and build outputs through .vercelignore.
 
 ## Access and testing
 
@@ -104,3 +104,15 @@ Cancellation offers Plans changed, The time no longer works, My party can’t at
 Validation: 121 automated tests, typecheck and zero-warning lint pass. Isolated staging API checks cover partial and combined edits, request clearing, stale versions, invalid inputs, unavailable times, automatic/manual acceptance, idempotent edits/cancellations, both reason formats, staff history and captured guest/restaurant emails. The 390 × 844 browser flow saved six guests and a multiline request, then cancelled with Other; no horizontal overflow was observed. All three owned synthetic reservations are cancelled. These checks sent no real messages and changed no live customer records.
 
 Source commit: 5db8759. Ready Vercel deployment: dpl_BR1YmzWA5iEj6kGNYQzWUFPMVeMY, https://tablego-milb-frj6360ja-jaythomasv29s-projects.vercel.app. Vercel's optimized build, lint and type checks passed. The protected deployment returned 200 for business-local availability and authorized read-only access to the previously cancelled owned live fixture, including the new cancellationReason field without exposing phone/email fields. After promotion, the canonical URL passed the same checks. No live guest updates or new provider sends were performed for this patch.
+
+## Catering admin workflow — October 12
+
+The redesigned Catering inquiries inbox defaults to active inquiries sorted by upcoming event, with compact stages, search, due-follow-up filtering, refresh/retry and visible loading/failure states. The review dialog displays the full budget, event type/location, menu, requests and verified contact details. Staff can draft an email in their own mail app, record private notes and a follow-up date, and move between New inquiry, In conversation, Confirmed event, Completed and Not proceeding. Closed records can be reopened. Stage changes are internal tracking and send no customer notification or payment request.
+
+Authenticated APIs read/write the new cateringStaff collection for workflow, notes, follow-ups and versions; the public legacy record retains compatible pending/completed status. Caller-supplied fields in legacy records cannot populate private staff work. Existing live rules deny client access to the unmatched cateringStaff path: anonymous REST checks returned 403 there and 200 for the public settings control. No live rule publication was needed. Legacy contact/inquiry exposure remains a separate migration issue.
+
+Validation: 135 automated tests, typecheck and zero-warning lint pass. Staging API tests verified authorized/unauthorized/origin checks, malformed and legacy records, preserving guest details, protected note storage, status/follow-up/history updates, no-op retries, stale versions and old-client completions, closure/reopening and no admin-generated outbox jobs. Browser checks verified desktop and 390 × 844 inbox/details, persistent date selection entered through the native keyboard control, saving multiline notes, visible save results, sticky actions and unsaved-close recovery. No horizontal overflow was observed. Six owned synthetic inquiries across the two test runs were closed; old synthetic public staff fields were removed. No live customer records were edited and no real messages were sent for these checks.
+
+The [future catering feature list](catering-admin-roadmap.md) records the immediate changes and a prioritized backlog including quotes, branded conversations, guest acceptance, assignments, calendars, payments and event-day operations.
+
+Hosted release evidence will be recorded after build and API verification.

@@ -26,7 +26,7 @@ export async function POST(request: Request) {
         if (existing.fingerprint !== fingerprint) throw new ReservationError('This submission key was already used for different details', 409);
         return existing.entityId as string;
       }
-      tx.create(ref, { ...inquiry, phoneVerified: true, phoneVerificationSource: 'server', phoneVerifiedAt: new Date(), createdAt: new Date(), status: 'pending', ...(process.env.TABLEGO_ENVIRONMENT === 'staging' ? { isTest: true } : {}) });
+      tx.create(ref, { ...inquiry, phoneVerified: true, phoneVerificationSource: 'server', phoneVerifiedAt: new Date(), createdAt: new Date(), status: 'pending', version: 1, ...(process.env.TABLEGO_ENVIRONMENT === 'staging' ? { isTest: true } : {}) });
       tx.create(ref.collection('events').doc(eventId), { event: 'catering.created', actor: 'guest', timestamp: new Date() });
       tx.create(submission, { entityId: ref.id, fingerprint, createdAt: new Date() });
       for (const recipient of ['guest', 'restaurant']) tx.create(db.doc(`notificationOutbox/${eventId}-${recipient}`), {
