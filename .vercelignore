@@ -1,0 +1,7 @@
+.env*
+.staging/
+.vercel/
+.next/
+.next-*/
+node_modules/
+firebase-debug.log*

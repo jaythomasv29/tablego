@@ -24,6 +24,14 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
   const [search, setSearch] = useState(''), [status, setStatus] = useState('all'), [specialOnly, setSpecialOnly] = useState(false), [largeOnly, setLargeOnly] = useState(false);
   const [details, setDetails] = useState<string | null>(null), [message, setMessage] = useState<{ booking: ServiceReservation; channel: 'email' | 'sms' } | null>(null);
   const [messageBusy, setMessageBusy] = useState(false), [messageError, setMessageError] = useState(''), [notice, setNotice] = useState('');
+  const [smsCapability, setSmsCapability] = useState({ available: false, reason: 'Checking SMS reminder availability…' });
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch('/api/staff/communication-capabilities', { signal: controller.signal, cache: 'no-store' })
+      .then(async response => { const body = await response.json(); if (!response.ok) throw new Error(); setSmsCapability(body.smsReminders); })
+      .catch(error => { if (error.name !== 'AbortError') setSmsCapability({ available: false, reason: 'Unable to check SMS reminder availability. Reload to try again.' }); });
+    return () => controller.abort();
+  }, []);
   useEffect(() => { const timer = setInterval(() => setNow(new Date()), 30000); return () => clearInterval(timer); }, []);
   const clock = restaurantClock(timezone, now);
   const tomorrow = new Date(`${clock.date}T12:00:00Z`); tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
@@ -84,7 +92,7 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
     </article>;
   }
   function reminderButtons(booking: ServiceReservation) {
-    return <><Button size="sm" variant="outline" onClick={() => { setMessage({ booking, channel: 'email' }); setMessageError(''); }}>Email reminder</Button><Button size="sm" variant="outline" disabled={!booking.smsOptIn || !booking.phoneVerified} onClick={() => { setMessage({ booking, channel: 'sms' }); setMessageError(''); }}>SMS reminder</Button></>;
+    return <><Button size="sm" variant="outline" onClick={() => { setMessage({ booking, channel: 'email' }); setMessageError(''); }}>Email reminder</Button><Button size="sm" variant="outline" disabled={!smsCapability.available || !booking.smsOptIn || !booking.phoneVerified} title={smsCapability.available ? 'Requires guest consent and a verified phone' : smsCapability.reason} onClick={() => { setMessage({ booking, channel: 'sms' }); setMessageError(''); }}>SMS reminder</Button>{!smsCapability.available && <p className="w-full text-xs text-muted-foreground">{smsCapability.reason}</p>}</>;
   }
   return <AdminLayout><div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-8">
     <header className="space-y-2"><div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-3xl font-semibold">{today ? 'Today’s service' : 'Reservations'}</h1><Link className="text-sm underline" href={today ? '/admin/reservation' : '/admin/home'}>{today ? 'All reservations' : 'Back to Today'}</Link></div>

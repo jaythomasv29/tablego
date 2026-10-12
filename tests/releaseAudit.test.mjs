@@ -6,6 +6,15 @@ import { feedbackInput, feedbackSettings, followUpEligibility } from '../src/lib
 import { renderFeedbackNotification } from '../src/lib/reservations/feedbackRender.ts';
 import { encryptToken } from '../src/lib/reservations/managementToken.ts';
 import { defaultRestaurant } from '../src/lib/restaurant/config.ts';
+import { smsReminderCapability } from '../src/lib/reservations/communications.ts';
+
+test('SMS reminder availability stays separate from phone verification and staging capture', () => {
+  const env = { TWILIO_FROM_NUMBER: '+16505550100', TWILIO_ACCOUNT_SID: 'synthetic', TWILIO_AUTH_TOKEN: 'synthetic' };
+  assert.equal(smsReminderCapability(env).available, true);
+  assert.equal(smsReminderCapability({ ...env, TABLEGO_SMS_REMINDERS_ENABLED: 'false' }).available, false);
+  assert.equal(smsReminderCapability({ ...env, TWILIO_FROM_NUMBER: '' }).available, false);
+  assert.equal(smsReminderCapability({ TABLEGO_SMS_REMINDERS_ENABLED: 'false' }, true).available, true);
+});
 
 test('follow-up eligibility requires a completed real visit, valid email and elapsed completion delay', () => {
   const now = new Date('2026-11-16T01:00:00Z');
