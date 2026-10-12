@@ -54,7 +54,7 @@ Deployment validation must verify HTTPS staff auth, the real business-local avai
 
 ## Deployed validation result — October 12
 
-Initial hosted runtime fix: dad0fe0 / dpl_22oGetpGNkNSE3J4hH4KBQ4HTgCY. OTP recovery release: a7e3a4d / dpl_8yLgfxioWiyHVEaW9CPKi5Cx9xPE. Current release code: 684b2a8. Ready deployment: dpl_HLSeykZzMrkiLPiefb5EsyQ86fxb, Node 22.x, promoted to tablego-milb.vercel.app after its optimized build and hosted business-local availability and HTTPS staff authentication checks passed.
+Initial hosted runtime fix: dad0fe0 / dpl_22oGetpGNkNSE3J4hH4KBQ4HTgCY. OTP recovery release: a7e3a4d / dpl_8yLgfxioWiyHVEaW9CPKi5Cx9xPE. Today activity release: 684b2a8 / dpl_HLSeykZzMrkiLPiefb5EsyQ86fxb. Current release code: 247aefe. Ready deployment: dpl_2WJNQ4cbbdqDQZEPCz9E5xjiB12t, Node 22.x, promoted to tablego-milb.vercel.app after the optimized build, hosted business-local availability and catering phone-proof rejection checks passed.
 
 - Canonical HTTPS staff login succeeds with Secure/HttpOnly cookies. Firebase accepts the hosted custom staff token; Today loads existing live reservations.
 - Availability returns real America/Los_Angeles policy and slots. Public menu, catering, login and guest route shells respond successfully. Desktop and 390 × 844 mobile booking controls were reviewed.
@@ -90,3 +90,5 @@ Catering uses the existing OTP send/check endpoints and phone-proof cookie. The 
 Tests verify absent, forged, expired, wrong-kind and mismatched-phone proofs are rejected without saving leads or queuing messages, and successful retries retain one normalized verified lead and two recipient jobs. Staging browser checks cover disabled/enabled submission, an actual saved inquiry, badges on Today/Reservations/catering leads, and 390 × 844 layouts without horizontal overflow. The native event date was entered and checked in the restaurant calendar. New inquiry emails were captured successfully. The owned reservation was cancelled and both owned catering leads were completed after review; no live customer records were changed or messages sent by these checks.
 
 The catering lead view also reads current partySize and specialRequests fields while retaining support for legacy guests/message fields, so the verified inquiry's party size and request remain visible to staff.
+
+Hosted verification: an unverified request with caller-supplied true/server fields returned 403 without creating a lead. The business availability endpoint returned America/Los_Angeles and valid slots. The canonical Today page showed the badge next to an existing legitimately verified number, and the public catering page showed the required verification step with submission disabled. No new live OTP or email was sent for this patch; its send/check endpoints were previously tested with the user's real Twilio code, and the new catering end-to-end submission was tested using captured staging codes.
