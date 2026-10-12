@@ -54,7 +54,7 @@ Deployment validation must verify HTTPS staff auth, the real business-local avai
 
 ## Deployed validation result — October 12
 
-Initial hosted runtime fix: dad0fe0 / dpl_22oGetpGNkNSE3J4hH4KBQ4HTgCY. OTP recovery release: a7e3a4d / dpl_8yLgfxioWiyHVEaW9CPKi5Cx9xPE. Today activity release: 684b2a8 / dpl_HLSeykZzMrkiLPiefb5EsyQ86fxb. Verified-phone release: 247aefe / dpl_2WJNQ4cbbdqDQZEPCz9E5xjiB12t. Current release code: 5db8759. Ready deployment: dpl_BR1YmzWA5iEj6kGNYQzWUFPMVeMY, Node 22.x, promoted to tablego-milb.vercel.app after the optimized build and hosted business-local availability / secure guest receipt checks passed.
+Initial hosted runtime fix: dad0fe0 / dpl_22oGetpGNkNSE3J4hH4KBQ4HTgCY. OTP recovery release: a7e3a4d / dpl_8yLgfxioWiyHVEaW9CPKi5Cx9xPE. Today activity release: 684b2a8 / dpl_HLSeykZzMrkiLPiefb5EsyQ86fxb. Verified-phone release: 247aefe / dpl_2WJNQ4cbbdqDQZEPCz9E5xjiB12t. Guest-edit release: 5db8759 / dpl_BR1YmzWA5iEj6kGNYQzWUFPMVeMY. Current release code: 26bfc5a. Ready deployment: dpl_Dw6ZngsdGBfe9ftnEGw47Bo8ZNPs, Node 22.x, promoted to tablego-milb.vercel.app after the optimized build and hosted catering staff API / existing reservation availability checks passed.
 
 - Canonical HTTPS staff login succeeds with Secure/HttpOnly cookies. Firebase accepts the hosted custom staff token; Today loads existing live reservations.
 - Availability returns real America/Los_Angeles policy and slots. Public menu, catering, login and guest route shells respond successfully. Desktop and 390 × 844 mobile booking controls were reviewed.
@@ -115,4 +115,6 @@ Validation: 135 automated tests, typecheck and zero-warning lint pass. Staging A
 
 The [future catering feature list](catering-admin-roadmap.md) records the immediate changes and a prioritized backlog including quotes, branded conversations, guest acceptance, assignments, calendars, payments and event-day operations.
 
-Hosted release evidence will be recorded after build and API verification.
+Source commit: 26bfc5a. Ready deployment: dpl_Dw6ZngsdGBfe9ftnEGw47Bo8ZNPs, https://tablego-milb-jalk40uff-jaythomasv29s-projects.vercel.app. Vercel optimized build, lint and type checks passed. Hosted verification returned 401 for an unauthenticated catering list, 200 for staff login/list/detail/history, and 403 for a cross-origin PATCH against a nonexistent check ID. All 84 existing live inquiries normalized successfully. Reservation availability still returned valid slots in America/Los_Angeles. The separate verification session was logged out; no live inquiry updates or customer sends were performed.
+
+After promotion, the canonical browser loaded the new page with Active 28, New 28, Closed 56 and All 84, sorted by Upcoming event. The anonymous canonical API still returned 401. The original tablego project remains on dpl_9vRS5KSwugfWZ2bze7cEwfJc3AxF. Source stays on its own catering testing branch; the original source worktree is unchanged.
