@@ -40,7 +40,7 @@ Live Firestore rules currently allow public access to several legacy collections
 
 The daily Vercel Hobby cron is the retry fallback. Initial sends happen after the saved transaction; staff can inspect and retry failed deliveries. Frequent unattended retries still need the separate scheduler decision recorded in release-readiness.md.
 
-Remote CI has not been run; local typecheck, zero-warning lint and 93 automated tests pass. Vercel performs the optimized build. Uploaded source excludes local credentials, captures, node_modules and build outputs through .vercelignore.
+Remote CI has not been run; local typecheck, zero-warning lint and 97 automated tests pass. Vercel performs the optimized build. Uploaded source excludes local credentials, captures, node_modules and build outputs through .vercelignore.
 
 ## Access and testing
 
@@ -61,7 +61,9 @@ Release code: dad0fe0. Ready deployment: dpl_22oGetpGNkNSE3J4hH4KBQ4HTgCY, Node 
 - Authenticated notification-worker invocation succeeds against the ready index; unauthenticated staff and worker requests are rejected.
 - A single clearly labeled owned-contact fixture was created for staff confirmation testing. The hosted confirmation API saved Confirmed; both guest and restaurant emails were accepted by the real SMTP provider on the first attempt. Inbox receipt of this new test has not been independently confirmed.
 - Secure guest access rejected ID-only access and returned the correct business-local booking details without contact fields. Browser cancellation succeeded; the fixture is Cancelled and its cancellation emails were also accepted. No other customer reservation was modified.
-- The hosted Twilio OTP send succeeded to the previously approved test number. Entering/verifying that new code awaits the test recipient; the seeded staff-confirmation fixture was explicitly unverified and does not claim to test the public OTP booking submission.
+- The hosted Twilio OTP send and verification succeeded with a fresh code supplied by the test recipient. The public customer submission created a real phone-verified booking, automatically Confirmed with confirmedBy=automatic. Guest and restaurant confirmation emails were accepted by SMTP on the first attempt.
+- The public test booking was immediately cancelled through its authorized guest link. Its saved status is Cancelled; both cancellation emails were accepted by SMTP on the first attempt. Test contacts were the user's expressly approved contacts; other customer records were not changed. Inbox receipt of these new test messages has not been independently confirmed.
+- The first code had expired during the hosted checks. Twilio's documented 404/20404 response now returns a recoverable 400 with instructions to request a new code, shown by the booking form. Regression tests also verify that provider outages remain server errors and only approved verification can issue proof. See [Twilio Verification Check](https://www.twilio.com/docs/verify/api/verification-check).
 - The current runtime error log was empty after successful API checks. This is evidence for these requests, not a guarantee against all future failures.
 - The original tablego deployment remains dpl_9vRS5KSwugfWZ2bze7cEwfJc3AxF; its home and availability endpoint still respond successfully.
 

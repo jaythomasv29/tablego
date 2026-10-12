@@ -1,6 +1,8 @@
 # TableGo: deployment comparison and final audit
 
-Audited October 11, 2026. Test branch: refinement/pre-deployment-audit. Isolated checkout: /Users/james/Desktop/code/tablego-release-audit. The original previews were left running. Nothing was pushed, merged into local main, or deployed.
+Historical audit completed October 11, 2026. Test branch: refinement/pre-deployment-audit. Isolated checkout: /Users/james/Desktop/code/tablego-release-audit. At that point nothing was pushed, merged into local main, or deployed.
+
+October 12 update: the audited version is now hosted on tablego-milb with the real database. See [the live deployment and test report](tablego-milb-live-test.md) for current configuration, verified OTP/booking/email/cancellation, and remaining SMS sender and legacy database rules limits. The deployment gates below describe the October 11 findings; they are not the current deployment status.
 
 ## Confirmed production baseline
 

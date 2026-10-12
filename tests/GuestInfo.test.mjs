@@ -59,6 +59,16 @@ async function enterCode(renderer, code = '1234') {
   }
 }
 
+test('an expired challenge explains how to recover without verifying the guest', async t => {
+  const message = 'Code expired or no longer active. Request a new code.';
+  const state = await mount(t, () => ({ success: false, error: message }));
+  await enterCode(state.renderer);
+  assert.deepEqual(state.confirmations, []);
+  assert.match(JSON.stringify(state.renderer.toJSON()), /Code expired or no longer active\. Request a new code\./);
+  const boxes = state.renderer.root.findAllByType('input').filter(input => input.props.inputMode === 'numeric');
+  assert.ok(boxes.every(input => input.props.value === ''));
+});
+
 test('a complete OTP submits once despite parent callback changes', async t => {
   const state = await mount(t, () => ({ success: true, valid: true }));
   await enterCode(state.renderer);

@@ -85,7 +85,11 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
         body: JSON.stringify({ phone: formData.phone, code: codeToVerify }),
       });
       const data = await res.json();
-      if (!data.success) throw new Error(data.error);
+      if (!data.success) {
+        setOtpError(data.error || 'Verification failed. Please try again.');
+        setDigits(Array(otpLength).fill(''));
+        return;
+      }
       if (data.valid) {
         onPhoneVerified(true);
       } else {

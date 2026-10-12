@@ -29,6 +29,12 @@ export async function POST(request: Request) {
     return response;
   } catch (error) {
     if (error instanceof SyntaxError) return NextResponse.json({ success: false, error: 'Invalid JSON' }, { status: 400 });
+    // Verify removes expired, consumed and exhausted challenges. These are
+    // recoverable guest errors, not an outage of the verification service.
+    if (error && typeof error === 'object' && 'status' in error && error.status === 404 &&
+        'code' in error && error.code === 20404) {
+      return NextResponse.json({ success: false, error: 'Code expired or no longer active. Request a new code.' }, { status: 400 });
+    }
     console.warn('[otp/verify] verification provider unavailable');
     return NextResponse.json({ success: false, error: 'Failed to verify code' }, { status: 500 });
   }
