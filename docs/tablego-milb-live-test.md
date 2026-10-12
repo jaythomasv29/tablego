@@ -54,7 +54,7 @@ Deployment validation must verify HTTPS staff auth, the real business-local avai
 
 ## Deployed validation result — October 12
 
-Release code: dad0fe0. Ready deployment: dpl_22oGetpGNkNSE3J4hH4KBQ4HTgCY, Node 22.x, promoted to tablego-milb.vercel.app after the runtime fix.
+Initial hosted runtime fix: dad0fe0 / dpl_22oGetpGNkNSE3J4hH4KBQ4HTgCY. Current release code: a7e3a4d. Ready deployment: dpl_8yLgfxioWiyHVEaW9CPKi5Cx9xPE, Node 22.x, promoted to tablego-milb.vercel.app after verifying availability and the retired-challenge recovery response on its deployment URL.
 
 - Canonical HTTPS staff login succeeds with Secure/HttpOnly cookies. Firebase accepts the hosted custom staff token; Today loads existing live reservations.
 - Availability returns real America/Los_Angeles policy and slots. Public menu, catering, login and guest route shells respond successfully. Desktop and 390 × 844 mobile booking controls were reviewed.
