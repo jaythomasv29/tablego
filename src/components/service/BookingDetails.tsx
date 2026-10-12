@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import GuestHistory from './GuestHistory';
 import { guestProfiles, type ServiceReservation } from '@/lib/reservations/service';
 import { formatBusinessTimestamp } from '@/utils/dateUtils';
-interface Event { id: string; event: string; actor: string; timestamp: string | null; channel?: string; recipient?: string }
+interface Event { id: string; event: string; actor: string; timestamp: string | null; channel?: string; recipient?: string; changes?: { label: string; before: string; after: string }[]; cancellationReason?: string }
 export default function BookingDetails({ booking, profile, timezone }: { booking: ServiceReservation; profile: ReturnType<typeof guestProfiles>[number]; timezone: string }) {
   const [dietaryPreferences, setDietaryPreferences] = useState(''), [seatingPreference, setSeatingPreference] = useState('');
   const [events, setEvents] = useState<Event[]>([]), [notes, setNotes] = useState(''), [version, setVersion] = useState(0);
@@ -45,6 +45,8 @@ export default function BookingDetails({ booking, profile, timezone }: { booking
     <section className="space-y-3" aria-label="Booking timeline"><h3 className="font-semibold">Booking timeline</h3>
       {loading ? <p role="status">Loading history…</p> : !events.length ? <p className="text-sm text-muted-foreground">No timeline events recorded for this legacy booking.</p> : <ol className="space-y-2 text-sm">{events.map(event => <li key={event.id} className="border-t pt-2">
         <p>{event.event.replace(/^reservation\.|^notification\./, '').replace(/[._]/g, ' ')} · {event.actor}{event.channel ? ` · ${event.channel} to ${event.recipient}` : ''}</p>
+        {event.changes?.map(change => <p key={change.label} className="break-words whitespace-pre-wrap text-xs"><strong>{change.label}:</strong> {change.before || 'None'} → {change.after || 'None'}</p>)}
+        {event.cancellationReason && <p className="break-words whitespace-pre-wrap text-xs"><strong>Cancellation reason:</strong> {event.cancellationReason}</p>}
         <p className="text-xs text-muted-foreground">{event.timestamp ? formatBusinessTimestamp(event.timestamp, timezone) : 'Timestamp not recorded'}</p>
       </li>)}</ol>}
     </section>

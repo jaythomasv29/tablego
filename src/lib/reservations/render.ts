@@ -5,11 +5,11 @@ import { statusLabels, type BookingState } from './domain.ts';
 import type { BookingInput } from './input.ts';
 import type { ReservationEvent } from './notifications';
 
-export function renderNotification(job: { restaurant?: RestaurantIdentity; event: ReservationEvent; recipient: string; reservationId: string; encryptedToken: string; reservation: BookingInput & { status: BookingState; restaurantTimezone?: string; providerTestRunId?: string } }) {
+export function renderNotification(job: { restaurant?: RestaurantIdentity; event: ReservationEvent; recipient: string; reservationId: string; encryptedToken: string; reservation: BookingInput & { status: BookingState; restaurantTimezone?: string; providerTestRunId?: string; cancellationReason?: string } }) {
   const reservation = job.reservation;
   const restaurant = job.restaurant || restaurantIdentity(null);
   const titles: Record<ReservationEvent, string> = {
-    created: 'Reservation request received', confirmed: 'Reservation confirmed', rescheduled: 'Reservation change requested',
+    created: 'Reservation request received', confirmed: 'Reservation confirmed', rescheduled: 'Reservation change requested', updated: 'Reservation details updated',
     cancelled: 'Reservation cancelled', reminder: 'Upcoming reservation reminder', recovered: 'Your secure reservation link',
     seated: 'Guest seated', completed: 'Visit completed', 'no-show': 'Reservation marked no-show',
   };
@@ -27,10 +27,11 @@ export function renderNotification(job: { restaurant?: RestaurantIdentity; event
   const label = `font-family:${sans};font-size:11px;font-weight:600;letter-spacing:0.10em;text-transform:uppercase;color:#595959;`;
   const rows = [['Guest', reservation.name], ['Date', date], ['Time', `${reservation.time} · ${timezone}`],
     ['Party size', `${reservation.guests} ${reservation.guests === 1 ? 'guest' : 'guests'}`], ['Status', statusLabels[reservation.status]],
-    ...(reservation.comments ? [['Special requests', reservation.comments]] : [])];
+    ...(reservation.comments ? [['Special requests', reservation.comments]] : []),
+    ...(reservation.status === 'cancelled' && reservation.cancellationReason ? [['Cancellation reason', reservation.cancellationReason]] : [])];
   const menuUrl = new URL('/api/menu-download', process.env.NEXT_PUBLIC_BASE_URL).toString();
   const cateringUrl = restaurant.cateringUrl ? new URL(restaurant.cateringUrl, process.env.NEXT_PUBLIC_BASE_URL).toString() : '';
-  const text = `${titles[job.event]}. ${reservation.name}: ${date} at ${reservation.time} (${timezone}), ${reservation.guests} guests. Status: ${statusLabels[reservation.status]}. ${responseCopy} Manage reservation: ${url}`;
+  const text = `${titles[job.event]}. ${reservation.name}: ${date} at ${reservation.time} (${timezone}), ${reservation.guests} guests. Status: ${statusLabels[reservation.status]}.${reservation.comments ? ` Special requests: ${reservation.comments}.` : ''}${reservation.status === 'cancelled' && reservation.cancellationReason ? ` Cancellation reason: ${reservation.cancellationReason}.` : ''} ${responseCopy} Manage reservation: ${url}`;
   // Presentation tables and inline styles preserve the restaurant theme in email clients.
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(titles[job.event])}</title></head>
 <body style="margin:0;padding:24px 12px;background-color:#F9F7F2;color:#121212;font-family:Georgia,'Times New Roman',serif;">

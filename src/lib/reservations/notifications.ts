@@ -17,7 +17,7 @@ const transport = createEmailTransport({ host: process.env.SMTP_HOST || 'smtp.gm
   connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000,
   auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS } });
 export { escapeHtml } from '../formatting/html';
-export type ReservationEvent = 'created' | 'confirmed' | 'rescheduled' | 'cancelled' | 'reminder' | 'recovered' | 'seated' | 'completed' | 'no-show';
+export type ReservationEvent = 'created' | 'confirmed' | 'rescheduled' | 'updated' | 'cancelled' | 'reminder' | 'recovered' | 'seated' | 'completed' | 'no-show';
 export function notificationIntent(tx: Transaction, id: string, eventId: string, event: ReservationEvent,
   reservation: BookingInput & { status: BookingState; notificationRevision?: number; restaurantTimezone?: string; providerTestRunId?: string }, encryptedToken: string, channel: 'email' | 'sms' = 'email') {
   for (const recipient of ['guest', 'restaurant'] as const) {

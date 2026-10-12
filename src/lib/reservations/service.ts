@@ -5,7 +5,7 @@ import { serverPhoneVerified } from '../auth/phoneVerification.ts';
 export interface ServiceReservation {
   completedAt?: string | null; followUpSent?: boolean; followUpEventId?: string; feedbackReceivedAt?: string | null; feedbackSentiment?: string; privateFeedback?: string;
   id: string; date: string; time: string; name: string; email: string; phone: string; guests: number;
-  status: BookingState; needsReview: boolean; comments: string; internalNotes: string; createdAt: string | null;
+  status: BookingState; needsReview: boolean; comments: string; cancellationReason: string; internalNotes: string; createdAt: string | null;
   dietaryPreferences: string; seatingPreference: string; preferencesUpdatedAt: string | null;
   guestAcknowledged: boolean; phoneVerified: boolean; smsOptIn: boolean; noteVersion: number; marked: boolean;
 }
@@ -28,7 +28,7 @@ export function serviceReservation(id: string, record: Record<string, unknown>, 
   return { completedAt: timestampString(record.completedAt), followUpSent: record.followUpSent === true, followUpEventId: text(record.followUpEventId, 128), feedbackReceivedAt: timestampString(record.feedbackReceivedAt || record.privateFeedbackAt || record.feedbackRespondedAt), feedbackSentiment: text(record.feedbackSentiment, 30), privateFeedback: text(record.privateFeedback), id, date, time: minutes === null ? text(record.time, 30) : displayTime(minutes), name: text(record.name, 120) || 'Guest name missing',
     email: text(record.email, 254), phone: text(record.phone, 40), guests: Number.isInteger(record.guests) && Number(record.guests) > 0 ? Number(record.guests) : 0,
     dietaryPreferences: text(record.dietaryPreferences, 300), seatingPreference: text(record.seatingPreference, 200), preferencesUpdatedAt: timestampString(record.preferencesUpdatedAt),
-    status, needsReview, comments: text(record.comments), internalNotes: text(record.internalNotes), createdAt: timestampString(record.createdAt),
+    status, needsReview, comments: text(record.comments), cancellationReason: text(record.cancellationReason, 500), internalNotes: text(record.internalNotes), createdAt: timestampString(record.createdAt),
     guestAcknowledged: Boolean(timestampString(record.guestAcknowledgedAt)), phoneVerified: serverPhoneVerified(record), smsOptIn: record.smsOptIn === true,
     noteVersion: Number.isInteger(record.noteVersion) ? Number(record.noteVersion) : 0, marked: record.marked === true };
 }

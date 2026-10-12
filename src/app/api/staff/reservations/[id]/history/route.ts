@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { requireAdmin } from '@/lib/auth/admin';
 import { getServerDatabase } from '@/lib/serverFirebase';
 import { reservationId } from '@/lib/reservations/repository';
+import { reservationChangeHistory } from '@/lib/reservations/guestChanges';
 import { privateJson, ReservationError, reservationError } from '@/lib/reservations/http';
 type Context = { params: Promise<{ id: string }> };
 export async function GET(request: Request, context: Context) {
@@ -13,6 +14,7 @@ export async function GET(request: Request, context: Context) {
     return privateJson({ dietaryPreferences: record.data()!.dietaryPreferences || '', seatingPreference: record.data()!.seatingPreference || '', internalNotes: record.data()!.internalNotes || '', noteVersion: record.data()!.noteVersion || 0,
       events: events.docs.map(doc => { const data = doc.data(); return { id: doc.id, event: data.event, actor: data.actor,
         timestamp: data.timestamp?.toDate().toISOString() || null, previousStatus: data.previousStatus || null, status: data.status || null,
+        changes: reservationChangeHistory(data.changes), cancellationReason: typeof data.cancellationReason === 'string' ? data.cancellationReason.slice(0, 500) : '',
         channel: data.channel || null, recipient: data.recipient || null }; }) });
   } catch (error) { return reservationError(error); }
 }

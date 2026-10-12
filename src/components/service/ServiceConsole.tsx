@@ -73,6 +73,7 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
       </div></div>
       {booking.needsReview && <p className="text-sm text-orange-700 dark:text-orange-300">Some imported details need review. Contact the guest before acting.</p>}
       {booking.comments && <p className="rounded-md bg-muted p-3 text-sm"><strong>Guest request:</strong> {booking.comments}</p>}
+      {booking.status === 'cancelled' && booking.cancellationReason && <p className="break-words whitespace-pre-wrap rounded-md bg-muted p-3 text-sm"><strong>Cancellation reason:</strong> {booking.cancellationReason}</p>}
       {booking.internalNotes && <p className="text-sm"><strong>Staff note:</strong> {booking.internalNotes}</p>}
       {booking.dietaryPreferences && <p className="text-sm"><strong>Dietary preference:</strong> {booking.dietaryPreferences}</p>}
       {booking.seatingPreference && <p className="text-sm"><strong>Seating preference:</strong> {booking.seatingPreference}</p>}

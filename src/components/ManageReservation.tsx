@@ -13,8 +13,10 @@ import { statusLabels, isGuestEditable, type BookingState } from '@/lib/reservat
 import { CalendarDays, Clock, Users, MapPin, ArrowUpRight } from 'lucide-react';
 import ReservationMoment from '@/components/reservations/ReservationMoment';
 import ShareReservation from '@/components/reservations/ShareReservation';
+import { Textarea } from '@/components/ui/textarea';
+import { cancellationReasons } from '@/lib/reservations/guestChanges';
 
-interface Reservation { autoConfirmReservations: boolean; id: string; name: string; date: string; time: string; guests: number; status: BookingState; guestAcknowledged: boolean; comments: string; timezone: string; version: number }
+interface Reservation { autoConfirmReservations: boolean; id: string; name: string; date: string; time: string; guests: number; status: BookingState; guestAcknowledged: boolean; comments: string; cancellationReason?: string; timezone: string; version: number }
 export default function ManageReservation({ id, initialAction }: { id: string; initialAction?: 'cancel' | 'reschedule' }) {
   const { restaurant } = useTimezone();
   const [token, setToken] = useState(''), [reservation, setReservation] = useState<Reservation | null>(null);
@@ -23,13 +25,16 @@ export default function ManageReservation({ id, initialAction }: { id: string; i
   const [phone, setPhone] = useState(''), [code, setCode] = useState(''), [codeSent, setCodeSent] = useState(false), [codeLength, setCodeLength] = useState(4);
   const [editing, setEditing] = useState(initialAction === 'reschedule'), [cancelOpen, setCancelOpen] = useState(initialAction === 'cancel');
   const [date, setDate] = useState(''), [time, setTime] = useState(''), [slots, setSlots] = useState<string[]>([]), [slotsLoading, setSlotsLoading] = useState(false);
+  const [guests, setGuests] = useState(''), [comments, setComments] = useState('');
+  const [reasonCode, setReasonCode] = useState(''), [reasonDetails, setReasonDetails] = useState('');
+  function resetDraft(value: Reservation) { setDate(value.date); setTime(value.time); setGuests(String(value.guests)); setComments(value.comments || ''); }
   const load = useCallback(async (accessToken: string) => {
     setLoading(true); setError(''); setLoadUnavailable(true);
     try {
       const response = await fetch(`/api/reservations/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' });
       const body = await response.json();
       if (!response.ok) { setLoadUnavailable(response.status !== 403); throw new Error(body.error); }
-      setReservation(body.reservation); setDate(body.reservation.date); setTime(body.reservation.time); setLoadUnavailable(false);
+      setReservation(body.reservation); setDate(body.reservation.date); setTime(body.reservation.time); setGuests(String(body.reservation.guests)); setComments(body.reservation.comments || ''); setLoadUnavailable(false);
     } catch (err) { setReservation(null); if (err instanceof TypeError) setLoadUnavailable(true); setError((err as Error).message || 'Unable to load reservation. Please try again.'); }
     finally { setLoading(false); }
   }, [id]);
@@ -44,8 +49,8 @@ export default function ManageReservation({ id, initialAction }: { id: string; i
     setSlotsLoading(true); setSlots([]); setSlotsUnavailable(false);
     fetch(`/api/availability/settings?date=${encodeURIComponent(date)}`, { signal: controller.signal, cache: 'no-store' })
       .then(async response => { const data = await response.json(); if (!response.ok) throw new Error(data.error); return data.slots; })
-      .then(data => setSlots(data.map((slot: { time: string }) => slot.time)))
-      .catch(err => { if (!controller.signal.aborted) { setSlotsUnavailable(true); setError(err.message || 'Unable to verify availability.'); } })
+      .then(data => { if (!controller.signal.aborted) setSlots(data.map((slot: { time: string }) => slot.time)); })
+      .catch(() => { if (!controller.signal.aborted) setSlotsUnavailable(true); })
       .finally(() => { if (!controller.signal.aborted) setSlotsLoading(false); });
     return () => controller.abort();
   }, [date, editing]);
@@ -54,10 +59,10 @@ export default function ManageReservation({ id, initialAction }: { id: string; i
     setBusy(true); setError(''); setNotice('');
     try {
       const response = await fetch(`/api/reservations/${encodeURIComponent(id)}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action, date, time, version: reservation?.version }) });
+        body: JSON.stringify({ action, version: reservation?.version, ...(action === 'reschedule' ? { date, time, guests: Number(guests), comments } : {}), ...(action === 'cancel' ? { cancellationReasonCode: reasonCode, cancellationReasonDetails: reasonCode === 'other' ? reasonDetails : '' } : {}) }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
-      setReservation(data.reservation); setDate(data.reservation.date); setTime(data.reservation.time); setEditing(false); setCancelOpen(false);
+      setReservation(data.reservation); resetDraft(data.reservation); setEditing(false); setCancelOpen(false); setReasonCode(''); setReasonDetails('');
       setNotice(action === 'acknowledge' ? 'Your response is saved. The restaurant can see that you plan to come.' : action === 'cancel' ? 'Your reservation is cancelled.' : data.reservation.status === 'confirmed' ? 'Your change is saved and confirmed.' : 'Your change is saved and awaits restaurant acceptance.');
     } catch (err) { setError((err as Error).message || 'Unable to save. Your current reservation is unchanged.'); }
     finally { setBusy(false); }
@@ -108,32 +113,44 @@ export default function ManageReservation({ id, initialAction }: { id: string; i
             <p className="text-xs leading-relaxed text-zinc-600">Restaurant local time · {reservation.timezone}</p>
             {reservation.guestAcknowledged && <p className="text-sm text-muted-foreground">You told the restaurant you’re coming</p>}
             {reservation.comments && <p className="break-words whitespace-pre-wrap border-t border-zinc-900/10 pt-3 text-sm leading-relaxed"><span className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-zinc-600">Your request</span>{reservation.comments}</p>}
+            {reservation.status === 'cancelled' && reservation.cancellationReason && <p className="break-words whitespace-pre-wrap border-t border-zinc-900/10 pt-3 text-sm"><span className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-zinc-600">Cancellation reason</span>{reservation.cancellationReason}</p>}
           </div>
           <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${restaurant.name} ${restaurant.address}`)}`} target="_blank" rel="noreferrer" className="flex items-start gap-3 rounded-xl border border-zinc-900/10 px-4 py-4 text-sm"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#586747]" aria-hidden="true" /><div className="min-w-0 flex-1"><p className="font-medium">{restaurant.name}</p><p className="mt-1 text-xs leading-relaxed text-zinc-600">{restaurant.address}</p></div><ArrowUpRight className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden="true" /></a>
           {reservation.status === 'pending' && <p className="text-sm text-muted-foreground">Your request is saved. The restaurant still needs to accept it before your table is confirmed.</p>}
           {reservation.status === 'confirmed' && reservation.date >= restaurantClock(reservation.timezone).date && <ShareReservation id={id} token={token} date={reservation.date} time={reservation.time} guests={reservation.guests} timezone={reservation.timezone} disabled={busy || loadUnavailable} preview={process.env.NEXT_PUBLIC_TABLEGO_ENVIRONMENT === 'staging'} onQueued={setNotice} />}
           {isGuestEditable(reservation.status) && <div className="space-y-3">
             {!reservation.guestAcknowledged && <Button className="w-full rounded-full" disabled={busy} onClick={() => act('acknowledge')}>{reservation.status === 'confirmed' ? 'I’m coming' : 'Acknowledge my request'}</Button>}
-            <Button variant="outline" className="w-full rounded-full" disabled={busy} onClick={() => { setEditing(!editing); setError(''); setNotice(''); }}>Reschedule</Button>
+            <Button variant="outline" className="w-full rounded-full" disabled={busy} onClick={() => { resetDraft(reservation); setEditing(!editing); setError(''); setNotice(''); }}>Edit reservation</Button>
             <Dialog open={cancelOpen} onOpenChange={open => { if (!busy) setCancelOpen(open); }}>
               <DialogTrigger asChild><Button variant="outline" className="w-full rounded-full" disabled={busy}>Cancel reservation</Button></DialogTrigger>
               <DialogContent className="guest-management" showCloseButton={!busy}>
                 <DialogTitle>Cancel this reservation?</DialogTitle>
                 <DialogDescription>Your booking for {formatReadableDatePST(reservation.date, reservation.timezone)} at {reservation.time} will be cancelled.</DialogDescription>
+                <Label htmlFor="cancellation-reason">Reason for cancelling (optional)</Label>
+                <select id="cancellation-reason" className="h-10 w-full rounded-md border bg-background px-3 text-sm" disabled={busy} value={reasonCode} onChange={event => { setReasonCode(event.target.value); setReasonDetails(''); }}>
+                  <option value="">Choose a reason</option>{cancellationReasons.map(reason => <option key={reason.code} value={reason.code}>{reason.label}</option>)}
+                </select>
+                {reasonCode === 'other' && <><Label htmlFor="cancellation-details">Your reason</Label><Textarea id="cancellation-details" value={reasonDetails} maxLength={500} disabled={busy} placeholder="Tell us why you’re cancelling" onChange={event => setReasonDetails(event.target.value)} /><p className="text-xs text-muted-foreground">Up to 500 characters.</p></>}
                 <Button variant="outline" autoFocus disabled={busy} onClick={() => setCancelOpen(false)}>Keep reservation</Button>
-                <Button variant="destructive" disabled={busy} onClick={() => act('cancel')}>{busy ? 'Cancelling…' : 'Yes, cancel reservation'}</Button>
+                <Button variant="destructive" disabled={busy || (reasonCode === 'other' && !reasonDetails.trim())} onClick={() => act('cancel')}>{busy ? 'Cancelling…' : 'Yes, cancel reservation'}</Button>
                 {error && <p role="alert" className="text-red-800">{error}</p>}
               </DialogContent>
             </Dialog>
           </div>}
           {editing && isGuestEditable(reservation.status) && <form className="space-y-3 rounded-lg border p-4" onSubmit={event => { event.preventDefault(); void act('reschedule'); }}>
-            <Label htmlFor="new-date">New date</Label><Input id="new-date" type="date" min={restaurantClock(reservation.timezone).date} value={date} required onChange={event => { setDate(event.target.value); setTime(''); setError(''); }} />
-            <Label htmlFor="new-time">New time</Label><select id="new-time" className="h-10 w-full rounded-md border bg-background px-3" value={time} required disabled={slotsLoading} onChange={event => setTime(event.target.value)}>
+            <h2 className="text-lg font-medium">Edit your reservation</h2>
+            <Label htmlFor="new-date">Date</Label><Input id="new-date" type="date" min={restaurantClock(reservation.timezone).date} value={date} required disabled={busy} onChange={event => { setDate(event.target.value); setTime(event.target.value === reservation.date ? reservation.time : ''); setError(''); }} />
+            <Label htmlFor="new-time">Time</Label><select id="new-time" className="h-10 w-full rounded-md border bg-background px-3" value={time} required disabled={busy || (slotsLoading && date !== reservation.date)} onChange={event => setTime(event.target.value)}>
               <option value="">{slotsLoading ? 'Checking times…' : 'Choose a time'}</option>{slots.map(slot => <option key={slot}>{slot}</option>)}
+              {date === reservation.date && !slots.includes(reservation.time) && <option value={reservation.time}>{reservation.time} (current booking)</option>}
             </select>
-            {!slotsLoading && !slotsUnavailable && !slots.length && <p className="text-sm text-muted-foreground">No times are available for this date. Choose another day or call the restaurant.</p>}
-            <p className="text-sm text-muted-foreground">{reservation.autoConfirmReservations ? 'Available changes are confirmed immediately.' : 'Changes require restaurant acceptance.'} Your existing booking stays in place if the new time is unavailable.</p>
-            <div className="flex flex-wrap gap-3"><Button type="submit" disabled={busy || slotsLoading || !slots.includes(time)}>{busy ? 'Saving…' : 'Save this change'}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => { setEditing(false); setDate(reservation.date); setTime(reservation.time); setError(''); }}>Keep current booking</Button></div>
+            {!slotsLoading && slotsUnavailable && <p className="text-sm text-muted-foreground">New times could not be checked. You can still update your party size and requests at the existing time.</p>}
+            {!slotsLoading && !slotsUnavailable && !slots.length && <p className="text-sm text-muted-foreground">No new times are available for this date. Keep your existing time or choose another day.</p>}
+            <Label htmlFor="new-guests">Party size</Label><Input id="new-guests" type="number" min={1} max={20} step={1} value={guests} required disabled={busy} onChange={event => setGuests(event.target.value)} />
+            <Label htmlFor="new-comments">Special requests (optional)</Label><Textarea id="new-comments" value={comments} maxLength={2000} disabled={busy} placeholder="Dietary needs, seating preferences, or anything else we should know" onChange={event => setComments(event.target.value)} />
+            <p className="text-xs text-muted-foreground">Up to 2,000 characters. Requests are subject to availability.</p>
+            <p className="text-sm text-muted-foreground">{reservation.autoConfirmReservations ? 'Available changes are confirmed immediately.' : 'Changes to the date, time, or party size require restaurant acceptance.'} Your existing booking stays in place if the new time is unavailable.</p>
+            <div className="flex flex-wrap gap-3"><Button type="submit" disabled={busy || (!(date === reservation.date && time === reservation.time) && (slotsLoading || slotsUnavailable || !slots.includes(time)))}>{busy ? 'Saving…' : 'Save changes'}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => { setEditing(false); resetDraft(reservation); setError(''); }}>Keep current booking</Button></div>
           </form>}
           <p className="text-sm text-muted-foreground">Booking updates are saved immediately. Email or SMS updates may arrive later.</p>
         </> : loadUnavailable ? <div className="space-y-3">

@@ -24,6 +24,13 @@ test('catering email describes an inquiry and keeps untrusted requests as text',
   const message = renderCateringNotification({ recipient: 'guest', inquiry: { name: 'Synthetic <guest>', email: 'guest@example.invalid', date: '2026-11-01', partySize: '20', budget: '$1000', eventType: 'Dinner', selectedDishes: [{ name: '<script>bad</script>' }], specialRequests: '<img src=x>' } }, defaultRestaurant);
   assert.match(message.text, /This is an inquiry/); assert.ok(!message.html.includes('<script>')); assert.match(message.html, /&lt;img/);
 });
+test('edited reservation and cancellation emails include the saved guest details safely', () => {
+  const job = { event: 'updated', recipient: 'restaurant', reservationId: 'synthetic', encryptedToken: encryptToken('synthetic-token'), reservation: { name: 'Guest', email: 'guest@example.invalid', phone: '6505550100', date: '2026-11-15', time: '7:00 PM', guests: 4, comments: 'Vegetarian <guest>', status: 'confirmed', restaurantTimezone: 'America/Los_Angeles' } };
+  const edited = renderNotification(job);
+  assert.match(edited.subject, /details updated/); assert.match(edited.text, /4 guests/); assert.match(edited.text, /Vegetarian <guest>/); assert.match(edited.html, /Vegetarian &lt;guest&gt;/);
+  const cancelled = renderNotification({ ...job, event: 'cancelled', reservation: { ...job.reservation, status: 'cancelled', cancellationReason: 'Flight delayed <script>bad</script>' } });
+  assert.match(cancelled.text, /Cancellation reason: Flight delayed/); assert.match(cancelled.html, /Cancellation reason/); assert.ok(!cancelled.html.includes('<script>'));
+});
 test('updated mail transport serializes a bounded SMTP message without network delivery', async () => {
   const transport = nodemailer.createTransport({ streamTransport: true, buffer: true });
   const result = await transport.sendMail({ from: 'restaurant@example.invalid', to: 'guest@example.invalid', subject: 'Synthetic booking', text: 'Request saved', messageId: '<synthetic@example.invalid>' });
