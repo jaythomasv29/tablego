@@ -3,6 +3,15 @@ import { test } from 'node:test';
 import { serviceReservation, todaySummary, todayService, guestProfiles, arrivalDue } from '../src/lib/reservations/service.ts';
 const zone = 'America/Los_Angeles';
 const booking = (id, changes = {}) => serviceReservation(id, { name: 'Sam Guest', email: 'sam@example.invalid', phone: '(650) 555-0100', date: '2026-10-10', time: '7:00 PM', guests: 2, status: 'pending', ...changes }, zone);
+test('verified phone status requires a valid number and server provenance in bookings and guest profiles', () => {
+  const legacy = booking('legacy', { phoneVerified: true });
+  const verified = booking('verified', { phoneVerified: true, phoneVerificationSource: 'server' });
+  assert.equal(legacy.phoneVerified, false);
+  assert.equal(verified.phoneVerified, true);
+  assert.equal(booking('invalid', { phone: '', phoneVerified: true, phoneVerificationSource: 'server' }).phoneVerified, false);
+  assert.equal(guestProfiles([legacy])[0].phoneVerified, false);
+  assert.equal(guestProfiles([legacy, verified])[0].phoneVerified, true);
+});
 test('legacy timestamps become business calendar dates while calendar strings stay unchanged', () => {
   assert.equal(booking('a', { date: { toDate: () => new Date('2026-10-11T01:00:00Z') } }).date, '2026-10-10');
   assert.equal(booking('b', { date: '2026-10-11' }).date, '2026-10-11');

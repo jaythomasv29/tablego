@@ -1,4 +1,5 @@
 'use client';
+import PhoneNumber from '@/components/PhoneNumber';
 import { useMemo, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { Input } from '@/components/ui/input';
@@ -18,7 +19,7 @@ export default function GuestDirectory({ noShowsOnly = false }: { noShowsOnly?: 
       <div className="space-y-2"><Label htmlFor="guest-search">Find a guest</Label><Input id="guest-search" placeholder="Name, email or phone" value={search} onChange={event => setSearch(event.target.value)} /></div>
       <p className="text-sm">{profiles.length} identity groups · {bookings.length} source bookings · {profiles.reduce((sum, profile) => sum + profile.completed, 0)} completed visits</p>
       {!visible.length && <p className="rounded-xl border p-6">No guest history matches this search.</p>}
-      <div className="space-y-4">{visible.map(profile => <article key={profile.key} className="space-y-3 rounded-xl border bg-card p-5"><h2 className="text-lg font-semibold">{profile.name}</h2><p className="text-sm text-muted-foreground">{profile.email || 'No email'} · {profile.phone || 'No phone'}</p><p className="text-sm">{profile.requests} requests · {profile.completed} completed visits · {profile.cancelled} cancellations · {profile.noShows} no-shows</p>{profile.sharedContact && <p className="text-sm text-amber-700 dark:text-amber-300">Shared contact details need review</p>}<Button size="sm" variant="outline" aria-expanded={open === profile.key} onClick={() => setOpen(open === profile.key ? null : profile.key)}>Review source history</Button>{open === profile.key && <GuestHistory profile={profile} />}</article>)}</div>
+      <div className="space-y-4">{visible.map(profile => <article key={profile.key} className="space-y-3 rounded-xl border bg-card p-5"><h2 className="text-lg font-semibold">{profile.name}</h2><p className="text-sm text-muted-foreground">{profile.email || 'No email'} · <PhoneNumber phone={profile.phone} verified={profile.phoneVerified} /></p><p className="text-sm">{profile.requests} requests · {profile.completed} completed visits · {profile.cancelled} cancellations · {profile.noShows} no-shows</p>{profile.sharedContact && <p className="text-sm text-amber-700 dark:text-amber-300">Shared contact details need review</p>}<Button size="sm" variant="outline" aria-expanded={open === profile.key} onClick={() => setOpen(open === profile.key ? null : profile.key)}>Review source history</Button>{open === profile.key && <GuestHistory profile={profile} />}</article>)}</div>
     </>}
   </div></AdminLayout>;
 }

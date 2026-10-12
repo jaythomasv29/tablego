@@ -8,17 +8,23 @@ import { useTimezone } from '@/contexts/TimezoneContext';
 import { formatDateForDisplay, formatBusinessTimestamp } from '@/utils/dateUtils';
 import { timestampString } from '@/lib/reservations/service';
 import toast from 'react-hot-toast';
+import PhoneNumber from '@/components/PhoneNumber';
+import { serverPhoneVerified } from '@/lib/auth/phoneVerification';
 
 interface CateringOrder {
     id: string;
     name: string;
     email: string;
     phone: string;
+    phoneVerified?: boolean;
+    phoneVerificationSource?: string;
     date: string;
     time: string;
-    guests: number;
+    guests?: number;
+    partySize?: string;
     status: 'pending' | 'completed';
     message?: string;
+    specialRequests?: string;
     selectedDishes?: Array<string | { id?: string; name?: string; description?: string; imageUrl?: string; }>;
     createdAt: { toDate: () => Date } | string;
 }
@@ -216,7 +222,7 @@ export default function CateringPage() {
                                                 </span>
                                                 <span className="flex items-center">
                                                     <Users className="w-3.5 h-3.5 mr-1" />
-                                                    {order.guests} {order.guests === 1 ? 'guest' : 'guests'}
+                                                    {order.partySize || order.guests || 'Unknown'} {Number(order.partySize || order.guests) === 1 ? 'guest' : 'guests'}
                                                 </span>
                                             </div>
 
@@ -224,15 +230,13 @@ export default function CateringPage() {
                                                 <a href={`mailto:${order.email}`} className="flex items-center hover:text-primary transition-colors">
                                                     <Mail className="w-3.5 h-3.5 mr-1" />{order.email}
                                                 </a>
-                                                <a href={`tel:${order.phone}`} className="flex items-center hover:text-primary transition-colors">
-                                                    <Phone className="w-3.5 h-3.5 mr-1" />{order.phone}
-                                                </a>
+                                                <span className="flex items-center"><Phone className="w-3.5 h-3.5 mr-1" /><PhoneNumber phone={order.phone} verified={serverPhoneVerified(order)} /></span>
                                             </div>
 
                                             <div className="text-sm text-foreground bg-muted/50 border border-border rounded-lg p-2.5">
                                                 <div className="flex items-start">
                                                     <MessageSquare className="w-3.5 h-3.5 mr-1.5 mt-0.5 text-muted-foreground flex-shrink-0" />
-                                                    <p className="line-clamp-3">{order.message?.trim() || 'No message provided.'}</p>
+                                                    <p className="line-clamp-3">{order.specialRequests?.trim() || order.message?.trim() || 'No message provided.'}</p>
                                                 </div>
                                             </div>
 

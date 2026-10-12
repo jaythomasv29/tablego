@@ -17,6 +17,7 @@ import BookingDetails from './BookingDetails';
 import DeliverySummary from './DeliverySummary';
 import NotificationStatus from '@/components/NotificationStatus';
 import ReservationActivity from './ReservationActivity';
+import PhoneNumber from '@/components/PhoneNumber';
 type Range = 'today' | 'tomorrow' | 'future' | 'past' | 'all' | 'date';
 const stateColors: Record<BookingState, string> = { pending: 'border-amber-500 text-amber-700 dark:text-amber-300', confirmed: 'border-green-500 text-green-700 dark:text-green-300', seated: 'border-blue-500 text-blue-700 dark:text-blue-300', completed: 'border-slate-400', cancelled: 'border-red-400 text-red-700 dark:text-red-300', 'no-show': 'border-red-600 text-red-700 dark:text-red-300', 'needs-review': 'border-orange-500 text-orange-700 dark:text-orange-300' };
 export default function ServiceConsole({ today = false }: { today?: boolean }) {
@@ -64,7 +65,7 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
         <h3 className={today ? 'text-base font-semibold' : 'text-lg font-semibold'}>{booking.name}</h3>
         {!today && <p>{booking.date ? formatReadableDatePST(booking.date, timezone) : 'Date needs staff review'} · {booking.time || 'Time needs review'}</p>}
         {today && !booking.date && <p className="text-sm text-orange-700 dark:text-orange-300">Date needs staff review</p>}
-        {!today && <p className="text-sm text-muted-foreground">{booking.phone || 'No phone'} · {booking.email || 'No email'}</p>}
+        <p className="text-sm text-muted-foreground"><PhoneNumber phone={booking.phone} verified={booking.phoneVerified} />{!today && <> · {booking.email || 'No email'}</>}</p>
       </div><div className="flex flex-wrap gap-2">
         {!today && <span className="rounded-full border px-3 py-1 text-sm font-medium">{booking.guests} {booking.guests === 1 ? 'guest' : 'guests'}</span>}
         {today && booking.guests >= 6 && <span className="rounded-full border px-3 py-1 text-sm">Large party</span>}
@@ -85,7 +86,7 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
       </div>
       {(!today || details === booking.id) && <p className="text-xs text-muted-foreground">Created: {booking.createdAt ? formatBusinessTimestamp(booking.createdAt, timezone) : 'Not recorded'} · {booking.phoneVerified ? 'Phone verified by server' : 'Phone not verified'} · {booking.smsOptIn ? 'SMS consent recorded' : 'No SMS consent'}</p>}
       {details === booking.id && <>
-        {today && <><p className="text-sm">{booking.phone || 'No phone'} · {booking.email || 'No email'}</p>
+        {today && <><p className="text-sm"><PhoneNumber phone={booking.phone} verified={booking.phoneVerified} /> · {booking.email || 'No email'}</p>
           {isGuestEditable(booking.status) && <div className="flex flex-wrap gap-2">{reminderButtons(booking)}</div>}
           <NotificationStatus reservationId={booking.id} /></>}
         <BookingDetails booking={booking} profile={profile} timezone={timezone} />

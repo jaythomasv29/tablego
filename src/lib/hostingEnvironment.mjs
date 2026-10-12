@@ -27,7 +27,8 @@ export function hostingErrors(env, { release = false } = {}) {
   }
   if (!staging) {
     for (const key of ['EMAIL_USER', 'EMAIL_PASS']) if (!env[key]) errors.push(key + ' is required for live email.');
-    if (env.NEXT_PUBLIC_OTP_ENABLED === 'true') for (const key of ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_VERIFY_SERVICE_SID']) if (!env[key]) errors.push(key + ' is required for live OTP.');
+    // Catering always requires a phone proof, even if reservation OTP is disabled.
+    for (const key of ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_VERIFY_SERVICE_SID']) if (!env[key]) errors.push(key + ' is required for live phone verification.');
   }
   return errors;
 }

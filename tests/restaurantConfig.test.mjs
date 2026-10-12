@@ -31,9 +31,11 @@ test('closure dates retain literal full-calendar legacy dates and reject impossi
 test('catering accepts only validated inquiry fields and excludes caller status and secrets', () => {
   const input = { name: 'Synthetic Caterer', email: 'test@example.invalid', phone: '6505550100', date: '2026-11-10', partySize: '20', budget: '$1000', selectedDishes: [], status: 'confirmed', password: 'secret' };
   const result = cateringInput(input);
+  assert.equal(result.phone, '+16505550100');
   assert.equal(result.status, undefined); assert.equal(result.password, undefined);
   assert.throws(() => cateringInput({ ...input, date: '2026-02-30' }));
   assert.throws(() => cateringInput({ ...input, email: 'invalid' }));
+  assert.throws(() => cateringInput({ ...input, phone: '1234567' }));
 });
 
 test('open status uses restaurant clock and custom hours independently of booking lead time', () => {

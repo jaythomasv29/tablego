@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import dotenv from 'dotenv';
 import { initializeApp, cert, deleteApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -57,12 +57,18 @@ try {
   expect(await request('/api/staff/closures', 'POST', { action: 'delete', id: closureId }), 200, 'closure deletion restores booking policy'); closureId = null;
   const inquiry = { name: 'Synthetic Catering Review', email: `synthetic-catering-${randomUUID()}@example.invalid`, phone: '6505550100', date: '2026-11-15', partySize: '20', budget: '$1000', specialRequests: '<script>bad</script>', selectedDishes: [] };
   expect(await request('/api/send-proposal', 'POST', { formData: { ...inquiry, date: 'invalid' } }), 400, 'catering rejects invalid inquiries');
+  expect(await request('/api/send-proposal', 'POST', { formData: { ...inquiry, phoneVerified: true } }), 403, 'catering cannot bypass phone verification with a client flag');
+  expect(await request('/api/otp/send', 'POST', { phone: inquiry.phone }), 200, 'catering phone challenge captured');
+  const challenge = JSON.parse(await readFile(`.staging/otp/${createHash('sha256').update('+16505550100').digest('hex')}.json`));
+  const proof = await request('/api/otp/verify', 'POST', { phone: inquiry.phone, code: challenge.code }); expect(proof, 200, 'catering phone code verified'); assert.equal(proof.data.valid, true);
+  const phoneCookie = proof.headers.get('set-cookie').split(';')[0];
   const inquiryKey = randomUUID();
-  const catering = await request('/api/send-proposal', 'POST', { formData: { ...inquiry, status: 'confirmed', privateSecret: 'untrusted' } }, { 'Idempotency-Key': inquiryKey });
-  const repeated = await request('/api/send-proposal', 'POST', { formData: inquiry }, { 'Idempotency-Key': inquiryKey });
+  const catering = await request('/api/send-proposal', 'POST', { formData: { ...inquiry, status: 'confirmed', privateSecret: 'untrusted' } }, { 'Idempotency-Key': inquiryKey, Cookie: phoneCookie });
+  const repeated = await request('/api/send-proposal', 'POST', { formData: inquiry }, { 'Idempotency-Key': inquiryKey, Cookie: phoneCookie });
   expect(repeated, 200, 'catering submission retry succeeds'); assert.equal(repeated.data.cateringId, catering.data.cateringId);
   expect(catering, 200, 'catering returns saved inquiry independently of delivery');
   const record = (await db.doc(`catering/${catering.data.cateringId}`).get()).data(); assert.equal(record.status, 'pending'); assert.equal(record.privateSecret, undefined);
+  assert.equal(record.phoneVerified, true); assert.equal(record.phoneVerificationSource, 'server'); assert.equal(record.phone, '+16505550100');
   const deadline = Date.now() + 30000;
   let jobs;
   do { jobs = await db.collection('notificationOutbox').where('entityId', '==', catering.data.cateringId).get(); if (jobs.size === 2 && jobs.docs.every(doc => doc.data().state === 'delivered')) break; await new Promise(resolve => setTimeout(resolve, 200)); } while (Date.now() < deadline);

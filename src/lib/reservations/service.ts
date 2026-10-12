@@ -1,6 +1,7 @@
 import { getLocalDateString } from '../../utils/dateUtils.ts';
 import { bookingState, type BookingState } from './domain.ts';
 import { restaurantClock, timeMinutes, displayTime } from './availability.ts';
+import { serverPhoneVerified } from '../auth/phoneVerification.ts';
 export interface ServiceReservation {
   completedAt?: string | null; followUpSent?: boolean; followUpEventId?: string; feedbackReceivedAt?: string | null; feedbackSentiment?: string; privateFeedback?: string;
   id: string; date: string; time: string; name: string; email: string; phone: string; guests: number;
@@ -28,7 +29,7 @@ export function serviceReservation(id: string, record: Record<string, unknown>, 
     email: text(record.email, 254), phone: text(record.phone, 40), guests: Number.isInteger(record.guests) && Number(record.guests) > 0 ? Number(record.guests) : 0,
     dietaryPreferences: text(record.dietaryPreferences, 300), seatingPreference: text(record.seatingPreference, 200), preferencesUpdatedAt: timestampString(record.preferencesUpdatedAt),
     status, needsReview, comments: text(record.comments), internalNotes: text(record.internalNotes), createdAt: timestampString(record.createdAt),
-    guestAcknowledged: Boolean(timestampString(record.guestAcknowledgedAt)), phoneVerified: record.phoneVerified === true && record.phoneVerificationSource === 'server', smsOptIn: record.smsOptIn === true,
+    guestAcknowledged: Boolean(timestampString(record.guestAcknowledgedAt)), phoneVerified: serverPhoneVerified(record), smsOptIn: record.smsOptIn === true,
     noteVersion: Number.isInteger(record.noteVersion) ? Number(record.noteVersion) : 0, marked: record.marked === true };
 }
 export function arrivalDue(booking: Pick<ServiceReservation, 'date' | 'time'>, timezone: string, now = new Date()) {
@@ -86,7 +87,7 @@ export function guestProfiles(bookings: ServiceReservation[]) {
     const preferences = [...history].filter(booking => booking.preferencesUpdatedAt).sort((a, b) => b.preferencesUpdatedAt!.localeCompare(a.preferencesUpdatedAt!))[0];
     return { lastVisit: completed.map(booking => booking.date).filter(Boolean).sort().at(-1) || null,
       averagePartySize: knownParties.length ? knownParties.reduce((sum, booking) => sum + booking.guests, 0) / knownParties.length : null,
-      dietaryPreferences: preferences?.dietaryPreferences || '', seatingPreference: preferences?.seatingPreference || '', key, name: latest.name, email: latest.email, phone: latest.phone, bookings: history,
+      dietaryPreferences: preferences?.dietaryPreferences || '', seatingPreference: preferences?.seatingPreference || '', key, name: latest.name, email: latest.email, phone: latest.phone, phoneVerified: history.some(booking => booking.phoneVerified), bookings: history,
       requests: history.length, completed: history.filter(booking => booking.status === 'completed').length,
       cancelled: history.filter(booking => booking.status === 'cancelled').length, noShows: history.filter(booking => booking.status === 'no-show').length,
       sharedContact: (contacts.get(`email:${emailKey(latest.email)}`)?.size || 0) > 1 || (contacts.get(`phone:${phoneKey(latest.phone)}`)?.size || 0) > 1 };

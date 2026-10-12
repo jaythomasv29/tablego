@@ -1,4 +1,4 @@
-import { validDate, timeMinutes, displayTime } from './availability';
+import { validDate, timeMinutes, displayTime } from './availability.ts';
 export interface BookingInput { name: string; email: string; phone: string; date: string; time: string; guests: number; comments: string }
 export function normalizedPhone(value: unknown): string {
   if (typeof value !== 'string' || value.length > 40 || /[^\d+\s().-]/.test(value)) throw new Error('Enter a valid US phone number');

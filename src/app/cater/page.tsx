@@ -1,5 +1,6 @@
 'use client';
 import MagneticButton from '@/components/MagneticButton';
+import PhoneVerificationField from '@/components/PhoneVerificationField';
 import { restaurantClock } from '@/lib/reservations/availability';
 import { useTimezone } from '@/contexts/TimezoneContext';
 import React, { useEffect, useRef, useState } from 'react';
@@ -70,6 +71,7 @@ export default function CateringPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [phoneVerified, setPhoneVerified] = useState(false);
 
   useEffect(() => {
     getDocs(collection(db, 'menu')).then(snap => {
@@ -102,6 +104,8 @@ export default function CateringPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    if (!phoneVerified) { setSubmitError('Verify your phone number before sending your inquiry.'); return; }
     setIsSubmitting(true);
     setSubmitError('');
 
@@ -110,16 +114,18 @@ export default function CateringPage() {
       if (submissionRef.current?.payload !== payload) submissionRef.current = { key: crypto.randomUUID(), payload };
       const response = await fetch('/api/send-proposal', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': submissionRef.current.key }, body: payload });
       const result = await response.json();
+      if (response.status === 403) { setPhoneVerified(false); throw new Error(result.error || 'Please verify your phone number again.'); }
       if (!response.ok || !result.success) throw new Error(result.error || 'Your inquiry could not be saved.');
       submissionRef.current = null;
 
       setShowSuccess(true);
       setFormData(initialFormData);
+      setPhoneVerified(false);
       setSelectedDishes([]);
       setActiveCategory(null);
     } catch (error) {
       console.error('Error submitting form:', error);
-      setSubmitError(`Failed to send your inquiry. Please call us at ${restaurant.phoneLabel}.`);
+      setSubmitError(error instanceof Error ? error.message : `Failed to send your inquiry. Please call us at ${restaurant.phoneLabel}.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -273,9 +279,10 @@ export default function CateringPage() {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {/* Name */}
                   <div>
-                    <label className={labelClass}>Name</label>
+                    <label htmlFor="catering-name" className={labelClass}>Name</label>
                     <input
                       type="text"
+                      id="catering-name"
                       name="name"
                       value={formData.name}
                       onChange={handleChange}
@@ -286,12 +293,12 @@ export default function CateringPage() {
                     />
                   </div>
 
-                  {/* Email + Phone */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className={labelClass}>Email</label>
+                  {/* Email */}
+                  <div>
+                      <label htmlFor="catering-email" className={labelClass}>Email</label>
                       <input
                         type="email"
+                        id="catering-email"
                         name="email"
                         value={formData.email}
                         onChange={handleChange}
@@ -300,21 +307,10 @@ export default function CateringPage() {
                         className={inputClass}
                         style={{ '--tw-ring-color': ACCENT } as React.CSSProperties}
                       />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Phone</label>
-                      <input
-                        type="tel"
-                        name="phone"
-                        value={formData.phone}
-                        onChange={handleChange}
-                        required
-                        placeholder="(650) 000-0000"
-                        className={inputClass}
-                        style={{ '--tw-ring-color': ACCENT } as React.CSSProperties}
-                      />
-                    </div>
                   </div>
+
+                  <PhoneVerificationField phone={formData.phone} verified={phoneVerified} onVerified={setPhoneVerified} disabled={isSubmitting}
+                    onChange={phone => { setPhoneVerified(false); setSubmitError(''); setFormData(prev => ({ ...prev, phone })); }} />
 
                   {/* Event Type */}
                   <div>
@@ -341,9 +337,10 @@ export default function CateringPage() {
                   {/* Date + Party Size */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className={labelClass}>Event Date</label>
+                      <label htmlFor="catering-date" className={labelClass}>Event Date</label>
                       <input
                         type="date"
+                        id="catering-date"
                         name="date"
                         value={formData.date}
                         onChange={handleChange}
@@ -354,9 +351,10 @@ export default function CateringPage() {
                       />
                     </div>
                     <div>
-                      <label className={labelClass}>Party Size</label>
+                      <label htmlFor="catering-party-size" className={labelClass}>Party Size</label>
                       <input
                         type="number"
+                        id="catering-party-size"
                         name="partySize"
                         value={formData.partySize}
                         onChange={handleChange}
@@ -371,8 +369,9 @@ export default function CateringPage() {
 
                   {/* Budget Range */}
                   <div>
-                    <label className={labelClass}>Approximate Budget</label>
+                    <label htmlFor="catering-budget" className={labelClass}>Approximate Budget</label>
                     <select
+                      id="catering-budget"
                       name="budget"
                       value={formData.budget}
                       onChange={handleChange}
@@ -389,10 +388,11 @@ export default function CateringPage() {
 
                   {/* Special Requests */}
                   <div>
-                    <label className={labelClass}>
+                    <label htmlFor="catering-special-requests" className={labelClass}>
                       Special Requests <span className="normal-case text-zinc-400">(optional)</span>
                     </label>
                     <textarea
+                      id="catering-special-requests"
                       name="specialRequests"
                       value={formData.specialRequests}
                       onChange={handleChange}
@@ -531,7 +531,7 @@ export default function CateringPage() {
                   {/* Submit */}
                   <MagneticButton
                     type="submit"
-                    disabled={isSubmitting || !formData.eventType}
+                    disabled={isSubmitting || !formData.eventType || !phoneVerified}
                     className="group w-full rounded-full py-3.5 text-sm font-semibold text-zinc-900 mt-1"
                     style={{ backgroundColor: ACCENT }}
                   >
@@ -546,7 +546,7 @@ export default function CateringPage() {
                   </MagneticButton>
 
                   {submitError && (
-                    <p className="text-sm text-red-600 text-center">{submitError}</p>
+                    <p role="alert" className="text-sm text-red-600 text-center">{submitError}</p>
                   )}
                 </form>
               </>

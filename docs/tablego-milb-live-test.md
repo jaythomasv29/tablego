@@ -40,7 +40,7 @@ Live Firestore rules currently allow public access to several legacy collections
 
 The daily Vercel Hobby cron is the retry fallback. Initial sends happen after the saved transaction; staff can inspect and retry failed deliveries. Frequent unattended retries still need the separate scheduler decision recorded in release-readiness.md.
 
-Remote CI has not been run; local typecheck, zero-warning lint and 105 automated tests pass. Vercel performs the optimized build. Uploaded source excludes local credentials, captures, node_modules and build outputs through .vercelignore.
+Remote CI has not been run; local typecheck, zero-warning lint and 113 automated tests pass. Vercel performs the optimized build. Uploaded source excludes local credentials, captures, node_modules and build outputs through .vercelignore.
 
 ## Access and testing
 
@@ -80,3 +80,13 @@ Earlier and pending bookings remain in the ordinary Arrivals / Later today lists
 Isolated staging browser checks verified a new future-dated booking produced one badge, opening cleared it, closing/reopening showed an empty up-to-date popup, refresh retained read state, Escape dismissed the popup, and the layout fit 390 × 844. Two owned synthetic fixtures were cancelled without queuing messages; no live customer records were modified. Automated checks cover timestamp ties, status edits, reconnects, cached snapshots, read persistence, cross-tab synchronization and Today grouping in international timezones.
 
 After promotion, the canonical hosted Today page loaded its real service records, displayed the bell, and opened the empty up-to-date popup. Needs attention is absent. Existing future arrivals remain visible. The hosted availability endpoint still returned America/Los_Angeles and valid slots. The separate staff smoke-test session was logged out.
+
+## Verified customer phone update — October 12
+
+Today shows the customer phone and a compact Verified badge directly in each booking card. Reservations, expanded contact details, guest profiles and catering leads use the same badge. The stored number must be valid and have phoneVerified=true with phoneVerificationSource=server; legacy caller flags do not supply that proof. This verifies the number rather than the guest's identity or consent to marketing messages.
+
+Catering uses the existing OTP send/check endpoints and phone-proof cookie. The request button stays disabled until verification succeeds, editing the number resets verification, and stale asynchronous code responses cannot verify a changed number. The submission endpoint always requires a valid unexpired signed proof matching the normalized US phone number; caller-supplied verification flags are ignored. Verified metadata is saved on the lead. The hosting preflight now requires Twilio Verify credentials for catering even when optional reservation OTP is disabled. Production uses real Twilio Verify; isolated staging captures its codes.
+
+Tests verify absent, forged, expired, wrong-kind and mismatched-phone proofs are rejected without saving leads or queuing messages, and successful retries retain one normalized verified lead and two recipient jobs. Staging browser checks cover disabled/enabled submission, an actual saved inquiry, badges on Today/Reservations/catering leads, and 390 × 844 layouts without horizontal overflow. The native event date was entered and checked in the restaurant calendar. New inquiry emails were captured successfully. The owned reservation was cancelled and both owned catering leads were completed after review; no live customer records were changed or messages sent by these checks.
+
+The catering lead view also reads current partySize and specialRequests fields while retaining support for legacy guests/message fields, so the verified inquiry's party size and request remain visible to staff.

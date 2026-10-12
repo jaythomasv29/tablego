@@ -16,6 +16,14 @@ test('SMS reminder availability stays separate from phone verification and stagi
   assert.equal(smsReminderCapability({ TABLEGO_SMS_REMINDERS_ENABLED: 'false' }, true).available, true);
 });
 
+test('hosted catering still needs Twilio Verify when optional reservation OTP is disabled', () => {
+  const env = { VERCEL_ENV: 'production', NEXT_PUBLIC_OTP_ENABLED: 'false', TWILIO_ACCOUNT_SID: 'synthetic', TWILIO_AUTH_TOKEN: 'synthetic', TWILIO_VERIFY_SERVICE_SID: 'synthetic' };
+  assert.equal(hostingErrors(env).some(error => error.includes('live phone verification')), false);
+  for (const key of ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_VERIFY_SERVICE_SID']) {
+    assert.ok(hostingErrors({ ...env, [key]: '' }).some(error => error.includes(key) && error.includes('live phone verification')));
+  }
+});
+
 test('follow-up eligibility requires a completed real visit, valid email and elapsed completion delay', () => {
   const now = new Date('2026-11-16T01:00:00Z');
   const record = { status: 'completed', email: 'guest@example.invalid', date: '2026-11-15', time: '3:00 PM', completedAt: '2026-11-15T23:00:00Z' };
