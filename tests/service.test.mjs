@@ -53,7 +53,7 @@ test('service rows show customer acknowledgement only for a valid saved timestam
  assert.equal(serviceReservation('fixture', { ...record, guestAcknowledgedAt: 'invalid' }, 'America/Los_Angeles').guestAcknowledged, false);
 });
 
-test('Today prioritizes due arrivals and requests, separates the next hour and excludes other dates', () => {
+test('Today keeps earlier and pending arrivals visible without an attention queue, and excludes other dates', () => {
   const records = [
     booking('later', { status: 'confirmed', time: '8:01 PM' }),
     booking('next', { status: 'confirmed', time: '7:30 PM' }),
@@ -71,9 +71,10 @@ test('Today prioritizes due arrivals and requests, separates the next hour and e
   ];
   const result = todayService(records, zone, new Date('2026-10-11T02:00:00Z'));
   const ids = rows => rows.map(row => row.id);
-  assert.deepEqual(ids(result.attention), ['due', 'undated', 'pending', 'review']);
-  assert.deepEqual(ids(result.arriving), ['next', 'hour-boundary']);
-  assert.deepEqual(ids(result.later), ['later']);
+  assert.equal('attention' in result, false);
+  assert.deepEqual(ids(result.arriving), ['due', 'next', 'hour-boundary']);
+  assert.deepEqual(ids(result.later), ['later', 'pending']);
+  assert.deepEqual(ids(result.other), ['undated', 'review']);
   assert.deepEqual(ids(result.seated), ['seated']);
   assert.deepEqual(ids(result.finished), ['complete', 'cancelled', 'no-show']);
   assert.equal(Object.values(result).flat().length, 11);
@@ -81,10 +82,10 @@ test('Today prioritizes due arrivals and requests, separates the next hour and e
   assert.equal(records[0].id, 'later', 'grouping does not reorder the source records');
 });
 
-test('Today moves an arrival to attention as the restaurant clock reaches its time', () => {
+test('Today retains a booking in arrivals as its time passes without recording an attendance action', () => {
   const records = [booking('next', { status: 'confirmed', time: '7:30 PM' })];
   assert.equal(todayService(records, zone, new Date('2026-10-11T02:29:59Z')).arriving.length, 1);
-  assert.equal(todayService(records, zone, new Date('2026-10-11T02:30:00Z')).attention.length, 1);
+  assert.equal(todayService(records, zone, new Date('2026-10-11T02:30:00Z')).arriving.length, 1);
   assert.equal(records[0].status, 'confirmed', 'clock grouping must never record a no-show automatically');
 });
 

@@ -40,7 +40,7 @@ Live Firestore rules currently allow public access to several legacy collections
 
 The daily Vercel Hobby cron is the retry fallback. Initial sends happen after the saved transaction; staff can inspect and retry failed deliveries. Frequent unattended retries still need the separate scheduler decision recorded in release-readiness.md.
 
-Remote CI has not been run; local typecheck, zero-warning lint and 97 automated tests pass. Vercel performs the optimized build. Uploaded source excludes local credentials, captures, node_modules and build outputs through .vercelignore.
+Remote CI has not been run; local typecheck, zero-warning lint and 105 automated tests pass. Vercel performs the optimized build. Uploaded source excludes local credentials, captures, node_modules and build outputs through .vercelignore.
 
 ## Access and testing
 
@@ -68,3 +68,13 @@ Initial hosted runtime fix: dad0fe0 / dpl_22oGetpGNkNSE3J4hH4KBQ4HTgCY. Current 
 - The original tablego deployment remains dpl_9vRS5KSwugfWZ2bze7cEwfJc3AxF; its home and availability endpoint still respond successfully.
 
 The test fixture, its private links and provider logs are retained locally for review; the fixture remains cancelled. Credential material and local logs are excluded from Git and Vercel source uploads.
+
+## Today activity update — October 12
+
+The Needs attention section is replaced with a compact bell next to All reservations. It notifies staff about new creations across reservation dates; opening the popup reads those notifications automatically. Closing it clears the read list, so reopening shows an up-to-date state. No booking confirmation, attendance action or separate dismissal is required. Booking data does not change when reading activity.
+
+Read state persists on the device through normal refreshes and navigation and synchronizes between tabs. The first authoritative snapshot establishes a quiet baseline; historical bookings and status edits do not become new alerts. Cached snapshots cannot clear unread activity. Notifications use creation timestamps, while displayed dates and times retain the restaurant timezone.
+
+Earlier and pending bookings remain in the ordinary Arrivals / Later today lists. Incomplete imported bookings remain accessible under Other bookings. Removing the attention queue does not hide those reservations or automatically change their statuses.
+
+Isolated staging browser checks verified a new future-dated booking produced one badge, opening cleared it, closing/reopening showed an empty up-to-date popup, refresh retained read state, Escape dismissed the popup, and the layout fit 390 × 844. Two owned synthetic fixtures were cancelled without queuing messages; no live customer records were modified. Automated checks cover timestamp ties, status edits, reconnects, cached snapshots, read persistence, cross-tab synchronization and Today grouping in international timezones.

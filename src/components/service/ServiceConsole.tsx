@@ -16,10 +16,11 @@ import TodaySummary from './TodaySummary';
 import BookingDetails from './BookingDetails';
 import DeliverySummary from './DeliverySummary';
 import NotificationStatus from '@/components/NotificationStatus';
+import ReservationActivity from './ReservationActivity';
 type Range = 'today' | 'tomorrow' | 'future' | 'past' | 'all' | 'date';
 const stateColors: Record<BookingState, string> = { pending: 'border-amber-500 text-amber-700 dark:text-amber-300', confirmed: 'border-green-500 text-green-700 dark:text-green-300', seated: 'border-blue-500 text-blue-700 dark:text-blue-300', completed: 'border-slate-400', cancelled: 'border-red-400 text-red-700 dark:text-red-300', 'no-show': 'border-red-600 text-red-700 dark:text-red-300', 'needs-review': 'border-orange-500 text-orange-700 dark:text-orange-300' };
 export default function ServiceConsole({ today = false }: { today?: boolean }) {
-  const { bookings, timezone, loading, error } = useReservations({ alerts: true });
+  const { bookings, timezone, synced, loading, error } = useReservations({ alerts: true });
   const [now, setNow] = useState(new Date()), [range, setRange] = useState<Range>('today'), [date, setDate] = useState('');
   const [search, setSearch] = useState(''), [status, setStatus] = useState('all'), [specialOnly, setSpecialOnly] = useState(false), [largeOnly, setLargeOnly] = useState(false);
   const [details, setDetails] = useState<string | null>(null), [message, setMessage] = useState<{ booking: ServiceReservation; channel: 'email' | 'sms' } | null>(null);
@@ -74,7 +75,7 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
       {booking.internalNotes && <p className="text-sm"><strong>Staff note:</strong> {booking.internalNotes}</p>}
       {booking.dietaryPreferences && <p className="text-sm"><strong>Dietary preference:</strong> {booking.dietaryPreferences}</p>}
       {booking.seatingPreference && <p className="text-sm"><strong>Seating preference:</strong> {booking.seatingPreference}</p>}
-      {isGuestEditable(booking.status) && arrivalDue(booking, timezone, now) && <p className="text-sm text-amber-700 dark:text-amber-300">Arrival time reached · check whether the party has arrived.</p>}
+      {!today && isGuestEditable(booking.status) && arrivalDue(booking, timezone, now) && <p className="text-sm text-amber-700 dark:text-amber-300">Arrival time reached · check whether the party has arrived.</p>}
       {isGuestEditable(booking.status) && (!today || booking.guestAcknowledged || details === booking.id) && <p className="text-sm text-muted-foreground">Customer response: {booking.guestAcknowledged ? 'Coming — acknowledged through the secure link' : 'No acknowledgement yet'}</p>}
       {profile.noShows > 0 && <p className="text-sm text-red-700 dark:text-red-300">History includes {profile.noShows} no-show{profile.noShows === 1 ? '' : 's'}. Review the guest history.</p>}
       {profile.sharedContact && <p className="text-xs text-amber-700 dark:text-amber-300">Shared contact details · identity needs review</p>}
@@ -95,7 +96,7 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
     return <><Button size="sm" variant="outline" onClick={() => { setMessage({ booking, channel: 'email' }); setMessageError(''); }}>Email reminder</Button><Button size="sm" variant="outline" disabled={!smsCapability.available || !booking.smsOptIn || !booking.phoneVerified} title={smsCapability.available ? 'Requires guest consent and a verified phone' : smsCapability.reason} onClick={() => { setMessage({ booking, channel: 'sms' }); setMessageError(''); }}>SMS reminder</Button>{!smsCapability.available && <p className="w-full text-xs text-muted-foreground">{smsCapability.reason}</p>}</>;
   }
   return <AdminLayout><div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-8">
-    <header className="space-y-2"><div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-3xl font-semibold">{today ? 'Today’s service' : 'Reservations'}</h1><Link className="text-sm underline" href={today ? '/admin/reservation' : '/admin/home'}>{today ? 'All reservations' : 'Back to Today'}</Link></div>
+    <header className="space-y-2"><div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-3xl font-semibold">{today ? 'Today’s service' : 'Reservations'}</h1><div className="flex items-center gap-3"><Link className="text-sm underline" href={today ? '/admin/reservation' : '/admin/home'}>{today ? 'All reservations' : 'Back to Today'}</Link>{today && <ReservationActivity bookings={bookings} timezone={timezone} synced={Boolean(synced)} />}</div></div>
       <p className="text-sm text-muted-foreground">{loading || error ? 'Business clock is unavailable while settings load.' : `${formatBusinessTimestamp(now, timezone)} · ${timezone}`}</p>
       {!today && <p className="text-sm text-muted-foreground">All dates, arrival times, timestamps and Today filters use the business timezone wherever you are viewing from.</p>}
       {today && !loading && !error && <TodaySummary bookings={bookings} timezone={timezone} now={now} />}
@@ -123,12 +124,12 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
           </div>
         </details>
         {filtered && <p role="status" className="text-sm text-muted-foreground">Showing {visible.length} matching {visible.length === 1 ? 'booking' : 'bookings'}. Clear filters to see the whole service.</p>}
-        {service.attention.length > 0 && <section aria-label="Needs attention" className="space-y-3"><div><h2 className="text-lg font-semibold">Needs attention <span className="text-muted-foreground">· {service.attention.length}</span></h2><p className="text-sm text-muted-foreground">Arrivals due, requests awaiting confirmation, or details to review.</p></div>{service.attention.map(renderBooking)}</section>}
-        <section aria-label="Arriving in the next hour" className="space-y-3"><div><h2 className="text-lg font-semibold">Arriving in the next hour</h2><p className="text-sm text-muted-foreground">Confirmed parties, in arrival order.</p></div>
-          {service.arriving.length ? service.arriving.map(renderBooking) : <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">{filtered ? 'No matching arrivals in the next hour.' : 'No confirmed arrivals in the next hour.'}</p>}
+        <section aria-label="Arrivals" className="space-y-3"><div><h2 className="text-lg font-semibold">Arrivals</h2><p className="text-sm text-muted-foreground">Scheduled through the next hour, in arrival order.</p></div>
+          {service.arriving.length ? service.arriving.map(renderBooking) : <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">{filtered ? 'No matching arrivals through the next hour.' : 'No arrivals scheduled through the next hour.'}</p>}
         </section>
         {service.seated.length > 0 && <section aria-label="Seated now" className="space-y-3"><h2 className="text-lg font-semibold">Seated now <span className="text-muted-foreground">· {service.seated.length} {service.seated.length === 1 ? 'party' : 'parties'}</span></h2>{service.seated.map(renderBooking)}</section>}
         {service.later.length > 0 && <section aria-label="Later today" className="space-y-3"><h2 className="text-lg font-semibold">Later today</h2>{service.later.map(renderBooking)}</section>}
+        {service.other.length > 0 && <details className="rounded-xl border p-4"><summary className="cursor-pointer text-sm font-medium">Other bookings · {service.other.length}</summary><div className="mt-4 space-y-3">{service.other.map(renderBooking)}</div></details>}
         {!visible.length && !filtered && <p className="text-sm text-muted-foreground">No reservations booked for today. Walk-ins are not included here.</p>}
         {service.finished.length > 0 && <details className="rounded-xl border p-4"><summary className="cursor-pointer font-medium">Finished and cancelled · {service.finished.length}</summary><div className="mt-4 space-y-3">{service.finished.map(renderBooking)}</div></details>}
         <details className="rounded-xl border p-4"><summary className="cursor-pointer text-sm font-medium">Message delivery tools</summary><div className="mt-4"><DeliverySummary /></div></details>

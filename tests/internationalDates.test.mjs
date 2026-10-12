@@ -26,7 +26,7 @@ for (const zone of ['America/Los_Angeles', 'Asia/Tokyo', 'Europe/London', 'Pacif
       const row = service.serviceReservation('fixture', { name: 'Guest', date: { toDate: () => new Date('2026-10-11T01:00:00Z') }, time: '7:00 PM', guests: 2, status: 'confirmed' }, 'America/Los_Angeles');
       assert.equal(service.todaySummary([row], 'America/Los_Angeles', new Date('2026-10-11T01:00:00Z')).expectedCovers, 2);
       assert.deepEqual(service.todayService([row], 'America/Los_Angeles', new Date('2026-10-11T01:30:00Z')).arriving.map(row => row.id), ['fixture']);
-      assert.deepEqual(service.todayService([row], 'America/Los_Angeles', new Date('2026-10-11T02:00:00Z')).attention.map(row => row.id), ['fixture']);
+      assert.deepEqual(service.todayService([row], 'America/Los_Angeles', new Date('2026-10-11T02:00:00Z')).arriving.map(row => row.id), ['fixture']);
       process.env.NEXT_PUBLIC_BASE_URL = 'https://staging.example.invalid';
       const invitation = renderReservationInvitation({ recipientEmail: 'friend@example.invalid', reservation: invitationDetails(row, 'America/Los_Angeles', new Date('2026-10-11T01:00:00Z')) });
       assert.ok(invitation.text.includes('Saturday, October 10, 2026 at 7:00 PM (America/Los_Angeles)'));
