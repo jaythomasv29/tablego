@@ -54,7 +54,7 @@ Deployment validation must verify HTTPS staff auth, the real business-local avai
 
 ## Deployed validation result — October 12
 
-Initial hosted runtime fix: dad0fe0 / dpl_22oGetpGNkNSE3J4hH4KBQ4HTgCY. Current release code: a7e3a4d. Ready deployment: dpl_8yLgfxioWiyHVEaW9CPKi5Cx9xPE, Node 22.x, promoted to tablego-milb.vercel.app after verifying availability and the retired-challenge recovery response on its deployment URL.
+Initial hosted runtime fix: dad0fe0 / dpl_22oGetpGNkNSE3J4hH4KBQ4HTgCY. OTP recovery release: a7e3a4d / dpl_8yLgfxioWiyHVEaW9CPKi5Cx9xPE. Current release code: 684b2a8. Ready deployment: dpl_HLSeykZzMrkiLPiefb5EsyQ86fxb, Node 22.x, promoted to tablego-milb.vercel.app after its optimized build and hosted business-local availability and HTTPS staff authentication checks passed.
 
 - Canonical HTTPS staff login succeeds with Secure/HttpOnly cookies. Firebase accepts the hosted custom staff token; Today loads existing live reservations.
 - Availability returns real America/Los_Angeles policy and slots. Public menu, catering, login and guest route shells respond successfully. Desktop and 390 × 844 mobile booking controls were reviewed.
@@ -78,3 +78,5 @@ Read state persists on the device through normal refreshes and navigation and sy
 Earlier and pending bookings remain in the ordinary Arrivals / Later today lists. Incomplete imported bookings remain accessible under Other bookings. Removing the attention queue does not hide those reservations or automatically change their statuses.
 
 Isolated staging browser checks verified a new future-dated booking produced one badge, opening cleared it, closing/reopening showed an empty up-to-date popup, refresh retained read state, Escape dismissed the popup, and the layout fit 390 × 844. Two owned synthetic fixtures were cancelled without queuing messages; no live customer records were modified. Automated checks cover timestamp ties, status edits, reconnects, cached snapshots, read persistence, cross-tab synchronization and Today grouping in international timezones.
+
+After promotion, the canonical hosted Today page loaded its real service records, displayed the bell, and opened the empty up-to-date popup. Needs attention is absent. Existing future arrivals remain visible. The hosted availability endpoint still returned America/Los_Angeles and valid slots. The separate staff smoke-test session was logged out.
