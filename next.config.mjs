@@ -13,6 +13,7 @@ const nextConfig = {
       { source: '/login', headers: privateHeaders },
       ...['reservation', 'cancel-reservation', 'reschedule', 'feedback'].map(route => ({ source: `/${route}/:path*`, headers: privateHeaders })),
       { source: '/images/:path*', headers: [{ key: 'Cache-Control', value: 'public, max-age=3600, must-revalidate' }] },
+      { source: '/fonts/:path*', headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }] },
     ];
   },
 };
