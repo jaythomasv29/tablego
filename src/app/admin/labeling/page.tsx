@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { collection, getDocs, addDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import AdminLayout from '@/components/AdminLayout';
@@ -347,30 +348,46 @@ const TENT_CSS = `
   @page { size: letter portrait; margin: 0.5in; }
 
   @media print {
-    body * { visibility: hidden !important; }
-    #label-print-root,
-    #label-print-root * { visibility: visible !important; }
+    html, body {
+      height: auto !important;
+      min-height: 0 !important;
+      overflow: visible !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #fff !important;
+      color-scheme: light;
+    }
+    /* The print root is a body-level portal, outside the dashboard scroll area. */
+    body > :not(#label-print-root) { display: none !important; }
     #label-print-root {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
+      display: block !important;
+      position: static;
+      width: 7.25in;
+      max-width: 100%;
+      margin: 0 auto;
+      color: #111;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
 
     /* Each "page" holds 2 rows of 2 cards */
     .print-page {
       page-break-after: always;
       break-after: page;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .print-page:last-child {
-      page-break-after: avoid;
-      break-after: avoid;
+      page-break-after: auto;
+      break-after: auto;
     }
 
     /* Row = 2 cards side by side */
     .print-row {
       display: flex;
       gap: 0.25in;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .print-row-cut {
       border-top: 1px dashed #aaa;
@@ -383,6 +400,8 @@ const TENT_CSS = `
       height: 4in;
       flex-shrink: 0;
       outline: 1px dashed #aaa;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .tc-back  { height: 2in; flex: 0 0 2in; padding: 0 24pt !important; }
     .tc-front { height: 2in; flex: 0 0 2in; padding: 0 24pt !important; }
@@ -480,6 +499,7 @@ interface LabelEntry {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function LabelingPage() {
+  const [printReady, setPrintReady] = useState(false);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [customItems, setCustomItems] = useState<MenuItem[]>([]);
   const [labelEntries, setLabelEntries] = useState<LabelEntry[]>([]);
@@ -492,6 +512,7 @@ export default function LabelingPage() {
   const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null);
 
   useEffect(() => {
+    setPrintReady(true);
     Promise.all([
       getDocs(collection(db, 'menu')),
       getDocs(collection(db, 'labelItems')),
@@ -929,7 +950,7 @@ export default function LabelingPage() {
       </div>
 
       {/* ── Print-only layout ─────────────────────────────────── */}
-      <div id="label-print-root" className="hidden print:block">
+      {printReady && createPortal(<div id="label-print-root" className="hidden print:block">
         {pages.map((group, pi) => (
           <div key={pi} className="print-page">
             {chunk(group, 2).map((row, ri) => (
@@ -953,7 +974,7 @@ export default function LabelingPage() {
             ))}
           </div>
         ))}
-      </div>
+      </div>, document.body)}
 
     </AdminLayout>
   );
