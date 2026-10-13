@@ -1,5 +1,7 @@
 # TableGo milb: hosted test using the live database
 
+October 13 update: the actual tablego site now runs the tested release, and reviewed Firestore rules have been published to the shared database. See [the production release and validation record](tablego-production-release.md). Statements below about retaining the original application and legacy rules describe the earlier milb-only rollout.
+
 Authorized October 12, 2026: deploy the audited version to tablego-milb and use the real TableGo Firebase database.
 
 ## Target and scope
@@ -40,7 +42,7 @@ Live Firestore rules currently allow public access to several legacy collections
 
 The daily Vercel Hobby cron is the retry fallback. Initial sends happen after the saved transaction; staff can inspect and retry failed deliveries. Frequent unattended retries still need the separate scheduler decision recorded in release-readiness.md.
 
-Remote CI has not been run; local typecheck, zero-warning lint and 150 automated tests pass. Vercel performs the optimized build. Uploaded source excludes local credentials, captures, node_modules and build outputs through .vercelignore.
+Local typecheck, zero-warning lint and 150 automated tests pass. GitHub CI was subsequently run and passed for the October 13 production release. Vercel performs the optimized build. Uploaded source excludes local credentials, captures, node_modules and build outputs through .vercelignore.
 
 ## Access and testing
 

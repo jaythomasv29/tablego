@@ -1,6 +1,6 @@
 # TableGo release readiness
 
-Updated October 10–11, 2026. Implementation is on sequential local test branches; `main` is unchanged. Controlled local staging OTP and SMTP tests are documented in [automatic confirmation and provider testing](auto-confirm-provider-testing.md). No production deployment, production record migration, live rule change, Vercel credential upload or billing upgrade has occurred.
+Initial readiness audit: October 10–11, 2026. The records below describe preparation and historical release gates. On October 13, the user authorized the actual tablego production release; remote `main`, the live application and reviewed database rules were updated and validated. See [the current production release record](tablego-production-release.md). Controlled local staging OTP and SMTP tests are documented in [automatic confirmation and provider testing](auto-confirm-provider-testing.md). No billing upgrade or destructive customer-record migration was performed.
 
 The final October 11 audit compares against the verified active Vercel production commit 2905408, restores newer deployed follow-up/feedback features securely, and records concrete hosting gaps. See [deployment comparison and audit](pre-deployment-audit.md).
 
