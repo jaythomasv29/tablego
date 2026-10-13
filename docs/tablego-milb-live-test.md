@@ -54,7 +54,7 @@ Deployment validation must verify HTTPS staff auth, the real business-local avai
 
 ## Deployed validation result — October 12
 
-Initial hosted runtime fix: dad0fe0 / dpl_22oGetpGNkNSE3J4hH4KBQ4HTgCY. OTP recovery release: a7e3a4d / dpl_8yLgfxioWiyHVEaW9CPKi5Cx9xPE. Today activity release: 684b2a8 / dpl_HLSeykZzMrkiLPiefb5EsyQ86fxb. Verified-phone release: 247aefe / dpl_2WJNQ4cbbdqDQZEPCz9E5xjiB12t. Guest-edit release: 5db8759 / dpl_BR1YmzWA5iEj6kGNYQzWUFPMVeMY. Current release code: 26bfc5a. Ready deployment: dpl_Dw6ZngsdGBfe9ftnEGw47Bo8ZNPs, Node 22.x, promoted to tablego-milb.vercel.app after the optimized build and hosted catering staff API / existing reservation availability checks passed.
+Initial hosted runtime fix: dad0fe0 / dpl_22oGetpGNkNSE3J4hH4KBQ4HTgCY. OTP recovery release: a7e3a4d / dpl_8yLgfxioWiyHVEaW9CPKi5Cx9xPE. Today activity release: 684b2a8 / dpl_HLSeykZzMrkiLPiefb5EsyQ86fxb. Verified-phone release: 247aefe / dpl_2WJNQ4cbbdqDQZEPCz9E5xjiB12t. Guest-edit release: 5db8759 / dpl_BR1YmzWA5iEj6kGNYQzWUFPMVeMY. Catering-workflow release: 26bfc5a / dpl_Dw6ZngsdGBfe9ftnEGw47Bo8ZNPs. Current release code: c7eeba3. Ready deployment: dpl_2NfJMsZbA2PyCosdcT9JxMo7GnRj, Node 22.x, promoted to tablego-milb.vercel.app after the optimized build, hosted bulk review/access checks and existing reservation availability checks passed.
 
 - Canonical HTTPS staff login succeeds with Secure/HttpOnly cookies. Firebase accepts the hosted custom staff token; Today loads existing live reservations.
 - Availability returns real America/Los_Angeles policy and slots. Public menu, catering, login and guest route shells respond successfully. Desktop and 390 × 844 mobile booking controls were reviewed.
@@ -129,4 +129,6 @@ Validation: 148 automated tests, typecheck and zero-warning lint pass, including
 
 Desktop/mobile browser checks reviewed five inquiries while the search matched zero, flagged the confirmed event, displayed the scrollable list and kept cancellation/confirmation controls visible at 390 × 844. Keep inquiries closed the dialog while all five statuses remained unchanged. The confirmed UI fixture was then closed individually for cleanup. Live staff make the final reset decision; this rollout does not execute bulk closure of live customer inquiries.
 
-Hosted deployment evidence will be recorded after verification.
+Source commit: c7eeba3. Ready deployment: dpl_2NfJMsZbA2PyCosdcT9JxMo7GnRj, https://tablego-milb-i44erepi6-jaythomasv29s-projects.vercel.app. Vercel optimized build, lint and type checks passed. The hosted bulk endpoint returned 401 without staff access, 200 for an authenticated review of the 27 current active inquiries, 403 for a foreign-origin preview, and 409 for confirmation of a nonexistent review. Inquiry statuses/versions were identical before and after the hosted checks. Existing restaurant-local availability passed. The separate verification session was logged out.
+
+After promotion, the canonical browser loaded the new button, opened the review listing all 27 active inquiries and dismissed it with Keep inquiries. Counts remained Active 27, Closed 57 and All 84. The canonical anonymous preview endpoint returned 401; anonymous REST access to the receipt collection returned 403. No live bulk confirmation was performed. The original tablego deployment remains dpl_9vRS5KSwugfWZ2bze7cEwfJc3AxF.
