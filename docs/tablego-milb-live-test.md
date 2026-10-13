@@ -7,7 +7,7 @@ Authorized October 12, 2026: deploy the audited version to tablego-milb and use 
 - Hosted URL: https://tablego-milb.vercel.app
 - Vercel project: tablego-milb / prj_6uZ0zWNkY65eOT14odbkTklD7oO7
 - Firebase project: tablego-1d712, shared with https://tablego.vercel.app
-- Current branch: refinement/catering-bulk-close, based on refinement/catering-admin-workflow; deploy directly through the CLI to this project.
+- Current branch: refinement/food-label-print-pagination, based on refinement/catering-bulk-close; deploy directly through the CLI to this project.
 - The existing tablego project, its environment and application deployment are not changed. Both sites see the same live records, so reservation/settings/staff changes in the new site affect the real restaurant database.
 
 This is a live-data test deployment. It does not use staging capture or mock OTP. Test actions can send real email and affect real reservations.
@@ -40,7 +40,7 @@ Live Firestore rules currently allow public access to several legacy collections
 
 The daily Vercel Hobby cron is the retry fallback. Initial sends happen after the saved transaction; staff can inspect and retry failed deliveries. Frequent unattended retries still need the separate scheduler decision recorded in release-readiness.md.
 
-Remote CI has not been run; local typecheck, zero-warning lint and 148 automated tests pass. Vercel performs the optimized build. Uploaded source excludes local credentials, captures, node_modules and build outputs through .vercelignore.
+Remote CI has not been run; local typecheck, zero-warning lint and 150 automated tests pass. Vercel performs the optimized build. Uploaded source excludes local credentials, captures, node_modules and build outputs through .vercelignore.
 
 ## Access and testing
 
@@ -51,6 +51,16 @@ The new staff credentials are stored privately in /Users/james/Desktop/code/tabl
 Use your own contact details for test bookings. Reservations are real records. Avoid editing or deleting another customer's reservation while testing. No broad test-cleanup endpoint is enabled outside staging.
 
 Deployment validation must verify HTTPS staff auth, the real business-local availability/settings, notification-worker authentication/index availability, provider configuration, core guest pages and the unchanged original site's deployment.
+
+## Food label print pagination — October 13
+
+Release code: a892e7e. Deployment dpl_6vvoMths3nPUhcMEyR6gPS2vr6XG passed the optimized Vercel build and was promoted to tablego-milb.vercel.app. The original tablego deployment remains dpl_9vRS5KSwugfWZ2bze7cEwfJc3AxF.
+
+The label pages previously lived inside the dashboard's fixed-height, overflow-hidden scrolling layout, with an absolutely positioned print root. That could clip later label sheets during printing. The print root now mounts directly under document.body through a React portal, uses normal document flow, hides the dashboard only while printing, and keeps explicit sheet breaks with no forced break after the last sheet. Letter portrait paper, half-inch margins, four 3.5 × 4-inch flat tent cards per sheet, all seven styles and existing label editing remain unchanged.
+
+Validation: typecheck, zero-warning lint and all 150 automated tests pass. Regression checks cover 1, 4, 5, 8, 9 and 12 labels, full and partial page groups, duplicated label instances, edited names and protein choices. The promoted canonical page loaded the real menu and displayed eight cards across two page groups. Read-only DOM inspection verified that the print root's parent is BODY and both groups contain four cards. These checks created no menu items, changed no live database records and sent no messages. Live availability still returns America/Los_Angeles policy and slots.
+
+Native Google Chrome control was rejected by automatic approval review even after the user's access confirmation. Actual browser print-preview/PDF pagination has therefore not yet been independently verified; the user was asked to check Letter paper, All pages, eight labels and two sheets on the corrected hosted page. On-screen page groups are not a substitute for that final print-preview check.
 
 ## Deployed validation result — October 12
 
