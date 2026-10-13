@@ -7,7 +7,7 @@ Authorized October 12, 2026: deploy the audited version to tablego-milb and use 
 - Hosted URL: https://tablego-milb.vercel.app
 - Vercel project: tablego-milb / prj_6uZ0zWNkY65eOT14odbkTklD7oO7
 - Firebase project: tablego-1d712, shared with https://tablego.vercel.app
-- Current branch: refinement/catering-admin-workflow, based on refinement/pre-deployment-audit; deploy directly through the CLI to this project.
+- Current branch: refinement/catering-bulk-close, based on refinement/catering-admin-workflow; deploy directly through the CLI to this project.
 - The existing tablego project, its environment and application deployment are not changed. Both sites see the same live records, so reservation/settings/staff changes in the new site affect the real restaurant database.
 
 This is a live-data test deployment. It does not use staging capture or mock OTP. Test actions can send real email and affect real reservations.
@@ -40,7 +40,7 @@ Live Firestore rules currently allow public access to several legacy collections
 
 The daily Vercel Hobby cron is the retry fallback. Initial sends happen after the saved transaction; staff can inspect and retry failed deliveries. Frequent unattended retries still need the separate scheduler decision recorded in release-readiness.md.
 
-Remote CI has not been run; local typecheck, zero-warning lint and 135 automated tests pass. Vercel performs the optimized build. Uploaded source excludes local credentials, captures, node_modules and build outputs through .vercelignore.
+Remote CI has not been run; local typecheck, zero-warning lint and 148 automated tests pass. Vercel performs the optimized build. Uploaded source excludes local credentials, captures, node_modules and build outputs through .vercelignore.
 
 ## Access and testing
 
@@ -118,3 +118,15 @@ The [future catering feature list](catering-admin-roadmap.md) records the immedi
 Source commit: 26bfc5a. Ready deployment: dpl_Dw6ZngsdGBfe9ftnEGw47Bo8ZNPs, https://tablego-milb-jalk40uff-jaythomasv29s-projects.vercel.app. Vercel optimized build, lint and type checks passed. Hosted verification returned 401 for an unauthenticated catering list, 200 for staff login/list/detail/history, and 403 for a cross-origin PATCH against a nonexistent check ID. All 84 existing live inquiries normalized successfully. Reservation availability still returned valid slots in America/Los_Angeles. The separate verification session was logged out; no live inquiry updates or customer sends were performed.
 
 After promotion, the canonical browser loaded the new page with Active 28, New 28, Closed 56 and All 84, sorted by Upcoming event. The anonymous canonical API still returned 401. The original tablego project remains on dpl_9vRS5KSwugfWZ2bze7cEwfJc3AxF. Source stays on its own catering testing branch; the original source worktree is unchanged.
+
+## Catering bulk inbox reset — October 12
+
+Close all active inquiries opens a review listing the current active set across all search/stage filters, including any confirmed events. Mark N completed moves that exact set to Closed, preserving notes and guest input while clearing follow-up dates and adding a bulk-action timeline entry. Cancel leaves inquiry records unchanged. New arrivals after review remain active. Reviews expire after 15 minutes and belong to the staff session that created them. Changes to any reviewed public or private document reject the entire transaction before writes. Completed-operation retries are idempotent, including after inquiries are reopened. The oldest 100 are reviewed per operation for large inboxes; the remaining count is disclosed, and staff repeat the action as needed. No records are deleted and no customer messages are queued.
+
+Review receipts use the new server-only cateringBulkClosures collection, denied by unmatched live rules and excluded in the proposed restrictive rules. No live rule publication is needed. A cleared Active view shows Your active inbox is clear and links to Closed.
+
+Validation: 148 automated tests, typecheck and zero-warning lint pass, including authorization/origin checks, preview scope, concurrent/legacy updates, deletions, expiry/session mismatch, retry safety, preserving original details, empty views and a bounded 100-record transaction. Isolated staging exercised real atomic closure of three owned fixtures, stale-document rejection without partial closure, a new arrival remaining active, protected receipts, retained notes, timeline and zero outbox jobs. The private staging receipt was narrowed through the staging service account so unrelated staging inquiries were not touched; production has no client subset override. Four API fixtures and one separate confirmed-event UI fixture were closed after review.
+
+Desktop/mobile browser checks reviewed five inquiries while the search matched zero, flagged the confirmed event, displayed the scrollable list and kept cancellation/confirmation controls visible at 390 × 844. Keep inquiries closed the dialog while all five statuses remained unchanged. The confirmed UI fixture was then closed individually for cleanup. Live staff make the final reset decision; this rollout does not execute bulk closure of live customer inquiries.
+
+Hosted deployment evidence will be recorded after verification.

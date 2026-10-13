@@ -14,20 +14,20 @@ const imports = {
   '@/components/ui/button': { Button: wrap('button') }, '@/components/ui/input': { Input: wrap('input') }, '@/components/ui/textarea': { Textarea: wrap('textarea') }, '@/components/ui/label': { Label: wrap('label') },
   '@/components/ui/dialog': { Dialog: ({ children, ...props }) => React.createElement('dialog', props, children), DialogContent: wrap('section'), DialogTitle: wrap('h1'), DialogDescription: wrap('p') },
   '@/components/PhoneNumber': { default: ({ phone }) => React.createElement('span', {}, phone) }, '@/contexts/TimezoneContext': { useTimezone: () => ({ restaurant: { name: 'Test Restaurant' } }) },
-  '@/utils/dateUtils': dates, '@/lib/catering/admin': catering, './CateringStage': { default: ({ status }) => React.createElement('span', {}, catering.cateringStatusLabels[status]) }, './CateringDetails': { default: () => null },
+  '@/utils/dateUtils': dates, '@/lib/catering/admin': catering, './CateringStage': { default: ({ status }) => React.createElement('span', {}, catering.cateringStatusLabels[status]) }, './CateringDetails': { default: () => null }, './BulkCloseCatering': { default: () => null },
   'lucide-react': Object.fromEntries(['Mail', 'CalendarDays', 'MapPin', 'Users', 'ChevronRight', 'Inbox', 'RefreshCw', 'Search', 'Clock3'].map(name => [name, () => null])),
 };
 async function mount(t, component, fetch) {
   const filename = new URL(`../src/components/catering/${component}.tsx`, import.meta.url), module = { exports: {} }, require = createRequire(filename);
   const compiled = ts.transpileModule(readFileSync(filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
   runInNewContext(compiled, { module, exports: module.exports, require: name => imports[name] || require(name), fetch, AbortController, document: { visibilityState: 'visible' }, window: { setInterval: () => 1, clearInterval() {}, addEventListener() {}, removeEventListener() {} } });
-  const saves = [], closes = [];
-  let renderer; await act(async () => { renderer = create(React.createElement(module.exports.default, { id: 'synthetic', timezone: 'America/Los_Angeles', onSaved: item => saves.push(item), onClose: () => closes.push(true) })); });
+  const saves = [], closes = [], bulkClosed = [];
+  let renderer; await act(async () => { renderer = create(React.createElement(module.exports.default, { id: 'synthetic', timezone: 'America/Los_Angeles', onSaved: item => saves.push(item), onClose: () => closes.push(true), disabled: false, onClosed: ids => bulkClosed.push(ids) })); });
   t.after(async () => { await act(async () => renderer.unmount()); });
   const button = text => renderer.root.findAllByType('button').find(node => node.props.children === text);
   const change = async (id, value) => { await act(async () => renderer.root.findByProps({ id }).props.onChange({ target: { value } })); };
   const submit = async () => { await act(async () => renderer.root.findByType('form').props.onSubmit({ preventDefault() {} })); };
-  return { renderer, saves, closes, button, change, submit };
+  return { renderer, saves, closes, bulkClosed, button, change, submit };
 }
 test('stale catering saves retain the draft and protect unsaved-close actions', async t => {
   const requests = [];
@@ -58,4 +58,27 @@ test('closing a catering lead clears follow-up and saves private staff fields se
 test('catering load failures show an explicit retry rather than an empty inbox', async t => {
   const state = await mount(t, 'CateringInbox', async () => ({ ok: false, status: 503, json: async () => ({ error: 'Service unavailable' }) }));
   const rendered = JSON.stringify(state.renderer.toJSON()); assert.match(rendered, /Service unavailable/); assert.ok(state.button('Retry loading inquiries')); assert.doesNotMatch(rendered, /Your catering inbox is ready/);
+});
+test('a cleared active inbox keeps closed inquiries available and disables another reset', async t => {
+  const state = await mount(t, 'CateringInbox', async () => ({ ok: true, json: async () => ({ timezone: 'America/Los_Angeles', leads: [{ ...lead, status: 'completed', followUpDate: '' }] }) }));
+  assert.match(JSON.stringify(state.renderer.toJSON()), /Your active inbox is clear/); assert.ok(state.button('View closed inquiries'));
+  assert.equal(state.renderer.root.findByType(imports['./BulkCloseCatering'].default).props.disabled, true);
+  await act(async () => state.button('View closed inquiries').props.onClick()); assert.match(JSON.stringify(state.renderer.toJSON()), /Synthetic Catering/);
+});
+const bulkPreview = { operationId: 'synthetic-operation', timezone: 'America/Los_Angeles', totalActive: 2, limit: 100, items: [{ id: 'a', name: 'Synthetic New', date: '2026-11-15', status: 'pending' }, { id: 'b', name: 'Synthetic Confirmed', date: '2026-11-16', status: 'confirmed' }] };
+test('bulk catering review requires an explicit confirmation and cancel never closes inquiries', async t => {
+  const requests = [];
+  const state = await mount(t, 'BulkCloseCatering', async (url, options) => { const body = JSON.parse(options.body); requests.push(body); return { ok: true, json: async () => body.action === 'preview' ? bulkPreview : { ids: ['a', 'b'] } }; });
+  await act(async () => state.button('Close all active inquiries').props.onClick()); assert.deepEqual(requests, [{ action: 'preview' }]); assert.match(state.renderer.root.findAllByType('p').map(node => [].concat(node.props.children).join('')).join(' '), /Includes 1 confirmed/);
+  await act(async () => state.button('Keep inquiries').props.onClick()); assert.equal(requests.length, 1); assert.equal(state.bulkClosed.length, 0);
+  await act(async () => state.button('Close all active inquiries').props.onClick()); await act(async () => state.button('Mark 2 completed').props.onClick()); assert.deepEqual(requests.at(-1), { action: 'confirm', operationId: bulkPreview.operationId }); assert.deepEqual(state.bulkClosed[0], ['a', 'b']);
+});
+test('a stale bulk review asks for a new review without leaving a stale confirmation button', async t => {
+  const state = await mount(t, 'BulkCloseCatering', async (url, options) => JSON.parse(options.body).action === 'preview' ? { ok: true, json: async () => bulkPreview } : { ok: false, status: 409, json: async () => ({ error: 'Some inquiries changed. Nothing was closed.' }) });
+  await act(async () => state.button('Close all active inquiries').props.onClick()); await act(async () => state.button('Mark 2 completed').props.onClick()); assert.ok(state.button('Review again')); assert.equal(state.button('Mark 2 completed'), undefined); assert.equal(state.bulkClosed.length, 0);
+});
+test('network errors retain the same bulk operation for a safe retry', async t => {
+  const requests = []; let attempt = 0;
+  const state = await mount(t, 'BulkCloseCatering', async (url, options) => { const body = JSON.parse(options.body); requests.push(body); if (body.action === 'preview') return { ok: true, json: async () => bulkPreview }; if (!attempt++) throw new TypeError('Failed to fetch'); return { ok: true, json: async () => ({ ids: ['a', 'b'], repeated: true }) }; });
+  await act(async () => state.button('Close all active inquiries').props.onClick()); await act(async () => state.button('Mark 2 completed').props.onClick()); assert.equal(state.bulkClosed.length, 0); await act(async () => state.button('Mark 2 completed').props.onClick()); assert.deepEqual(requests[1], requests[2]); assert.equal(state.bulkClosed.length, 1);
 });

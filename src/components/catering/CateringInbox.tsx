@@ -9,6 +9,7 @@ import { cateringFollowUpDue, closedCatering, filterCatering, type CateringFilte
 import PhoneNumber from '@/components/PhoneNumber';
 import CateringStage from './CateringStage';
 import CateringDetails from './CateringDetails';
+import BulkCloseCatering from './BulkCloseCatering';
 
 const filters: { value: CateringFilter; label: string }[] = [{ value: 'active', label: 'Active' }, { value: 'pending', label: 'New' }, { value: 'confirmed', label: 'Confirmed' }, { value: 'closed', label: 'Closed' }, { value: 'all', label: 'All' }];
 export default function CateringInbox() {
@@ -16,6 +17,7 @@ export default function CateringInbox() {
   const [loading, setLoading] = useState(true), [error, setError] = useState('');
   const [filter, setFilter] = useState<CateringFilter>('active'), [search, setSearch] = useState(''), [dueOnly, setDueOnly] = useState(false), [sort, setSort] = useState<'newest' | 'event'>('event');
   const [selected, setSelected] = useState<CateringLead | null>(null);
+  const [notice, setNotice] = useState('');
   const controller = useRef<AbortController | null>(null);
   const refresh = useCallback(async () => {
     controller.current?.abort(); const request = new AbortController(); controller.current = request;
@@ -43,11 +45,18 @@ export default function CateringInbox() {
   const visible = timezone ? filterCatering(leads, { filter, search, dueOnly, sort }, timezone) : [];
   const due = timezone ? leads.filter(lead => cateringFollowUpDue(lead, timezone)).length : 0;
   const count = (value: CateringFilter) => leads.filter(lead => value === 'all' || (value === 'active' ? !closedCatering(lead.status) : value === 'closed' ? closedCatering(lead.status) : lead.status === value)).length;
+  const clearedActive = leads.length > 0 && filter === 'active' && !search.trim() && !dueOnly && count('active') === 0;
   function clearFilters() { setSearch(''); setFilter('active'); setDueOnly(false); }
   return <main className="mx-auto w-full max-w-6xl space-y-5 p-4 sm:p-8">
     <header className="flex flex-wrap items-start justify-between gap-4">
       <div><p className="mb-1 text-xs font-medium uppercase tracking-widest text-muted-foreground">Events & gatherings</p><h1 className="text-3xl font-semibold tracking-tight">Catering inquiries</h1><p className="mt-2 text-sm text-muted-foreground">From the first conversation to the day of the event.</p></div>
-      <Button variant="outline" onClick={refresh} disabled={loading} className="gap-2"><RefreshCw aria-hidden="true" className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{loading ? 'Refreshing…' : 'Refresh inquiries'}</Button>
+      <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={refresh} disabled={loading} className="gap-2"><RefreshCw aria-hidden="true" className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{loading ? 'Refreshing…' : 'Refresh inquiries'}</Button>
+        <BulkCloseCatering disabled={loading || Boolean(error) || !data || count('active') === 0} onClosed={ids => {
+          const closed = new Set(ids);
+          setData(current => current ? { ...current, leads: current.leads.map(lead => closed.has(lead.id) ? { ...lead, status: 'completed', followUpDate: '' } : lead) } : current);
+          setFilter('active'); setSearch(''); setDueOnly(false); setNotice(`${ids.length} ${ids.length === 1 ? 'inquiry marked' : 'inquiries marked'} Completed. You can find them in Closed.`); void refresh();
+        }} />
+      </div>
     </header>
     <section className="space-y-4 rounded-2xl border bg-card p-4" aria-label="Filter catering inquiries">
       <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex flex-wrap gap-1.5" aria-label="Inquiry stages">{filters.map(item => <Button key={item.value} size="sm" variant={filter === item.value ? 'default' : 'ghost'} aria-pressed={filter === item.value} onClick={() => setFilter(item.value)}>{item.label}<span className="ml-2 text-xs opacity-70">{count(item.value)}</span></Button>)}</div>
@@ -57,10 +66,11 @@ export default function CateringInbox() {
         <div className="flex items-center gap-2"><Label htmlFor="catering-sort" className="text-xs text-muted-foreground">Sort</Label><select id="catering-sort" className="h-10 min-w-0 flex-1 rounded-md border bg-background px-3 text-sm sm:w-44" value={sort} onChange={event => setSort(event.target.value as 'newest' | 'event')}><option value="newest">Newest inquiry</option><option value="event">Upcoming event</option></select></div>
       </div>
     </section>
+    {notice && <p role="status" className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200">{notice}</p>}
     {error && <div role="alert" className="space-y-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"><p>{error}</p>{data && <p>Showing the last loaded inquiries. Refresh before making a decision.</p>}<div className="flex gap-3"><Button size="sm" variant="outline" disabled={loading} onClick={refresh}>Retry loading inquiries</Button>{!data && <a href="/login" className="self-center underline">Staff sign in</a>}</div></div>}
     {!data && loading ? <p role="status" className="py-12 text-center text-sm text-muted-foreground">Loading catering inquiries…</p> : data && <>
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground"><p>{visible.length} {visible.length === 1 ? 'inquiry' : 'inquiries'} · Event dates & follow-ups in {timezone}</p><p>Updated {formatBusinessTimestamp(data.loadedAt, timezone)}</p></div>
-      {!visible.length ? <section className="rounded-2xl border border-dashed p-10 text-center"><Inbox className="mx-auto mb-3 h-8 w-8 text-muted-foreground" aria-hidden="true" /><h2 className="font-medium">{!leads.length ? 'Your catering inbox is ready' : dueOnly ? 'No follow-ups due in this view' : 'No inquiries in this view'}</h2><p className="mt-2 text-sm text-muted-foreground">{!leads.length ? 'Verified customer inquiries will appear here when they arrive.' : 'Try another stage or clear your search.'}</p>{leads.length > 0 && <Button variant="outline" className="mt-4" onClick={clearFilters}>Reset filters</Button>}</section> :
+      {!visible.length ? <section className="rounded-2xl border border-dashed p-10 text-center"><Inbox className="mx-auto mb-3 h-8 w-8 text-muted-foreground" aria-hidden="true" /><h2 className="font-medium">{!leads.length ? 'Your catering inbox is ready' : clearedActive ? 'Your active inbox is clear' : dueOnly ? 'No follow-ups due in this view' : 'No inquiries in this view'}</h2><p className="mt-2 text-sm text-muted-foreground">{!leads.length ? 'Verified customer inquiries will appear here when they arrive.' : clearedActive ? 'Closed inquiries stay in your records. New customer inquiries will appear here.' : 'Try another stage or clear your search.'}</p>{leads.length > 0 && <Button variant="outline" className="mt-4" onClick={clearedActive ? () => setFilter('closed') : clearFilters}>{clearedActive ? 'View closed inquiries' : 'Reset filters'}</Button>}</section> :
         <ul className="space-y-3" aria-label="Catering inquiries">{visible.map(lead => <li key={lead.id} className="overflow-hidden rounded-2xl border bg-card transition-colors hover:border-primary/40">
           <div className="flex flex-col gap-4 p-4 sm:flex-row sm:gap-5 sm:p-5"><div className="min-w-0 flex-1 space-y-3">
             <div className="flex flex-wrap items-center gap-2"><h2 className="break-words text-lg font-semibold">{lead.name}</h2><CateringStage status={lead.status} />{cateringFollowUpDue(lead, timezone!) && <span className="text-xs font-medium text-amber-700 dark:text-amber-300">Follow-up due</span>}</div>

@@ -1,6 +1,6 @@
 # Catering admin improvements and future features
 
-Updated October 12, 2026. Current work is on refinement/catering-admin-workflow for tablego-milb. Future items below are a backlog, not implemented features or activated services.
+Updated October 12, 2026. Current work is on refinement/catering-bulk-close, based on refinement/catering-admin-workflow, for tablego-milb. Future items below are a backlog, not implemented features or activated services.
 
 ## Immediate improvements
 
@@ -9,6 +9,8 @@ The old page provided a one-time list, missing budgets/locations/event types, pl
 Review inquiry opens a mobile-friendly staff workspace with the full event details, menu and requests, verified contact links, a draft-email action, private notes, an optional next-follow-up calendar date and recent history. Stages are New inquiry, In conversation, Confirmed event, Completed and Not proceeding. Closed records can be reopened. Closing clears the follow-up date. Staff changes do not send emails or collect payment; Confirmed event is staff tracking after agreement with the guest.
 
 Updates use authenticated server APIs, a transaction, version checks and a check of the previously loaded stage. A stale draft is retained for review instead of overwriting a colleague's changes. Closing a dirty editor offers Keep editing or Discard and close. Original guest input remains separate from staff notes.
+
+Close all active inquiries provides a server-generated review independent of search/stage filters. It lists the inquiries and flags confirmed events. Confirming marks only that reviewed set Completed, clears follow-up dates, preserves notes/guest input and records a bulk-action entry in each timeline. New arrivals stay active. Any change to a reviewed public or private record invalidates the whole operation before writes. Session-bound reviews expire after 15 minutes, and a completed operation can be retried without duplicate changes or closing reopened/new inquiries. Larger inboxes close the oldest 100 per atomic transaction, with the remaining count explained in the review. Cancel leaves inquiry records unchanged. No customer messages are generated. A cleared active inbox links to Closed; inquiries can be reopened individually.
 
 The new cateringStaff collection stores workflowStage, private notes, follow-up dates and versions separately. Clients cannot read/write it under the existing live rules (unmatched paths deny access); staff use the authenticated server APIs. Legacy pending/completed status stays on the original inquiry for old-app compatibility. Older records remain readable without migration, including string dish names, guests/message fields, missing timestamps and invalid details needing review. Business-local event dates and follow-up dates never use the viewer's timezone. Existing live rules still expose legacy inquiry/contact records; protecting the new notes does not resolve that separate coordinated migration. The proposed restrictive rules also exclude cateringStaff client access; no live rules deployment is required for this patch.
 

@@ -18,7 +18,7 @@ export async function GET(request: Request, context: Context) {
       const data = doc.data();
       return { id: doc.id, event: typeof data.event === 'string' ? data.event.slice(0, 80) : 'catering.updated', timestamp: timestampString(data.timestamp),
         previousStatus: typeof data.previousStatus === 'string' && Object.hasOwn(cateringStatusKeys, data.previousStatus) ? data.previousStatus : null,
-        status: typeof data.status === 'string' && Object.hasOwn(cateringStatusKeys, data.status) ? data.status : null, notesChanged: data.notesChanged === true,
+        status: typeof data.status === 'string' && Object.hasOwn(cateringStatusKeys, data.status) ? data.status : null, notesChanged: data.notesChanged === true, bulkClosed: typeof data.bulkOperationId === 'string',
         followUpChanged: data.followUpChanged === true, followUpDate: typeof data.followUpDate === 'string' ? data.followUpDate.slice(0, 10) : '',
         recipient: data.recipient === 'guest' || data.recipient === 'restaurant' ? data.recipient : null };
     }) });
