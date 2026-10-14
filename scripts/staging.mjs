@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 
 export const STAGING_PROJECT = 'tablego-staging-1d712';
 
-const credentialName = /^(TABLEGO_PROVIDER_TEST_|NEXT_PUBLIC_TABLEGO_PROVIDER_TEST$|FIREBASE_|NEXT_PUBLIC_FIREBASE_|TWILIO_|SMTP_|EMAIL_|ADMIN_|GOOGLE_APPLICATION_CREDENTIALS$|CRON_SECRET$)/;
+const credentialName = /^(TABLEGO_PROVIDER_TEST_|NEXT_PUBLIC_TABLEGO_PROVIDER_TEST$|FIREBASE_|NEXT_PUBLIC_FIREBASE_|TWILIO_|SMTP_|EMAIL_|RESEND_|CAMPAIGN_|TABLEGO_CAMPAIGN_|ADMIN_|GOOGLE_APPLICATION_CREDENTIALS$|CRON_SECRET$)/;
 export function stagingEnvironment(settings, inherited = process.env, fallbackKeys = []) {
   if (settings.NEXT_PUBLIC_FIREBASE_PROJECT_ID !== STAGING_PROJECT) {
     throw new Error(`Staging must use ${STAGING_PROJECT}`);

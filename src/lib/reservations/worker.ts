@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { getServerDatabase } from '../serverFirebase';
 import { deliverNotification } from './notifications';
+import { processCampaigns } from '../campaigns/repository';
 import { prunePendingSignups } from '../mailing/repository';
 export function isNotificationWorker(request: Request): boolean {
   const secret = process.env.CRON_SECRET || '';
@@ -21,5 +22,6 @@ export async function processNotifications() {
     }
   }
   await prunePendingSignups();
-  return counts;
+  const campaigns = await processCampaigns();
+  return { ...counts, campaigns };
 }

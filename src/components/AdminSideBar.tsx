@@ -47,6 +47,7 @@ const NAV_GROUPS = [
     { id: 'menu', href: '/admin/menu', label: 'Restaurant Menu', icon: BookText },
   ] },
   { label: 'Guest Engagement', items: [
+    { id: 'campaigns', href: '/admin/campaigns', label: 'Email campaigns', icon: Mail },
     { id: 'mailing', href: '/admin/mailing', label: 'Mailing list', icon: Mail },
     { id: 'messages', href: '/admin/messages', label: 'Messages', icon: MessageSquare },
     { id: 'insights', href: '/admin/insights', label: 'Insights', icon: TrendingUp },

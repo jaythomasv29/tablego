@@ -10,7 +10,7 @@ SMTP has no provider-level idempotency guarantee. A deterministic Message-ID hel
 
 ## Vercel Hobby
 
-The user confirmed the existing project uses Hobby. `vercel.json` prepares one daily safety-net invocation at 09:00 UTC. Hobby permits only one invocation per day, with an imprecise start time. Cron runs on production deployments, not ordinary previews. See [Vercel scheduling limits](https://vercel.com/docs/cron-jobs/usage-and-pricing) and [cron management](https://vercel.com/docs/cron-jobs/manage-cron-jobs).
+The user confirmed the existing project uses Hobby. `vercel.json` prepares one daily safety-net invocation at 18:00 UTC. Campaigns share this worker, giving Palo Alto a late-morning delivery window (10 AM–noon across daylight saving time). Immediate service notifications still use the existing request-triggered delivery path. Hobby permits only one invocation per day, with an imprecise start time. Cron runs on production deployments, not ordinary previews. See [Vercel scheduling limits](https://vercel.com/docs/cron-jobs/usage-and-pricing) and [cron management](https://vercel.com/docs/cron-jobs/manage-cron-jobs).
 
 **Daily recovery is insufficient for time-sensitive failed booking messages or a large backlog.** Immediate delivery and staff retry work independently, but unattended recovery every few minutes requires an authenticated external scheduler or a plan that supports frequent cron. Before production rollout, configure and verify that scheduler, alert on failures/backlog, and check capacity against expected message volume. No plan upgrade, external scheduler account or production deployment has been performed.
 
