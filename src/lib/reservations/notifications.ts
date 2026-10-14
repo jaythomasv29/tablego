@@ -1,6 +1,7 @@
 import { renderNotification } from './render';
 export { renderNotification } from './render';
 import { renderCateringNotification } from '../catering/notification';
+import { renderMailingConfirmation } from '../mailing/render';
 import { renderReservationInvitation } from './shareRender';
 import { renderFeedbackNotification } from './feedbackRender';
 import { invitationDetails } from './sharing';
@@ -37,6 +38,15 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
     if (!record || !['queued', 'failed', 'sending'].includes(record.state) || record.nextAttemptAt.toMillis() > Date.now() ||
       (record.state === 'sending' && record.leaseUntil?.toMillis() > Date.now())) return null;
     if (record.attempts >= 5) { tx.update(ref, { state: 'exhausted', lastError: 'attempt-limit-reached' }); return null; }
+    if (record.kind === 'mailing-confirmation') {
+      const contact = (await tx.get(db.doc(`mailingContacts/${record.entityId}`))).data();
+      const access = (await tx.get(db.doc(`mailingAccess/${record.entityId}`))).data();
+      if (!contact || !access || contact.status === 'subscribed' || contact.version !== record.version || access.confirmationVersion !== record.version || access.confirmationExpiresAt <= Date.now()) {
+        tx.update(ref, { state: 'superseded', lastError: 'signup-changed-or-expired' }); return null;
+      }
+      tx.update(ref, { state: 'sending', lease, leaseUntil: new Date(Date.now() + 120_000), nextAttemptAt: new Date(Date.now() + 120_000), attempts: record.attempts + 1 });
+      return { ...record, email: contact.email, encryptedConfirmation: access.encryptedConfirmation, encryptedUnsubscribe: access.encryptedUnsubscribe } as FirebaseFirestore.DocumentData;
+    }
     if (record.kind === 'catering') {
       if (!(await tx.get(db.doc(`catering/${record.entityId}`))).exists) { tx.update(ref, { state: 'superseded', lastError: 'inquiry-missing' }); return null; }
       tx.update(ref, { state: 'sending', lease, leaseUntil: new Date(Date.now() + 120_000), nextAttemptAt: new Date(Date.now() + 120_000), attempts: record.attempts + 1 });
@@ -81,7 +91,8 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
   try {
     const configuration = (await db.doc('settings/general').get()).data();
     const identity = restaurantIdentity(configuration?.restaurant);
-    const message = ['follow-up', 'feedback-received'].includes(job.kind) ? renderFeedbackNotification(job as Parameters<typeof renderFeedbackNotification>[0], identity)
+    const message = job.kind === 'mailing-confirmation' ? renderMailingConfirmation(job as Parameters<typeof renderMailingConfirmation>[0], identity)
+      : ['follow-up', 'feedback-received'].includes(job.kind) ? renderFeedbackNotification(job as Parameters<typeof renderFeedbackNotification>[0], identity)
       : job.kind === 'reservation-share' ? renderReservationInvitation(job as Parameters<typeof renderReservationInvitation>[0], identity)
       : job.kind === 'catering' ? renderCateringNotification(job as Parameters<typeof renderCateringNotification>[0], identity)
       : renderNotification({ ...job, restaurant: identity } as Parameters<typeof renderNotification>[0]);
@@ -102,7 +113,7 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
     if (current?.lease !== lease) return;
     tx.update(ref, { state: state === 'failed' && current.attempts >= 5 ? 'exhausted' : state, lastAttemptAt: new Date(), nextAttemptAt: new Date(Date.now() + Math.min(3600, 60 * 2 ** current.attempts) * 1000),
       deliveryMode, providerMessageId, lastError: state === 'failed' ? 'provider-delivery-failed' : null, leaseUntil: null });
-    tx.create(db.doc(`${job.kind === 'catering' ? `catering/${job.entityId}` : `reservations/${job.reservationId}`}/events/${randomUUID()}`), {
+    tx.create(db.doc(`${job.kind === 'mailing-confirmation' ? `mailingContacts/${job.entityId}` : job.kind === 'catering' ? `catering/${job.entityId}` : `reservations/${job.reservationId}`}/events/${randomUUID()}`), {
       event: `notification.${state}`, actor: 'system', channel: job.channel || 'email', recipient: job.recipient, notificationId: id, timestamp: new Date(),
     });
     if (state === 'delivered' && job.kind === 'follow-up') tx.update(db.doc('reservations/' + job.reservationId), { followUpSent: true, followUpSentAt: new Date() });

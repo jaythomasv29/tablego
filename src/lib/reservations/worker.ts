@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { getServerDatabase } from '../serverFirebase';
 import { deliverNotification } from './notifications';
+import { prunePendingSignups } from '../mailing/repository';
 export function isNotificationWorker(request: Request): boolean {
   const secret = process.env.CRON_SECRET || '';
   const authorization = request.headers.get('authorization') || '';
@@ -19,5 +20,6 @@ export async function processNotifications() {
       if (result.status === 'fulfilled') counts[result.value]++; else counts.failed++;
     }
   }
+  await prunePendingSignups();
   return counts;
 }

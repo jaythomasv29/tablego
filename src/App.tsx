@@ -2,6 +2,8 @@ import { useInitialBusinessDate } from '@/components/reservations/useInitialBusi
 import { useBusinessPolicy } from '@/components/reservations/useBusinessPolicy';
 import { ReservationReceipt, type ReceiptDetails } from '@/components/reservations/ReservationReceipt';
 import MagneticButton from '@/components/MagneticButton';
+import EmailSignup from '@/components/mailing/EmailSignup';
+import PromotionModal from '@/components/mailing/PromotionModal';
 import { calendarDate, slotsForDate, openAt } from '@/lib/reservations/availability';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -117,6 +119,14 @@ function App() {
   const [guestDraft, setGuestDraft] = useState("2");
   const [showTrending, setShowTrending] = useState(false);
   const [tick, setTick] = useState(0);
+  const [showPromotion, setShowPromotion] = useState(false);
+  const bannerRef = useRef<HTMLDivElement | null>(null);
+  const [bannerHeight, setBannerHeight] = useState(150);
+  useEffect(() => {
+    const element = bannerRef.current; if (!element) return;
+    const observer = new ResizeObserver(() => setBannerHeight(element.getBoundingClientRect().height));
+    observer.observe(element); return () => observer.disconnect();
+  }, []);
   const openerRef = useRef<HTMLElement | null>(null);
   const reservePanelRef = useRef<HTMLDivElement | null>(null);
 
@@ -305,7 +315,7 @@ function App() {
 
   return (
     <div
-      className="h-[100dvh] overflow-hidden text-zinc-900"
+      className="h-[100dvh] overflow-y-auto text-zinc-900"
       style={{
         backgroundColor: SIAM_PALETTE.primary,
         color: SIAM_PALETTE.text,
@@ -328,33 +338,19 @@ function App() {
         <rect width="100%" height="100%" filter="url(#film-noise)" />
       </svg>
 
-      {bannerData?.text && (
-        <div
-          className="fixed top-0 inset-x-0 z-50 h-[50px] w-full flex items-center justify-center px-4"
-          style={{ backgroundColor: SIAM_PALETTE.accent }}
-        >
-          <p className="text-zinc-900 text-center text-sm md:text-base font-medium">
-            {bannerData.text}
-            {bannerData.link && (
-              <>
-                {" "}
-                <Link
-                  href={bannerData.link}
-                  className="underline hover:text-zinc-700 transition-colors ml-2"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {bannerData.linkText || "Learn More"}
-                </Link>
-              </>
-            )}
-          </p>
+      <div ref={bannerRef} className="fixed inset-x-0 top-0 z-50 border-b border-black/10 bg-[#A3B18A] px-4 py-3">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
+          <div className="text-center lg:text-left">
+            {bannerData?.text && <p className="text-xs font-medium text-zinc-900 sm:text-sm">{bannerData.text}{bannerData.link && <Link href={bannerData.link} target="_blank" rel="noopener noreferrer" className="ml-2 underline">{bannerData.linkText || 'Details'}</Link>}</p>}
+            <button id="promotion-opener" type="button" onClick={() => setShowPromotion(true)} className="mt-1 text-xs font-semibold text-zinc-900 underline underline-offset-4">Monthly offers · Stay in the loop</button>
+          </div>
+          <div className="mx-auto w-full max-w-lg lg:mx-0"><EmailSignup source="banner" compact /></div>
         </div>
-      )}
+      </div>
 
       <nav
         className="fixed inset-x-0 z-40 px-4"
-        style={{ top: bannerData?.text ? "68px" : "24px" }}
+        style={{ top: `${bannerHeight + 16}px` }}
       >
         <div className="max-w-7xl mx-auto">
           <div className="mx-auto w-full md:w-auto inline-flex items-center gap-4 rounded-full border border-black/10 bg-white/85 backdrop-blur-xl px-5 py-3 shadow-[0_20px_40px_-20px_rgba(0,0,0,0.25)]">
@@ -412,7 +408,7 @@ function App() {
           preload="metadata"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/40 to-black/20" />
-        <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 pt-36 md:pt-44 pb-16 min-h-[100dvh] grid grid-cols-1 md:grid-cols-[1.1fr_0.9fr] gap-10 items-end">
+        <div style={{ paddingTop: `${bannerHeight + 120}px` }} className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 pb-24 min-h-[100dvh] grid grid-cols-1 md:grid-cols-[1.1fr_0.9fr] gap-10 items-end">
           <div>
             <p
               className="text-zinc-100/85 text-sm md:text-base tracking-[0.14em] uppercase mb-4"
@@ -511,6 +507,9 @@ function App() {
           </div>
         </div>
       </section>
+
+      <div className="relative z-10 bg-[#F9F7F2] px-5 py-4 text-center text-xs text-zinc-600"><Link href="/privacy" className="underline">Privacy & email preferences</Link><span className="mx-3">·</span><a href={`mailto:${restaurant.email}`} className="underline">Contact us</a></div>
+      <PromotionModal blocked={isReserveOpen || showTrending} manuallyOpen={showPromotion} onClose={() => setShowPromotion(false)} />
 
       {/* Floating LIVE / Closed trending button */}
       <motion.button

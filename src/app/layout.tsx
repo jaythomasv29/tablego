@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./fonts.css";
-import { Analytics } from "@vercel/analytics/react";
+import SiteAnalytics from '@/components/SiteAnalytics';
 import { TimezoneProvider } from "@/contexts/TimezoneContext";
 import { defaultRestaurant } from '@/lib/restaurant/config';
 import Providers from "@/components/Providers";
@@ -28,7 +28,7 @@ export default function RootLayout({
         <Providers>
           <TimezoneProvider>{children}</TimezoneProvider>
         </Providers>
-        <Analytics />
+        <SiteAnalytics />
       </body>
     </html>
   );

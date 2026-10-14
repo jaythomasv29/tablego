@@ -529,6 +529,7 @@ export default function CateringPage() {
                   </div>
 
                   {/* Submit */}
+                  <p className="text-xs leading-5 text-zinc-500">We use your details to respond to this inquiry. This does not subscribe you to promotional emails. <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="underline">Privacy notice</Link>.</p>
                   <MagneticButton
                     type="submit"
                     disabled={isSubmitting || !formData.eventType || !phoneVerified}

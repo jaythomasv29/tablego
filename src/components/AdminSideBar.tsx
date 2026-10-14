@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Home, Calendar, Clock, CalendarDays, Utensils, BookText,
-  MessageSquare, Flag, Settings, Users, Package, Eye, EyeOff, Printer, TrendingUp,
+  MessageSquare, Mail, Flag, Settings, Users, Package, Eye, EyeOff, Printer, TrendingUp,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -27,6 +27,7 @@ import {
 
 const HIDEABLE = ['inventory', 'team', 'messages'];
 const DEFAULT_HIDDEN = ['inventory', 'team', 'messages'];
+let mailingBadge: { value: number; fetchedAt: number } | null = null;
 
 const NAV_GROUPS = [
   { label: 'Today', items: [{ id: 'dashboard', href: '/admin/home', label: 'Today', icon: Home }] },
@@ -46,6 +47,7 @@ const NAV_GROUPS = [
     { id: 'menu', href: '/admin/menu', label: 'Restaurant Menu', icon: BookText },
   ] },
   { label: 'Guest Engagement', items: [
+    { id: 'mailing', href: '/admin/mailing', label: 'Mailing list', icon: Mail },
     { id: 'messages', href: '/admin/messages', label: 'Messages', icon: MessageSquare },
     { id: 'insights', href: '/admin/insights', label: 'Insights', icon: TrendingUp },
     { id: 'banner', href: '/admin/banner', label: 'Banner', icon: Flag },
@@ -57,6 +59,7 @@ export default function AdminSidebar() {
   const { restaurant } = useTimezone();
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [emailCount, setEmailCount] = useState<number | null>(null);
   const [hiddenLinks, setHiddenLinks] = useState<string[]>(DEFAULT_HIDDEN);
 
   useEffect(() => {
@@ -64,6 +67,19 @@ export default function AdminSidebar() {
     if (stored !== null) {
       try { setHiddenLinks(JSON.parse(stored)); } catch {}
     }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const update = (event: Event) => { const value = (event as CustomEvent<number>).detail; mailingBadge = { value, fetchedAt: Date.now() }; setEmailCount(value); };
+    const load = async () => {
+      if (mailingBadge && Date.now() - mailingBadge.fetchedAt < 300_000) { setEmailCount(mailingBadge.value); return; }
+      try { const response = await fetch('/api/staff/mailing?summary=1', { cache: 'no-store' }); if (!response.ok) return; const data = await response.json();
+        if (active) { mailingBadge = { value: data.counts.total, fetchedAt: Date.now() }; setEmailCount(data.counts.total); }
+      } catch { /* Do not present a failed count as zero. */ }
+    };
+    void load(); window.addEventListener('tablego-mailing-updated', update); window.addEventListener('focus', load);
+    return () => { active = false; window.removeEventListener('tablego-mailing-updated', update); window.removeEventListener('focus', load); };
   }, []);
 
   const toggleLink = (id: string) => {
@@ -103,7 +119,7 @@ export default function AdminSidebar() {
                   const isActive = pathname === href;
                   const isHideable = HIDEABLE.includes(id);
                   const isHidden = hiddenLinks.includes(id);
-                  const badge = id === 'messages' && unreadCount > 0 ? unreadCount : undefined;
+                  const badge = id === 'mailing' && emailCount !== null ? emailCount : id === 'messages' && unreadCount > 0 ? unreadCount : undefined;
 
                   return (
                     <SidebarMenuItem key={id}>
@@ -130,7 +146,7 @@ export default function AdminSidebar() {
                       )}
 
                       {badge !== undefined && (
-                        <SidebarMenuBadge>{badge}</SidebarMenuBadge>
+                        <SidebarMenuBadge title={id === 'mailing' ? `${badge} unique email contacts` : undefined}>{badge}</SidebarMenuBadge>
                       )}
 
                       {isHideable && (

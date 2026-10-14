@@ -202,6 +202,7 @@ const GuestInfo: React.FC<Props> = ({ formData, onUpdate, phoneVerified, onPhone
               className="w-full px-3 py-2 border-0 bg-white focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
+          <p className="mt-2 text-xs leading-5 text-gray-500">We use your contact details for your reservation. This does not subscribe you to promotional emails. <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline">Privacy notice</a>.</p>
         </div>
 
         <div>
