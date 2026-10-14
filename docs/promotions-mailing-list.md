@@ -1,18 +1,22 @@
 # Promotions and mailing list — testing branch
 
-Status: implemented on `refinement/promotions-mailing-list`; promotion artwork, offer, validity dates, and restrictions are awaiting the owner's upload. **Not deployed to the live TableGo site.** `src/lib/mailing/promotion.ts` deliberately contains no invented offer. The general monthly-offer signup is visible in the local staging preview.
+Status: implemented on `refinement/promotions-mailing-list`. The owner supplied the Thaiphoon Lunch Perk flyer and confirmed the current deal. The Monthly offers button and automatic popup show both the Local Lunch Perk and Happy Hour. Release verification is in progress; production promotion is recorded below when complete.
 
 ## Customer experience and copy
 
 The closable popup and compact homepage banner form use the existing cream, sage, and black restaurant theme. The popup has keyboard focus management, Escape dismissal, and a seven-day browser frequency preference. It avoids interrupting an open reservation/menu dialog or a focused input. The banner always provides another way to subscribe. The homepage now scrolls on small screens so the expanded banner never makes the booking controls inaccessible.
 
-Draft headline: **Something delicious, every month.**
+Offers-view heading: **Good things, on the menu.**
 
-Draft supporting copy: **Get Thaiphoon’s latest monthly promotions and special offers in your inbox.**
+Local Lunch Perk: **10% off lunch**, through December 12, 2026. **Work nearby? Enjoy 10% off dine-in lunch at Thaiphoon. Show your local employee badge or business card to redeem.** Eligibility, lunch/dine-in/food/non-alcoholic conditions, all exclusions, and non-combination terms follow the supplied flyer. The original two-page PDF and optimized cover image are included under `public/promotions/`.
 
-Consent, unchecked by default: **I’d like to receive promotional emails from Thaiphoon Restaurant. Unsubscribe anytime.** A linked privacy notice appears at collection. Button: **Sign me up**. The form explains that email confirmation comes first and signup does not affect a reservation. The exact current offer will be added from the owner's flyer; signup is not represented as a condition of receiving that offer.
+Happy Hour: **Every day, 4–6 PM.** This schedule was verified by a read-only check of the live restaurant banner on October 14, 2026. No unverified menu prices or discounts were invented.
 
-Promotion start/end dates use the restaurant's local calendar date. There are no invented discounts, incentives, deadlines, or terms.
+Optional signup heading: **Something delicious, every month.** Supporting text: **Get our latest promotions and special offers by email. Signup is optional and isn’t required to redeem these deals.**
+
+Consent, unchecked by default: **I’d like to receive promotional emails from Thaiphoon Restaurant. Unsubscribe anytime.** A linked privacy notice appears at collection. Button: **Sign me up**. The form explains that email confirmation comes first and signup does not affect a reservation. Signing up is not a condition of redeeming either offer. Both deals remain browseable without submitting an email.
+
+Promotion start/end dates use the restaurant's local calendar date. The Local Lunch Perk remains available through December 12 and expires at Palo Alto midnight beginning December 13; the daily Happy Hour remains listed. Tests cover this boundary for viewers in five international timezones. There are no invented discounts, incentives, deadlines, or terms.
 
 ## Contact and consent handling
 
@@ -50,10 +54,10 @@ Primary references reviewed October 14, 2026:
 
 Staging browser tests cover popup and banner signup, captured confirmation email, confirmation page, guest unsubscribe, staff unsubscribe, old-link rejection, and the admin count/status/search view. The popup/banner fit a 390 × 844 viewport without horizontal overflow; Escape dismisses the popup and returns focus to its opener. Original desktop sizing is restored after responsive checks.
 
-Validation: 174 automated tests pass, TypeScript passes, ESLint reports zero warnings, and a local optimized build succeeds using the CI placeholder configuration. The staging smoke was repeated after the export batching change and passed. The feature branch's GitHub Quality workflow additionally checks the committed source. No credentials or notification captures are committed.
+Validation: 177 automated tests pass, TypeScript passes, ESLint reports zero warnings, and a local optimized build succeeds using the CI placeholder configuration. The staging smoke was repeated after the export batching change and passed. The initial mailing-list commit passed GitHub Quality; the completed offer commit is checked again before release. No credentials or notification captures are committed.
 
 `scripts/staging-mailing-smoke.mjs` refuses any non-local URL or Firebase project other than `tablego-staging-1d712`. It verifies explicit consent, origin checks, honeypot handling, durable captured mail, subscriber-only export, immediate unsubscribe, and stale confirmation rejection. It creates its own synthetic `@example.invalid` record, leaves it unsubscribed as evidence, and revokes its own temporary staff session.
 
 The new strict rules were published only to the isolated staging project. Both anonymous and active staff Firebase client identities were tested: internal mailing reads/writes are denied, while the active staff identity retains reservation read access. No live database records or live rules were changed. No real messages were sent by this feature's tests.
 
-Before production: incorporate the flyer and approved offer wording; finish checks on that exact commit; publish the reviewed mailing exclusions to live rules; build a protected production candidate with the existing real providers/database and stable secret; verify it; then promote to `tablego.vercel.app`. Rollback must account for pending mailing jobs: older workers do not understand `mailing-confirmation`. Reservation/catering records and their existing notification jobs retain their existing schemas.
+Before production: finish checks on the exact commit; publish the reviewed mailing exclusions to live rules; build a protected production candidate with the existing real providers/database and stable secret; verify it; then promote to `tablego.vercel.app`. Rollback must account for pending mailing jobs: older workers do not understand `mailing-confirmation`. Reservation/catering records and their existing notification jobs retain their existing schemas.

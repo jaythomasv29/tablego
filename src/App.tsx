@@ -342,7 +342,7 @@ function App() {
         <div className="mx-auto flex max-w-7xl flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
           <div className="text-center lg:text-left">
             {bannerData?.text && <p className="text-xs font-medium text-zinc-900 sm:text-sm">{bannerData.text}{bannerData.link && <Link href={bannerData.link} target="_blank" rel="noopener noreferrer" className="ml-2 underline">{bannerData.linkText || 'Details'}</Link>}</p>}
-            <button id="promotion-opener" type="button" onClick={() => setShowPromotion(true)} className="mt-1 text-xs font-semibold text-zinc-900 underline underline-offset-4">Monthly offers · Stay in the loop</button>
+            <button id="promotion-opener" type="button" onClick={() => setShowPromotion(true)} className="mt-1 text-xs font-semibold text-zinc-900 underline underline-offset-4">Monthly offers</button>
           </div>
           <div className="mx-auto w-full max-w-lg lg:mx-0"><EmailSignup source="banner" compact /></div>
         </div>
