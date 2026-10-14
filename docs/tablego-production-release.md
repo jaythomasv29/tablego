@@ -1,5 +1,7 @@
 # TableGo production release — October 13, 2026
 
+October 14 update: [the Today timeline refinement](today-timeline-update.md) is now deployed as source `22cae66`, retaining the configuration and protected database rules recorded below.
+
 The user authorized deploying the tested TableGo version to the actual `tablego` project. Production now runs at https://tablego.vercel.app using the existing live `tablego-1d712` Firebase database.
 
 ## Released version
