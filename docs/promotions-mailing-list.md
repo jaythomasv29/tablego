@@ -1,6 +1,6 @@
 # Promotions and mailing list — testing branch
 
-Status: implemented on `refinement/promotions-mailing-list`. The owner supplied the Thaiphoon Lunch Perk flyer and confirmed the current deal. The Monthly offers button and automatic popup show both the Local Lunch Perk and Happy Hour. Release verification is in progress; production promotion is recorded below when complete.
+Status: implemented on `refinement/promotions-mailing-list`. The owner supplied the Thaiphoon Lunch Perk flyer and confirmed the current deal. The Monthly offers button and automatic popup show both the Local Lunch Perk and Happy Hour. Published to **https://tablego.vercel.app** on October 14, 2026, after the testing branch, isolated staging checks, and production-candidate verification.
 
 ## Customer experience and copy
 
@@ -54,10 +54,26 @@ Primary references reviewed October 14, 2026:
 
 Staging browser tests cover popup and banner signup, captured confirmation email, confirmation page, guest unsubscribe, staff unsubscribe, old-link rejection, and the admin count/status/search view. The popup/banner fit a 390 × 844 viewport without horizontal overflow; Escape dismisses the popup and returns focus to its opener. Original desktop sizing is restored after responsive checks.
 
-Validation: 177 automated tests pass, TypeScript passes, ESLint reports zero warnings, and a local optimized build succeeds using the CI placeholder configuration. The staging smoke was repeated after the export batching change and passed. The initial mailing-list commit passed GitHub Quality; the completed offer commit is checked again before release. No credentials or notification captures are committed.
+Validation: 177 automated tests pass, TypeScript passes, ESLint reports zero warnings, and a local optimized build succeeds using the CI placeholder configuration. The staging smoke was repeated after the export batching change and passed. The completed offer commit passed GitHub Quality on both the testing branch and main. No credentials or notification captures are committed.
 
 `scripts/staging-mailing-smoke.mjs` refuses any non-local URL or Firebase project other than `tablego-staging-1d712`. It verifies explicit consent, origin checks, honeypot handling, durable captured mail, subscriber-only export, immediate unsubscribe, and stale confirmation rejection. It creates its own synthetic `@example.invalid` record, leaves it unsubscribed as evidence, and revokes its own temporary staff session.
 
-The new strict rules were published only to the isolated staging project. Both anonymous and active staff Firebase client identities were tested: internal mailing reads/writes are denied, while the active staff identity retains reservation read access. No live database records or live rules were changed. No real messages were sent by this feature's tests.
+The new strict rules were first published to the isolated staging project, tested there, and then published to the live project after backing up and comparing the exact live baseline. Both anonymous and active staff Firebase client identities were tested: internal mailing reads/writes are denied, while the active staff identity retains reservation read access. Live verification created and revoked its own temporary staff authentication session, read protected contact totals, and verified public denials. No live reservations, catering inquiries, or marketing enrollments were created or changed. No real messages were sent by this feature's tests.
 
-Before production: finish checks on the exact commit; publish the reviewed mailing exclusions to live rules; build a protected production candidate with the existing real providers/database and stable secret; verify it; then promote to `tablego.vercel.app`. Rollback must account for pending mailing jobs: older workers do not understand `mailing-confirmation`. Reservation/catering records and their existing notification jobs retain their existing schemas.
+The release sequence completed: exact-commit checks, reviewed live mailing exclusions, a production candidate using unchanged real provider/database credentials and the stable secret, candidate checks, main fast-forward, and promotion to `tablego.vercel.app`. Rollback must account for pending mailing jobs: older workers do not understand `mailing-confirmation`. Reservation/catering records and their existing notification jobs retain their existing schemas.
+
+
+## Published release record
+
+- Source: `c9e42d85960a5c36fabee5f890a4fb5cc2954011` on main and `refinement/promotions-mailing-list`. The original TableGo worktree and branch were preserved.
+- Ready production deployment: `dpl_99kNkdYuWxZPjrjDRbrUpUGHVx9t`, `https://tablego-id23msihr-jaythomasv29s-projects.vercel.app`; promoted to `https://tablego.vercel.app`.
+- Previous deployment: `dpl_AG13gwwed5cF8FSUarc13NKq35N5` (Today timeline release); account for mailing jobs before rollback.
+- Live ruleset: `projects/tablego-1d712/rulesets/59492daf-8a33-4cf2-bfec-811bca2e42c4`. The pre-change ruleset/content are backed up privately. The only rule change denies direct client access to the new mailing internals.
+- Production environment metadata was compared with the last verified environment: all 31 production entries were unchanged. Canonical URL, real Firebase project, Node options, provider credentials, and shared secret were preserved.
+- [Testing-branch Quality](https://github.com/jaythomasv29/tablego/actions/runs/38647587075) and [main Quality](https://github.com/jaythomasv29/tablego/actions/runs/38648252708) succeeded; 177 automated tests, type checking, lint, and optimized builds passed.
+- Candidate and canonical availability returned HTTP 200 with America/Los_Angeles and 14 valid slots for October 15. Anonymous mailing access returned HTTP 401. Authenticated candidate contact access and the privacy page returned HTTP 200. The published flyer returned HTTP 200 with its original 1,434,362 bytes.
+- Live contact inventory: 1,115 unique valid addresses, all with no recorded promotional opt-in at release. No existing address was enrolled. Confirmed/pending/unsubscribed marketing totals were zero.
+- Live browser verification confirmed both offer cards open from Monthly offers, the banner signup exists, consent starts unchecked, and the admin badge/status totals match the protected API. Chrome restarted during verification; refreshed restored tabs showed the new release.
+- A recent Vercel runtime-error query returned zero error records. Private proof images are stored locally; no customer email rows appear in shared screenshots.
+
+The prior deployed source (`2905408`) was also reviewed after the owner's consent question. Its reservation checkbox explicitly referred to SMS verification and reservation reminders. No separate email-marketing opt-in was found in the reviewed reservation/catering forms. Submission supports service communications; it is not recorded promotional-email consent. For US audiences, CAN-SPAM generally does not require prior affirmative opt-in, which is distinct from this feature's deliberately stricter confirmed-opt-in policy. Do not relabel historic addresses as confirmed opt-ins without actual evidence.

@@ -1,3 +1,5 @@
+> October 14 update: [Monthly offers and mailing-list release](./promotions-mailing-list.md) is live, including Happy Hour, the Local Lunch Perk, explicit email opt-in, and private contact management.
+
 # TableGo production release — October 13, 2026
 
 October 14 update: [the Today timeline refinement](today-timeline-update.md) is now deployed as source `22cae66`, retaining the configuration and protected database rules recorded below.
