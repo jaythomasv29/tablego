@@ -49,19 +49,16 @@ export function todaySummary(bookings: ServiceReservation[], timezone: string, n
     specialRequests: active.filter(booking => booking.comments.trim()).length, largeParties: active.filter(booking => booking.guests >= 6).length,
     overdue: today.filter(booking => ['pending', 'confirmed'].includes(booking.status) && arrivalDue(booking, timezone, now)).length };
 }
-export function todayService(bookings: ServiceReservation[], timezone: string, now = new Date()) {
+export function reservationTimePassed(booking: Pick<ServiceReservation, 'date' | 'time' | 'status'>, timezone: string, now = new Date()) {
+  if (!['pending', 'confirmed', 'needs-review'].includes(booking.status)) return false;
+  const clock = restaurantClock(timezone, now), minutes = timeMinutes(booking.time);
+  return Boolean(booking.date && minutes !== null && (booking.date < clock.date || (booking.date === clock.date && minutes < clock.minutes)));
+}
+export function todayReservations(bookings: ServiceReservation[], timezone: string, now = new Date()) {
   const clock = restaurantClock(timezone, now);
-  const today = bookings.filter(booking => booking.date === clock.date);
-  const sort = (records: ServiceReservation[]) => records.sort((a, b) =>
-    (timeMinutes(a.time) ?? 1440) - (timeMinutes(b.time) ?? 1440) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
-  const active = sort(today.filter(booking => ['pending', 'confirmed', 'needs-review'].includes(booking.status) && timeMinutes(booking.time) !== null));
-  return {
-    arriving: active.filter(booking => timeMinutes(booking.time)! <= clock.minutes + 60),
-    later: active.filter(booking => timeMinutes(booking.time)! > clock.minutes + 60),
-    other: sort(bookings.filter(booking => (booking.date === clock.date && ['pending', 'confirmed', 'needs-review'].includes(booking.status) && timeMinutes(booking.time) === null) || (!booking.date && booking.status === 'needs-review'))),
-    seated: sort(today.filter(booking => booking.status === 'seated')),
-    finished: sort(today.filter(booking => ['completed', 'cancelled', 'no-show'].includes(booking.status))),
-  };
+  return bookings.filter(booking => booking.date === clock.date || (!booking.date && booking.status === 'needs-review'))
+    .sort((a, b) => Number(!a.date) - Number(!b.date) ||
+      (timeMinutes(a.time) ?? 1440) - (timeMinutes(b.time) ?? 1440) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 }
 const nameKey = (value: string) => value.normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ');
 const emailKey = (value: string) => value.trim().toLowerCase();

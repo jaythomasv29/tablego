@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import ReservationActions from '@/components/ReservationActions';
 import { statusLabels, isGuestEditable, type BookingState } from '@/lib/reservations/domain';
-import { guestProfiles, guestKey, arrivalDue, todayService, type ServiceReservation } from '@/lib/reservations/service';
+import { guestProfiles, guestKey, arrivalDue, todayReservations, reservationTimePassed, type ServiceReservation } from '@/lib/reservations/service';
 import { restaurantClock, timeMinutes } from '@/lib/reservations/availability';
 import { formatReadableDatePST, formatBusinessTimestamp } from '@/utils/dateUtils';
 import { useReservations } from './useReservations';
@@ -45,7 +45,7 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
     const matches = `${booking.name} ${booking.email} ${booking.phone} ${booking.comments} ${booking.internalNotes} ${booking.dietaryPreferences} ${booking.seatingPreference}`.toLowerCase().includes(search.toLowerCase().trim());
     return inRange && matches && (status === 'all' || booking.status === status) && (!specialOnly || Boolean(`${booking.comments}${booking.dietaryPreferences}${booking.seatingPreference}`.trim())) && (!largeOnly || booking.guests >= 6);
   }).sort((a, b) => a.date.localeCompare(b.date) || (timeMinutes(a.time) ?? 1440) - (timeMinutes(b.time) ?? 1440) || a.name.localeCompare(b.name));
-  const service = todayService(visible, timezone, now);
+  const todayBookings = todayReservations(visible, timezone, now);
   const filtered = Boolean(search.trim() || status !== 'all' || specialOnly || largeOnly);
   async function sendReminder() {
     if (!message || messageBusy) return;
@@ -59,7 +59,8 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
   }
   function renderBooking(booking: ServiceReservation) {
     const profile = profiles.get(guestKey(booking))!;
-    return <article key={booking.id} className="space-y-3 rounded-xl border bg-card p-4 sm:p-5">
+    const timePassed = today && reservationTimePassed(booking, timezone, now);
+    return <article key={booking.id} className={`space-y-3 rounded-xl border p-4 sm:p-5 ${timePassed ? 'border-amber-400 bg-amber-50/70 dark:border-amber-600 dark:bg-amber-950/30' : 'bg-card'}`}>
       <div className="flex flex-wrap items-start justify-between gap-3"><div className="space-y-1">
         {today && <p className="text-xl font-semibold tabular-nums">{booking.time || 'Time needs review'} <span className="text-sm font-normal text-muted-foreground">· {booking.guests} {booking.guests === 1 ? 'guest' : 'guests'}</span></p>}
         <h3 className={today ? 'text-base font-semibold' : 'text-lg font-semibold'}>{booking.name}</h3>
@@ -67,6 +68,7 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
         {today && !booking.date && <p className="text-sm text-orange-700 dark:text-orange-300">Date needs staff review</p>}
         <p className="text-sm text-muted-foreground"><PhoneNumber phone={booking.phone} verified={booking.phoneVerified} />{!today && <> · {booking.email || 'No email'}</>}</p>
       </div><div className="flex flex-wrap gap-2">
+        {timePassed && <span className="rounded-full border border-amber-500 bg-amber-100 px-3 py-1 text-sm font-medium text-amber-950 dark:border-amber-600 dark:bg-amber-900/60 dark:text-amber-100">Time passed</span>}
         {!today && <span className="rounded-full border px-3 py-1 text-sm font-medium">{booking.guests} {booking.guests === 1 ? 'guest' : 'guests'}</span>}
         {today && booking.guests >= 6 && <span className="rounded-full border px-3 py-1 text-sm">Large party</span>}
         <span className={`rounded-full border px-3 py-1 text-sm ${stateColors[booking.status]}`}>{statusLabels[booking.status]}</span>
@@ -98,7 +100,7 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
     return <><Button size="sm" variant="outline" onClick={() => { setMessage({ booking, channel: 'email' }); setMessageError(''); }}>Email reminder</Button><Button size="sm" variant="outline" disabled={!smsCapability.available || !booking.smsOptIn || !booking.phoneVerified} title={smsCapability.available ? 'Requires guest consent and a verified phone' : smsCapability.reason} onClick={() => { setMessage({ booking, channel: 'sms' }); setMessageError(''); }}>SMS reminder</Button>{!smsCapability.available && <p className="w-full text-xs text-muted-foreground">{smsCapability.reason}</p>}</>;
   }
   return <AdminLayout><div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-8">
-    <header className="space-y-2"><div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-3xl font-semibold">{today ? 'Today’s service' : 'Reservations'}</h1><div className="flex items-center gap-3"><Link className="text-sm underline" href={today ? '/admin/reservation' : '/admin/home'}>{today ? 'All reservations' : 'Back to Today'}</Link>{today && <ReservationActivity bookings={bookings} timezone={timezone} synced={Boolean(synced)} />}</div></div>
+    <header className="space-y-2"><div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-3xl font-semibold">{today ? 'Today' : 'Reservations'}</h1><div className="flex items-center gap-3"><Link className="text-sm underline" href={today ? '/admin/reservation' : '/admin/home'}>{today ? 'All reservations' : 'Back to Today'}</Link>{today && <ReservationActivity bookings={bookings} timezone={timezone} synced={Boolean(synced)} />}</div></div>
       <p className="text-sm text-muted-foreground">{loading || error ? 'Business clock is unavailable while settings load.' : `${formatBusinessTimestamp(now, timezone)} · ${timezone}`}</p>
       {!today && <p className="text-sm text-muted-foreground">All dates, arrival times, timestamps and Today filters use the business timezone wherever you are viewing from.</p>}
       {today && !loading && !error && <TodaySummary bookings={bookings} timezone={timezone} now={now} />}
@@ -126,14 +128,10 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
           </div>
         </details>
         {filtered && <p role="status" className="text-sm text-muted-foreground">Showing {visible.length} matching {visible.length === 1 ? 'booking' : 'bookings'}. Clear filters to see the whole service.</p>}
-        <section aria-label="Arrivals" className="space-y-3"><div><h2 className="text-lg font-semibold">Arrivals</h2><p className="text-sm text-muted-foreground">Scheduled through the next hour, in arrival order.</p></div>
-          {service.arriving.length ? service.arriving.map(renderBooking) : <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">{filtered ? 'No matching arrivals through the next hour.' : 'No arrivals scheduled through the next hour.'}</p>}
+        <section aria-label="Today's reservations" className="space-y-3">
+          {todayBookings.map(renderBooking)}
+          {!todayBookings.length && <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">{filtered ? 'No reservations match these filters.' : 'No reservations booked for today. Walk-ins are not included here.'}</p>}
         </section>
-        {service.seated.length > 0 && <section aria-label="Seated now" className="space-y-3"><h2 className="text-lg font-semibold">Seated now <span className="text-muted-foreground">· {service.seated.length} {service.seated.length === 1 ? 'party' : 'parties'}</span></h2>{service.seated.map(renderBooking)}</section>}
-        {service.later.length > 0 && <section aria-label="Later today" className="space-y-3"><h2 className="text-lg font-semibold">Later today</h2>{service.later.map(renderBooking)}</section>}
-        {service.other.length > 0 && <details className="rounded-xl border p-4"><summary className="cursor-pointer text-sm font-medium">Other bookings · {service.other.length}</summary><div className="mt-4 space-y-3">{service.other.map(renderBooking)}</div></details>}
-        {!visible.length && !filtered && <p className="text-sm text-muted-foreground">No reservations booked for today. Walk-ins are not included here.</p>}
-        {service.finished.length > 0 && <details className="rounded-xl border p-4"><summary className="cursor-pointer font-medium">Finished and cancelled · {service.finished.length}</summary><div className="mt-4 space-y-3">{service.finished.map(renderBooking)}</div></details>}
         <details className="rounded-xl border p-4"><summary className="cursor-pointer text-sm font-medium">Message delivery tools</summary><div className="mt-4"><DeliverySummary /></div></details>
       </> : <section aria-label="Reservation results" className="space-y-4"><h2 className="text-lg font-semibold">{visible.length} {visible.length === 1 ? 'booking' : 'bookings'}</h2>
         {!visible.length && <p className="rounded-xl border p-6 text-muted-foreground">No reservations match these filters.</p>}
