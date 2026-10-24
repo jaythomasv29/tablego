@@ -24,6 +24,7 @@ function delivery(options = {}) {
   const write = (reference, data, merge = false) => { writes.push(reference.path); records.set(reference.path, { ...(merge ? records.get(reference.path) : {}), ...data }); };
   const db = { doc: ref, runTransaction: async work => work({ get: async reference => { reads.push(reference.path); return snapshot(reference.path); }, update: (reference, data) => write(reference, data, true), create: (reference, data) => write(reference, data) }) };
   const imports = {
+    '../marketing/repository': {}, '../marketing/render': {},
     '../serverFirebase': { getServerDatabase: () => db }, '../restaurant/config': { restaurantIdentity }, '../mailing/render': { renderMailingConfirmation },
     '../notificationTransport': { createEmailTransport: () => ({ sendMail: async message => { sent.push(message); if (options.fail) throw Error('synthetic provider failure'); return { captured: true, messageId: 'synthetic-capture' }; } }) },
     './render': {}, '../formatting/html': { escapeHtml }, '../catering/notification': {}, './shareRender': {}, './feedbackRender': {}, './sharing': {}, './domain': {}, '../twilio': {},

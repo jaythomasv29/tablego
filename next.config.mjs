@@ -11,7 +11,7 @@ const nextConfig = {
       { source: '/admin/:path*', headers: [...privateHeaders, { key: 'X-Frame-Options', value: 'DENY' }] },
       { source: '/api/:path*', headers: privateHeaders },
       { source: '/login', headers: privateHeaders },
-      ...['reservation', 'cancel-reservation', 'reschedule', 'feedback', 'mailing'].map(route => ({ source: `/${route}/:path*`, headers: privateHeaders })),
+      ...['reservation', 'cancel-reservation', 'reschedule', 'feedback', 'mailing', 'marketing'].map(route => ({ source: `/${route}/:path*`, headers: privateHeaders })),
       { source: '/images/:path*', headers: [{ key: 'Cache-Control', value: 'public, max-age=3600, must-revalidate' }] },
       { source: '/fonts/:path*', headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }] },
     ];

@@ -50,6 +50,7 @@ const NAV_GROUPS = [
     { id: 'campaigns', href: '/admin/campaigns', label: 'Email campaigns', icon: Mail },
     { id: 'mailing', href: '/admin/mailing', label: 'Mailing list', icon: Mail },
     { id: 'messages', href: '/admin/messages', label: 'Messages', icon: MessageSquare },
+    { id: 'marketing', href: '/admin/marketing', label: 'Marketing follow-ups', icon: Mail },
     { id: 'insights', href: '/admin/insights', label: 'Insights', icon: TrendingUp },
     { id: 'banner', href: '/admin/banner', label: 'Banner', icon: Flag },
   ] },

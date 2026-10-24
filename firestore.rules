@@ -26,7 +26,7 @@ service cloud.firestore {
     // Booking creation and guest actions use server APIs. Internal documents
     // remain accessible to authenticated staff during incremental migration.
     match /{collection}/{document=**} {
-      allow read, write: if isAdmin() && !(collection in ['settings', 'specialDates', 'staffSessions', 'reservations', 'cateringStaff', 'cateringBulkClosures', 'managementAccess', 'bookingSubmissions', 'notificationOutbox', 'requestLimits', 'stagingCaptures', 'stagingOtpChallenges', 'mailingContacts', 'mailingAccess', 'emailCampaigns', 'campaignRecipients']);
+      allow read, write: if isAdmin() && !(collection in ['settings', 'specialDates', 'staffSessions', 'reservations', 'cateringStaff', 'cateringBulkClosures', 'managementAccess', 'bookingSubmissions', 'notificationOutbox', 'requestLimits', 'stagingCaptures', 'stagingOtpChallenges', 'mailingContacts', 'mailingAccess', 'emailCampaigns', 'campaignRecipients', 'marketingCampaigns', 'marketingSuppressions']);
     }
   }
 }

@@ -45,3 +45,10 @@ test('missing or short signing secrets cannot issue or verify sessions', async (
   await assert.rejects(issueSignedToken('admin', {}, 60, 'short', now));
   assert.equal(await verifySignedToken('anything', 'admin', '', now), null);
 });
+
+test('remembered staff tokens remain valid for 400 days and then expire', async () => {
+  const duration = 400 * 86400;
+  const { token, claims } = await issueSignedToken('admin', { username: '000' }, duration, secret, now);
+  assert.deepEqual(await verifySignedToken(token, 'admin', secret, now + (duration - 1) * 1000), claims);
+  assert.equal(await verifySignedToken(token, 'admin', secret, now + duration * 1000), null);
+});

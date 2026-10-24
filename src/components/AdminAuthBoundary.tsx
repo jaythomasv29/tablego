@@ -23,10 +23,18 @@ export default function AdminAuthBoundary({ children }: { children: React.ReactN
         await signInWithCustomToken(auth, data.firebaseToken);
         if (!active) return;
         setReady(true);
-        timer = setTimeout(() => {
-          void signOut(auth);
-          window.location.assign('/login');
-        }, Math.max(0, data.expiresAt * 1000 - Date.now()));
+        // Browser timers overflow after about 24.8 days; recheck long sessions daily.
+        const checkExpiry = () => {
+          if (!active) return;
+          const remaining = data.expiresAt * 1000 - Date.now();
+          if (remaining <= 0) {
+            void signOut(auth);
+            window.location.assign('/login');
+            return;
+          }
+          timer = setTimeout(checkExpiry, Math.min(remaining, 24 * 60 * 60 * 1000));
+        };
+        checkExpiry();
       } catch {
         if (active) setFailed(true);
       }

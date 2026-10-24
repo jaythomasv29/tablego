@@ -1,3 +1,5 @@
+import { marketingSnapshot } from '../marketing/repository';
+import { renderMarketingNotification } from '../marketing/render';
 import { renderNotification } from './render';
 export { renderNotification } from './render';
 import { renderCateringNotification } from '../catering/notification';
@@ -47,6 +49,17 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
       tx.update(ref, { state: 'sending', lease, leaseUntil: new Date(Date.now() + 120_000), nextAttemptAt: new Date(Date.now() + 120_000), attempts: record.attempts + 1 });
       return { ...record, email: contact.email, encryptedConfirmation: access.encryptedConfirmation, encryptedUnsubscribe: access.encryptedUnsubscribe } as FirebaseFirestore.DocumentData;
     }
+    if (record.kind === 'marketing') {
+      const snapshot = await marketingSnapshot(tx);
+      const campaign = (await tx.get(db.doc(`marketingCampaigns/${record.campaignId}`))).data();
+      if (!campaign || campaign.state !== 'queued' || !snapshot.candidates.some(candidate => candidate.id === record.campaignId)) {
+        tx.update(ref, { state: 'superseded', lastError: 'customer-returned-or-unsubscribed' });
+        if (campaign?.state === 'queued') tx.update(db.doc(`marketingCampaigns/${record.campaignId}`), { state: 'superseded' });
+        return null;
+      }
+      tx.update(ref, { state: 'sending', lease, leaseUntil: new Date(Date.now() + 120_000), nextAttemptAt: new Date(Date.now() + 120_000), attempts: record.attempts + 1 });
+      return record;
+    }
     if (record.kind === 'catering') {
       if (!(await tx.get(db.doc(`catering/${record.entityId}`))).exists) { tx.update(ref, { state: 'superseded', lastError: 'inquiry-missing' }); return null; }
       tx.update(ref, { state: 'sending', lease, leaseUntil: new Date(Date.now() + 120_000), nextAttemptAt: new Date(Date.now() + 120_000), attempts: record.attempts + 1 });
@@ -91,7 +104,8 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
   try {
     const configuration = (await db.doc('settings/general').get()).data();
     const identity = restaurantIdentity(configuration?.restaurant);
-    const message = job.kind === 'mailing-confirmation' ? renderMailingConfirmation(job as Parameters<typeof renderMailingConfirmation>[0], identity)
+    const message = job.kind === 'marketing' ? renderMarketingNotification(job as Parameters<typeof renderMarketingNotification>[0])
+      : job.kind === 'mailing-confirmation' ? renderMailingConfirmation(job as Parameters<typeof renderMailingConfirmation>[0], identity)
       : ['follow-up', 'feedback-received'].includes(job.kind) ? renderFeedbackNotification(job as Parameters<typeof renderFeedbackNotification>[0], identity)
       : job.kind === 'reservation-share' ? renderReservationInvitation(job as Parameters<typeof renderReservationInvitation>[0], identity)
       : job.kind === 'catering' ? renderCateringNotification(job as Parameters<typeof renderCateringNotification>[0], identity)
@@ -113,6 +127,10 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
     if (current?.lease !== lease) return;
     tx.update(ref, { state: state === 'failed' && current.attempts >= 5 ? 'exhausted' : state, lastAttemptAt: new Date(), nextAttemptAt: new Date(Date.now() + Math.min(3600, 60 * 2 ** current.attempts) * 1000),
       deliveryMode, providerMessageId, lastError: state === 'failed' ? 'provider-delivery-failed' : null, leaseUntil: null });
+    if (job.kind === 'marketing') {
+      tx.update(db.doc(`marketingCampaigns/${job.campaignId}`), { state: state === 'failed' && current.attempts >= 5 ? 'exhausted' : state === 'failed' ? 'queued' : 'delivered', lastAttemptAt: new Date().toISOString(), deliveryMode, attempts: current.attempts });
+      return;
+    }
     tx.create(db.doc(`${job.kind === 'mailing-confirmation' ? `mailingContacts/${job.entityId}` : job.kind === 'catering' ? `catering/${job.entityId}` : `reservations/${job.reservationId}`}/events/${randomUUID()}`), {
       event: `notification.${state}`, actor: 'system', channel: job.channel || 'email', recipient: job.recipient, notificationId: id, timestamp: new Date(),
     });
