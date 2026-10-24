@@ -1,4 +1,5 @@
 'use client';
+import MarketingTestModal from '@/components/marketing/MarketingTestModal';
 import { useCallback, useEffect, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ interface History { id: string; candidate: MarketingCandidate; subject: string; 
 interface Queue { candidates: Candidate[]; history: History[]; today: string }
 export default function MarketingPage() {
   const [data, setData] = useState<Queue | null>(null), [kind, setKind] = useState<MarketingKind>('reservation');
+  const [testOpen, setTestOpen] = useState(false);
   const [selected, setSelected] = useState<string[]>([]), [review, setReview] = useState<Candidate[]>([]);
   const [busy, setBusy] = useState(false), [loading, setLoading] = useState(true), [error, setError] = useState(''), [notice, setNotice] = useState('');
   const load = useCallback(async () => {
@@ -39,7 +41,7 @@ export default function MarketingPage() {
     finally { setBusy(false); }
   }
   return <AdminLayout><main className="mx-auto max-w-6xl space-y-6 p-4 sm:p-8">
-    <div className="flex flex-wrap items-center justify-between gap-4"><div><h1 className="text-3xl font-semibold">Marketing follow-ups</h1><p className="mt-2 text-sm text-muted-foreground">Welcome customers back after more than 30 days. Every email requires your approval.</p></div><Button variant="outline" disabled={loading || busy} onClick={() => void load()}>{loading ? 'Refreshing…' : 'Refresh queue & history'}</Button></div>
+    <div className="flex flex-wrap items-center justify-between gap-4"><div><h1 className="text-3xl font-semibold">Marketing follow-ups</h1><p className="mt-2 text-sm text-muted-foreground">Welcome customers back after more than 30 days. Every email requires your approval.</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" disabled={busy} onClick={() => setTestOpen(true)}>Send test email</Button><Button variant="outline" disabled={loading || busy} onClick={() => void load()}>{loading ? 'Refreshing…' : 'Refresh queue & history'}</Button></div></div>
     <div className="flex flex-wrap gap-2" aria-label="Follow-up category">{(['reservation', 'catering'] as const).map(value => <Button key={value} variant={kind === value ? 'default' : 'outline'} aria-pressed={kind === value} disabled={busy} onClick={() => { setKind(value); setSelected([]); }}>{value === 'reservation' ? 'Reservations' : 'Catering'}</Button>)}</div>
     <p className="text-sm text-muted-foreground">{kind === 'reservation' ? 'Based on the latest pending, confirmed, or completed reservation date.' : 'Based on the latest completed catering event date; inquiries alone do not qualify.'} Upcoming bookings, unsubscribed customers, test records, and previously handled follow-ups are excluded. One follow-up per customer and inactive period, in each category.</p>
     {notice && <p role="status" className="rounded-lg border p-4">{notice}</p>}{error && <p role="alert" className="text-destructive">{error}</p>}
@@ -51,5 +53,6 @@ export default function MarketingPage() {
     </section>}
     <section className="space-y-4"><h2 className="text-xl font-semibold">Approval & delivery history</h2><p className="text-sm text-muted-foreground">Latest 200 follow-ups across both categories. Queued emails are approved but not yet delivered. Captured emails were saved for testing.</p>{!history.length && <p className="text-sm text-muted-foreground">No follow-ups handled yet.</p>}{history.map(item => <details key={item.id} className="rounded-xl border p-4"><summary className="min-h-11 cursor-pointer break-words">{item.candidate.name} · {item.candidate.email} · <span className="font-semibold">{item.state === 'delivered' && item.deliveryMode === 'capture' ? 'Captured for testing' : item.state === 'delivered' ? 'Sent to email provider' : item.state}</span></summary><p className="text-sm text-muted-foreground">Approved/handled: {new Date(item.approvedAt).toLocaleString()} · Attempts: {item.attempts || 0}</p><h3 className="mt-3 font-semibold">{item.subject}</h3><p className="mt-2 whitespace-pre-wrap break-words text-sm">{item.body}</p></details>)}</section>
     <Dialog open={review.length > 0} onOpenChange={open => { if (!open && !busy) setReview([]); }}><DialogContent showCloseButton={!busy} className="max-h-[85vh] overflow-y-auto"><DialogTitle>Review {review.length} follow-up email{review.length === 1 ? '' : 's'}</DialogTitle><DialogDescription>Approval queues these exact emails for sending. Each email includes an unsubscribe link. No email is sent when you dismiss or close this review.</DialogDescription>{review.map(item => <article key={item.id} className="space-y-3 rounded-lg border p-4"><p className="break-all text-sm">To: {item.name} · {item.email}</p><h3 className="font-semibold">{item.subject}</h3><p className="whitespace-pre-wrap break-words text-sm">{item.body}</p><p className="text-xs text-muted-foreground">Unsubscribe from restaurant marketing emails</p></article>)}{error && <p role="alert" className="text-destructive">{error}</p>}<div className="flex flex-wrap gap-2"><Button variant="outline" disabled={busy} onClick={() => setReview([])}>Keep for later</Button><Button variant="outline" disabled={busy} onClick={() => void act(review, 'dismiss')}>Dismiss follow-up{review.length === 1 ? '' : 's'}</Button><Button disabled={busy} onClick={() => void act(review, 'approve')}>{busy ? 'Saving…' : `Approve & send ${review.length} email${review.length === 1 ? '' : 's'}`}</Button></div></DialogContent></Dialog>
+    {testOpen && <MarketingTestModal initialKind={kind} onClose={() => setTestOpen(false)} />}
   </main></AdminLayout>;
 }

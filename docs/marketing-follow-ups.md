@@ -13,3 +13,9 @@ Emails include the restaurant address, a reservation/catering link, and a signed
 Configuration: server Firebase access, `ADMIN_SESSION_SECRET`, `NEXT_PUBLIC_BASE_URL`, `EMAIL_USER`/`EMAIL_PASS` and the existing SMTP settings. General settings must include a valid restaurant timezone. Use capture mode for testing. The authenticated notification worker must run to recover interrupted sends. Full histories are scanned for correctness; if data volume outgrows this approach, introduce transactionally maintained customer activity aggregates before adding pagination to the history reads (a truncated history can hide a newer booking).
 
 Deployment is intentionally pending. Deploy app code and Firestore rules together: marketingCampaigns and marketingSuppressions are server-only, even for client SDK staff sessions. No existing customers are contacted by opening the queue or deploying this feature.
+
+## Presentation and test emails
+
+Use **Send test email** on Marketing follow-ups. The modal starts with blank recipient fields, supports either follow-up category, and previews the same message body with the optional name. Test copies add `[TEST]` to the subject and a test notice instead of an active unsubscribe link. They send only to the single typed address and neither approve customer campaigns nor subscribe/unsubscribe recipients.
+
+Preview and send APIs require staff authentication; mutations retain origin protection. Sending is limited to five requests per staff session per 15 minutes. Each request has an idempotency key, preserves the reviewed configuration, and creates only a `marketing-test` notification outbox job. The normal leased worker can recover delivery; the modal reports provider acceptance or staging capture. Test status is scoped to the staff session that submitted it. Opening the modal, editing fields, or switching templates never sends a message.

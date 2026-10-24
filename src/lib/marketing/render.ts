@@ -17,3 +17,15 @@ export function renderMarketingNotification(job: { candidate: MarketingCandidate
     headers: { 'List-Unsubscribe': `<${job.unsubscribeUrl.replace('/marketing/unsubscribe?', '/api/marketing/unsubscribe?')}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
     html: `<main style="font-family:Arial,sans-serif;max-width:600px;padding:24px;white-space:pre-wrap">${escapeHtml(job.body)}<p><a href="${escapeHtml(job.unsubscribeUrl)}">Unsubscribe from restaurant marketing emails</a></p></main>` };
 }
+
+export function marketingTestMessage(copy: { subject: string; body: string }) {
+  const note = 'This is a test email. No customer follow-up was approved and no mailing preferences were changed.';
+  return {
+    subject: `[TEST] ${copy.subject}`,
+    text: `${copy.body}\n\n${note}`,
+    html: `<main style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px;color:#1c1c1c;background:#ffffff"><p style="font-size:12px;letter-spacing:2px;color:#66734f;margin:0 0 24px">TEST PREVIEW</p><div style="white-space:pre-wrap;line-height:1.65">${escapeHtml(copy.body)}</div><p style="border-top:1px solid #e5e5e5;padding-top:20px;margin-top:24px;font-size:12px;line-height:1.6;color:#666">${note}</p></main>`,
+  };
+}
+export function renderMarketingTestNotification(job: { email: string; subject: string; body: string }) {
+  return { from: process.env.EMAIL_USER, to: job.email, ...marketingTestMessage(job) };
+}

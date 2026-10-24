@@ -16,6 +16,7 @@ async function mount(t, fail = false) {
     module, exports: module.exports, Date,
     fetch: async (url, options = {}) => { calls.push({ url, ...options }); return { ok: !fail || options.method !== 'POST', json: async () => options.method === 'POST' ? fail ? { error: 'Selection is stale; refresh.' } : { queued: 2 } : { candidates: guests, history: [], today: '2026-10-23' } }; },
     require: name => {
+      if (name === '@/components/marketing/MarketingTestModal') return { __esModule: true, default: () => React.createElement('test-modal') };
       if (name === '@/components/AdminLayout') return { __esModule: true, default: ({ children }) => React.createElement('div', {}, children) };
       if (name === '@/components/ui/button') return { Button: props => React.createElement('button', props) };
       if (name === '@/components/ui/dialog') return { Dialog: ({ open, children }) => open ? React.createElement('dialog', {}, children) : null,
