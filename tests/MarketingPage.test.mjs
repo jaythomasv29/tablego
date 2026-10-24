@@ -21,6 +21,7 @@ async function mount(t, fail = false) {
       if (name === '@/components/ui/button') return { Button: props => React.createElement('button', props) };
       if (name === '@/components/ui/dialog') return { Dialog: ({ open, children }) => open ? React.createElement('dialog', {}, children) : null,
         DialogContent: props => React.createElement('div', props), DialogTitle: props => React.createElement('h2', props), DialogDescription: props => React.createElement('p', props) };
+      if (name === '@/lib/marketing/render') return { marketingReviewHtml: () => '<html>Preview</html>' };
       if (name === '@/utils/dateUtils') return { formatDateForDisplay: value => value };
       return normalRequire(name);
     },

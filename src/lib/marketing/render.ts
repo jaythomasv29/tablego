@@ -74,6 +74,9 @@ ${d ? `<p style="margin:0 0 8px;font:italic 20px/1.5 Georgia,'Times New Roman',s
 </td></tr><tr><td align="center" style="padding:20px 20px 6px;">${footer}</td></tr>
 </table></body></html>`;
 }
+export function marketingReviewHtml(copy: MarketingCopy) {
+  return brandedMarketingHtml(copy, { unsubscribeUrl: '#' });
+}
 export function renderMarketingNotification(job: MarketingCopy & { candidate: MarketingCandidate; unsubscribeUrl: string }) {
   return { from: process.env.EMAIL_USER, to: job.candidate.email, subject: job.subject,
     text: `${job.body}\n\nUnsubscribe from restaurant marketing emails: ${job.unsubscribeUrl}`,

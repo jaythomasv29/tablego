@@ -7,7 +7,7 @@ import { restaurantClock } from '../reservations/availability';
 import { restaurantIdentity } from '../restaurant/config';
 import { ReservationError } from '../reservations/http';
 import { inactiveCustomers, type MarketingCandidate } from './policy';
-import { marketingCopy, renderMarketingNotification, type MarketingDesign } from './render';
+import { marketingCopy, type MarketingDesign } from './render';
 import type { Transaction } from 'firebase-admin/firestore';
 
 export const emailKey = (email: string) => createHash('sha256').update(email.trim().toLowerCase()).digest('hex');
@@ -64,7 +64,7 @@ export async function marketingQueue() {
   const snapshot = await marketingSnapshot();
   const existing = new Set(snapshot.history.map(item => item.id));
   return { today: snapshot.today,
-    candidates: snapshot.candidates.filter(item => !existing.has(item.id)).map(item => { const copy = marketingCopy(item, snapshot.restaurant, baseUrl()); return { ...item, ...copy, html: renderMarketingNotification({ candidate: item, ...copy, unsubscribeUrl: unsubscribeUrl(item.email) }).html, previewHash: previewHash(copy.subject, copy.body, copy.design) }; }),
+    candidates: snapshot.candidates.filter(item => !existing.has(item.id)).map(item => { const copy = marketingCopy(item, snapshot.restaurant, baseUrl()); return { ...item, ...copy, previewHash: previewHash(copy.subject, copy.body, copy.design) }; }),
     history: snapshot.history.sort((a, b) => String((b as Record<string, unknown>).approvedAt || '').localeCompare(String((a as Record<string, unknown>).approvedAt || ''))).slice(0, 200),
   };
 }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { marketingCopy, marketingTestMessage, renderMarketingNotification } from '../src/lib/marketing/render.ts';
+import { marketingCopy, marketingTestMessage, renderMarketingNotification, marketingReviewHtml } from '../src/lib/marketing/render.ts';
 import { restaurantIdentity } from '../src/lib/restaurant/config.ts';
 const restaurant = restaurantIdentity({});
 const candidate = kind => ({ id: 'synthetic', kind, name: 'Alex & Family', email: 'alex@example.invalid', lastDate: '2026-01-01', inactiveDays: 50 });
@@ -17,6 +17,11 @@ test('reservation and catering designs have matching branded envelopes and disti
     assert.ok(email.html.includes(`href="tel:${restaurant.phone}"`));
     assert.ok(email.html.includes('Unsubscribe from restaurant marketing emails'));
     assert.ok(email.text.includes(copy.body));
+    const review = marketingReviewHtml(copy);
+    assert.ok(review.includes(copy.design.actionLabel));
+    assert.ok(!review.includes('TEST PREVIEW'));
+    assert.ok(review.includes('Unsubscribe from restaurant marketing emails'));
+    assert.ok(!('html' in copy), 'queue stores compact design data, not a full HTML document');
     const preview = marketingTestMessage(copy);
     assert.ok(preview.html.includes(copy.design.actionLabel));
     assert.ok(preview.html.includes(copy.design.featureTitle));
@@ -47,4 +52,10 @@ test('email design escapes restaurant and guest text and rejects unsafe CTA prot
   assert.ok(!html.includes('<script>')); assert.ok(!html.includes('<img onerror='));
   assert.ok(html.includes('&lt;script&gt;'));
   assert.ok(!html.includes('href="javascript:'));
+});
+
+test('a large queue keeps compact design snapshots and renders HTML only on demand', () => {
+  const rows = Array.from({ length: 1000 }, (_, index) => marketingCopy({ kind: 'reservation', name: `Guest ${index}` }, restaurant, 'https://example.com'));
+  assert.ok(Buffer.byteLength(JSON.stringify(rows)) < 3 * 1024 * 1024);
+  assert.ok(!rows.some(row => Object.hasOwn(row, 'html')));
 });
