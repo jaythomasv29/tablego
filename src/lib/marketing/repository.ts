@@ -7,12 +7,12 @@ import { restaurantClock } from '../reservations/availability';
 import { restaurantIdentity } from '../restaurant/config';
 import { ReservationError } from '../reservations/http';
 import { inactiveCustomers, type MarketingCandidate } from './policy';
-import { marketingCopy } from './render';
+import { marketingCopy, renderMarketingNotification, type MarketingDesign } from './render';
 import type { Transaction } from 'firebase-admin/firestore';
 
 export const emailKey = (email: string) => createHash('sha256').update(email.trim().toLowerCase()).digest('hex');
 export const campaignId = (candidate: Omit<MarketingCandidate, 'id'>) => createHash('sha256').update(`${candidate.kind}:${candidate.email}:${candidate.lastDate}`).digest('hex');
-export const previewHash = (subject: string, body: string) => createHash('sha256').update(JSON.stringify({ subject, body })).digest('hex');
+export const previewHash = (subject: string, body: string, design?: MarketingDesign) => createHash('sha256').update(JSON.stringify({ subject, body, ...(design ? { design } : {}) })).digest('hex');
 function baseUrl() {
   const url = new URL(process.env.NEXT_PUBLIC_BASE_URL || '');
   if (!['https:', 'http:'].includes(url.protocol)) throw new Error('Public base URL is required');
@@ -64,7 +64,7 @@ export async function marketingQueue() {
   const snapshot = await marketingSnapshot();
   const existing = new Set(snapshot.history.map(item => item.id));
   return { today: snapshot.today,
-    candidates: snapshot.candidates.filter(item => !existing.has(item.id)).map(item => { const copy = marketingCopy(item, snapshot.restaurant, baseUrl()); return { ...item, ...copy, previewHash: previewHash(copy.subject, copy.body) }; }),
+    candidates: snapshot.candidates.filter(item => !existing.has(item.id)).map(item => { const copy = marketingCopy(item, snapshot.restaurant, baseUrl()); return { ...item, ...copy, html: renderMarketingNotification({ candidate: item, ...copy, unsubscribeUrl: unsubscribeUrl(item.email) }).html, previewHash: previewHash(copy.subject, copy.body, copy.design) }; }),
     history: snapshot.history.sort((a, b) => String((b as Record<string, unknown>).approvedAt || '').localeCompare(String((a as Record<string, unknown>).approvedAt || ''))).slice(0, 200),
   };
 }
@@ -79,7 +79,7 @@ export async function approveMarketing(ids: string[], actor: string, action: 'ap
       if (!candidate && !existing.has(id)) throw new ReservationError('A selected customer is no longer eligible. Refresh the queue.', 409);
       if (candidate && !existing.has(id) && action === 'approve') {
         const copy = marketingCopy(candidate, snapshot.restaurant, baseUrl());
-        if (previews[id] !== previewHash(copy.subject, copy.body)) throw new ReservationError('The email preview changed. Refresh and review it again before approving.', 409);
+        if (previews[id] !== previewHash(copy.subject, copy.body, copy.design)) throw new ReservationError('The email preview changed. Refresh and review it again before approving.', 409);
       }
       return candidate;
     });

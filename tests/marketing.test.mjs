@@ -77,7 +77,7 @@ function fixture() {
       const snapshot = await db.runTransaction(tx => repository.marketingSnapshot(tx));
       previews = Object.fromEntries(snapshot.candidates.map(item => {
         const copy = render.marketingCopy(item, restaurant, process.env.NEXT_PUBLIC_BASE_URL);
-        return [item.id, repository.previewHash(copy.subject, copy.body)];
+        return [item.id, repository.previewHash(copy.subject, copy.body, copy.design)];
       }));
     }
     return approve(ids, actor, action, previews);
@@ -100,6 +100,11 @@ test('approval, delivery revalidation, unsubscribe and duplicate protection', as
       assert.equal(job.candidate.email, 'guest@example.com');
       assert.equal(records.get(`marketingCampaigns/${id}`).approvedBy, 'staff-session');
       assert.equal(Array.from(records.keys()).filter(key => key.startsWith('notificationOutbox/')).length, 1);
+    });
+    await t.test('approval hashes bind brand and action metadata as well as the message text', async () => {
+      const { repository } = fixture();
+      const text = { subject: 'Subject', body: 'Body' };
+      assert.notEqual(repository.previewHash(text.subject, text.body, { brand: 'Original' }), repository.previewHash(text.subject, text.body, { brand: 'Changed' }));
     });
     await t.test('changed email previews cannot be approved without another review', async () => {
       const { records, db, repository } = fixture();
