@@ -40,7 +40,7 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
     if (!record || !['queued', 'failed', 'sending'].includes(record.state) || record.nextAttemptAt.toMillis() > Date.now() ||
       (record.state === 'sending' && record.leaseUntil?.toMillis() > Date.now())) return null;
     if (record.attempts >= 5) { tx.update(ref, { state: 'exhausted', lastError: 'attempt-limit-reached' }); return null; }
-    if (record.kind === 'marketing-test') {
+    if (record.kind === 'work' || record.kind === 'marketing-test') {
       tx.update(ref, { state: 'sending', lease, leaseUntil: new Date(Date.now() + 120_000), nextAttemptAt: new Date(Date.now() + 120_000), attempts: record.attempts + 1 });
       return record;
     }
@@ -108,7 +108,8 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
   try {
     const configuration = (await db.doc('settings/general').get()).data();
     const identity = restaurantIdentity(configuration?.restaurant);
-    const message = job.kind === 'marketing-test' ? renderMarketingTestNotification(job as Parameters<typeof renderMarketingTestNotification>[0])
+    const message = job.kind === 'work' ? (await import('../work/render')).renderWorkNotification(job as import('../work/render').WorkNotification, identity)
+      : job.kind === 'marketing-test' ? renderMarketingTestNotification(job as Parameters<typeof renderMarketingTestNotification>[0])
       : job.kind === 'marketing' ? renderMarketingNotification(job as Parameters<typeof renderMarketingNotification>[0])
       : job.kind === 'mailing-confirmation' ? renderMailingConfirmation(job as Parameters<typeof renderMailingConfirmation>[0], identity)
       : ['follow-up', 'feedback-received'].includes(job.kind) ? renderFeedbackNotification(job as Parameters<typeof renderFeedbackNotification>[0], identity)
@@ -132,6 +133,10 @@ export async function deliverNotification(id: string): Promise<'delivered' | 'fa
     if (current?.lease !== lease) return;
     tx.update(ref, { state: state === 'failed' && current.attempts >= 5 ? 'exhausted' : state, lastAttemptAt: new Date(), nextAttemptAt: new Date(Date.now() + Math.min(3600, 60 * 2 ** current.attempts) * 1000),
       deliveryMode, providerMessageId, lastError: state === 'failed' ? 'provider-delivery-failed' : null, leaseUntil: null });
+    if (job.kind === 'work') {
+      tx.create(db.doc(`workDays/${job.date}/events/${randomUUID()}`), { action: `notification.${state}`, notificationId: id, at: new Date().toISOString(), deliveryMode });
+      return;
+    }
     if (job.kind === 'marketing-test') return;
     if (job.kind === 'marketing') {
       tx.update(db.doc(`marketingCampaigns/${job.campaignId}`), { state: state === 'failed' && current.attempts >= 5 ? 'exhausted' : state === 'failed' ? 'queued' : 'delivered', lastAttemptAt: new Date().toISOString(), deliveryMode, attempts: current.attempts });

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Home, Calendar, Clock, CalendarDays, Utensils, BookText,
-  MessageSquare, Mail, Flag, Settings, Users, Package, Eye, EyeOff, Printer, TrendingUp,
+  MessageSquare, Mail, Flag, Settings, Users, Package, Eye, EyeOff, Printer, TrendingUp, ClipboardCheck,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -25,8 +25,8 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 
-const HIDEABLE = ['inventory', 'team', 'messages'];
-const DEFAULT_HIDDEN = ['inventory', 'team', 'messages'];
+const HIDEABLE = ['team', 'messages'];
+const DEFAULT_HIDDEN = ['team', 'messages'];
 let mailingBadge: { value: number; fetchedAt: number } | null = null;
 
 const NAV_GROUPS = [
@@ -38,8 +38,9 @@ const NAV_GROUPS = [
     { id: 'no-shows', href: '/admin/no-shows', label: 'No-show history', icon: Flag },
   ] },
   { label: 'Restaurant Operations', items: [
+    { id: 'work', href: '/admin/work', label: 'Work', icon: ClipboardCheck },
     { id: 'team', href: '/admin/team', label: 'Team View', icon: Users },
-    { id: 'inventory', href: '/admin/inventory', label: 'Inventory', icon: Package },
+    { id: 'inventory', href: '/admin/inventory/check', label: 'Inventory', icon: Package },
     { id: 'hours', href: '/admin/hours', label: 'Hours', icon: Clock },
     { id: 'special-dates', href: '/admin/special-dates', label: 'Business Holidays', icon: Calendar },
     { id: 'cater', href: '/admin/cater', label: 'Catering', icon: Utensils },
@@ -67,7 +68,7 @@ export default function AdminSidebar() {
   useEffect(() => {
     const stored = localStorage.getItem('admin-hidden-links');
     if (stored !== null) {
-      try { setHiddenLinks(JSON.parse(stored)); } catch {}
+      try { setHiddenLinks(JSON.parse(stored).filter((id: string) => id !== 'inventory')); } catch {}
     }
   }, []);
 

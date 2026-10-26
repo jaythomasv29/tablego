@@ -39,7 +39,7 @@ function LoginForm() {
         router.push(callbackUrl);
       } else {
         setError(response.status === 401
-          ? mode === 'pin' ? 'That code didn’t match. Enter the last 4 digits of the restaurant telephone number.' : 'Incorrect username or password.'
+          ? mode === 'pin' ? 'That PIN didn’t match. Please try again.' : 'Incorrect username or password.'
           : response.status === 429 ? 'Too many sign-in attempts. Please try again in 15 minutes.'
             : 'Sign-in is temporarily unavailable. Please try again shortly.');
       }
@@ -52,7 +52,7 @@ function LoginForm() {
   function editPin(value: string) { setPin(value.replace(/\D/g, '').slice(0, 4)); setError(''); }
 
   return <div className="w-full max-w-sm space-y-6 rounded-2xl border border-border bg-card p-6 shadow-xl sm:p-8">
-    <div className="space-y-2 text-center"><h1 className="text-2xl font-bold tracking-tight">Staff sign in</h1><p id="login-instructions" className="text-sm text-muted-foreground">{mode === 'pin' ? 'Enter the last 4 digits of the restaurant telephone number.' : 'Enter your admin username and password.'}</p></div>
+    <div className="space-y-2 text-center"><h1 className="text-2xl font-bold tracking-tight">Staff sign in</h1><p id="login-instructions" className="text-sm text-muted-foreground">{mode === 'pin' ? 'Enter your staff PIN.' : 'Enter your admin username and password.'}</p></div>
     <form className="space-y-4" onSubmit={handleSubmit}>
       {mode === 'pin' ? <div className="space-y-4">
         <Label htmlFor="pin" className="sr-only">4-digit restaurant code</Label>

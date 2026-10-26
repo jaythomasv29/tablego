@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import {
     collection, addDoc, updateDoc, deleteDoc, doc,
@@ -214,6 +215,7 @@ export default function InventoryPage() {
 
     return (
         <div className="p-4 sm:p-6 max-w-5xl mx-auto">
+            <Link href="/admin/inventory/check" className="mb-4 inline-flex min-h-12 items-center rounded-lg border px-4 font-semibold">Open Daily Inventory Check →</Link>
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">

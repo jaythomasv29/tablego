@@ -1,0 +1,54 @@
+# Work shift board
+
+`/admin/work` is the staff calendar and station checklist. Open shifts get recurring opening, service, and closing checkpoints. The starter front-of-house opening checklist covers patio, soft drinks, liquor, to-go supplies, condiments, plates, and silverware. Back-of-house and prep starters can be edited to match actual procedures.
+
+## Schedule and planning
+
+The default **Work schedule** is Sunday 4–9 PM; Monday/Tuesday 11 AM–2 PM and 4–9 PM; Wednesday/Thursday 11 AM–2 PM and 4–9:30 PM; Friday 11 AM–2 PM and 4–10 PM; Saturday 4–9:30 PM. Work hours are independent of reservation hours. In **Recurring tasks → Shift hours**, edit this schedule or choose restaurant booking hours. Both modes honor full-day and lunch/dinner closures in Business Holidays. Existing saved days retain their schedule when hours or closures change; review already-started days manually when operations change unexpectedly.
+
+Recurring task timing is a minute offset from shift opening (opening/service checkpoints) or closing (closing checkpoints). Negative offsets allow pre-opening tasks. Dates and due states use the restaurant timezone, including DST. Same-day, same-shift custom ranges are supported when following booking hours. Overnight shifts are not supported. Due tasks become overdue after 30 minutes. All tasks remain visible rather than disappearing when their time passes. A date picker and seven-day strip navigate past and future days.
+
+Reading a day creates no records. Its first check-in, assignment, or reassignment atomically saves the complete daily plan and its settings version. Subsequent recurring-plan changes apply to unstarted days. Optimistic versions prevent one device overwriting another device's check-in. Settings edits also reject stale versions. Day limit: 500 tasks; recurring limit: 160 templates.
+
+Managers can assign one-off tasks to an open shift and any named station, and reassign open tasks to a different station or employee/team. Recurring templates support stations, assignments, lunch/dinner/both, checkpoints, offsets, disable, and removal. Completed tasks must be reopened before reassignment. Future-day check-ins are rejected server-side. Prior unfinished tasks stay on their original date; there is no automatic carry-over or scheduled escalation.
+
+## Check-ins and access
+
+Each new completion records the optional roster-selected crew member ID, saved name or station team default, crew, server timestamp, optional note, signed-in staff session in the private audit event, and before/after task details. Work crew lists start with the owner-supplied 23 names (2 managers, 8 FOH, 13 kitchen) and are editable under Crew & recurring tasks. These Work lists are independent of Team View scheduling. Managers appear in both dropdowns; FOH and kitchen members appear only for their mapped station. Back of house and Prep default to kitchen; other stations default to FOH and can be remapped in settings. Removing or renaming a roster entry never rewrites saved completions. Leaving the name unselected saves FOH-Team or BOH-Team according to the station mapping. The server rejects explicitly selected removed or wrong-crew member IDs and takes selected names from the roster, not client text. Older settings without crew data receive the starter roster on read; explicit empty lists stay empty.
+
+The daily activity log shows the latest 80 events. Reopening preserves previous completion in the audit trail. TableGo currently uses shared staff access: crew selections are labels, not independently verified employee accounts. All authenticated staff can manage recurring plans and assignments; no separate manager role is implied.
+
+`/api/staff/work` GET reads the board or dated history; POST changes daily tasks; PUT updates recurring settings. All actions require a valid active staff session, and mutations reject cross-site requests. `workSettings` and `workDays` (including audit subcollections) are server-only in Firestore rules. Deploy these rules with the feature before production use.
+
+## Checkpoint email
+
+One email is queued when the last task in a **station + checkpoint + shift range + date** is completed. Six front-of-house opening tasks produce one report, not six. Separate back-of-house and prep checkpoints produce their own reports. Reports go to `EMAIL_USER`, the existing restaurant notification recipient, using the branded Work email. Disable future reports in Recurring tasks; queued reports are unaffected. No deadline emails or automatic daily summary are implemented.
+
+The task completion, audit event, checkpoint marker, and deterministic outbox intent commit in one transaction. The existing durable worker handles retries and immediate best-effort delivery. The report is an immutable record of the completed checklist at that time; reopening or adding tasks later updates the board but does not retract or repeat that checkpoint's report. Normal SMTP delivery has the same at-least-once retry caveat as existing reservation mail (a crash after provider acceptance can cause a retry). The activity log records delivered/failed attempts and capture mode.
+
+Local staging uses capture transport. No real email is sent. Production uses existing SMTP configuration; no credentials or staff sessions need changing. No automatic production data migration is required.
+
+## Verification
+
+`tests/work.test.mjs` covers schedule generation, holiday closures, split ranges, DST, due states, input limits, frozen day plans, stale writes, assignments, future check-ins, checkpoint deduplication, disabled mail, escaped email content, and endpoint authorization. The staging smoke flow verifies API authentication, six completions producing one report, audit history, and a stale-device conflict. Browser verification covers check-in, persistence, recurring schedule editing, assignment, and responsive layout.
+
+## iPad motion
+
+The Work board includes a pulsing current-time beacon and moving timeline highlight, a gentle border pulse on today's overdue summary, brief checkpoint entrances, animated progress updates, and a short check-in confirmation. Due and overdue tasks also have static text and station border cues. Check-in targets are 48×48 pixels. **Pause motion** disables the board's animations and transitions and remembers the choice on this device. System reduced-motion settings disable them automatically; motion also stops while the page is hidden. No sound or notification behavior changes with these effects.
+
+The station view now uses vivid blue (front of house), purple (back of house), orange (prep), and teal (custom stations) headers. Amber marks tasks due now; red marks overdue check-ins; green confirms completed work. These states also have explicit text labels. Large labeled Confirm buttons open a named check-in prompt; the prompt asks staff to confirm only finished work. Completion receipts visibly show the staff-entered name and time. A prominent next-checkpoint panel jumps to the first unfinished checkpoint, while the week picker collapses to keep the work view focused. Existing audit and email behavior is unchanged.
+
+
+Selecting a station switches to a compact focus view: whole task rows are buttons, management actions stay on separate 44px controls, completion receipts fit on a metadata line, and long notes are available by reviewing the completed task. A station progress ring and cleared-checkpoint count use actual saved completions. The +1 feedback means one confirmed task; no points or streaks are fabricated or stored. The shared iPad does not remember or preselect the last completion identity. Optional notes are collapsed in the confirmation dialog. On each task, the name dropdown follows the task's station rather than the current filter.
+
+Each task now has an explicit right-hand **Completed** button, rather than making the task title/row the action. The button opens the station-appropriate crew selection. After the server saves a check-in, its button turns green and briefly pops; a local sparkle/+1 effect plays and a fixed, dismissible toast shows the task and selected name. Toasts expire after 4.5 seconds and do not shift the checklist. The progress and celebration only update on a successful save. Motion pause, reduced-motion preferences, and hidden-page behavior still apply. Completed buttons open the saved receipt/reopen flow rather than silently toggling completion.
+
+FOH opening adds **Sweep dining area** and **Set up sanitization bucket**. Closing adds **Sweep dining area (closing)**, **Sanitize and check bathrooms**, **Take out bathroom trash**, **Empty bar trash**, **Charge third-party tablets**, **Charge server POS iPads**, and **Close account**. These recurring defaults apply to both open shifts. Existing saved-day snapshots remain stable; the local staging preview's current day was explicitly updated with the new tasks, preserving previous completions. The green Completed button displays the saved completion time using the saved day's restaurant timezone, rather than the device timezone. The name and timestamp remain in the task row and receipt as well.
+
+The current Work palette uses quiet neutral surfaces and muted sage accents, with color reserved for completion and due/overdue cues. Selecting a station lays out tasks in a responsive grid of compact tiles, keeping single-task checkpoints at the same tile width rather than stretching across the screen. iPad portrait fits two tiles per row when the sidebar is collapsed; landscape fits three. On narrow content areas the grid falls back to one column. **Mark Complete** is the unfinished action label; finished buttons retain **Completed** and the saved time. Assignment controls are available via the **Assignments** toggle rather than occupying each task by default. Existing crew confirmation, completion records, and short success feedback are preserved.
+
+## Goods checks and optional completion names
+
+The starter plan includes one Inventory Check task at BOH opening for both lunch and dinner. Its dedicated inventory screen holds 117 deduplicated goods checks, with six sections and search. Goods no longer crowd the Work checklist. See [Inventory Check](inventory.md) for counting, order requests, next-day rechecks, and completion rules. Reference package sizes are supplier notes, not stock minimums or reorder thresholds. See [the goods catalog](work-goods.md) for deduplication and uncertain supplier labels. Existing started days retain their saved plans.
+
+Completion names are optional and default to FOH-Team or BOH-Team; choosing a roster member remains available. Receipts and checkpoint emails retain the team/person name and server completion time. The current neutral palette remains unchanged. A larger sticky current-time marker, stronger pulsing beacon, and thicker moving timeline highlight improve visibility; motion pause and reduced-motion settings still apply.

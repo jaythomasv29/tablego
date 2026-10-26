@@ -105,7 +105,10 @@ test('incomplete PIN never sends and duplicate submit is ignored while signing i
   act(() => { submit(renderer); submit(renderer); }); assert.equal(calls.length, 1);
   assert.equal(renderer.root.findByProps({ id: 'pin' }).props.disabled, true);
   await act(async () => finish({ ok: false, status: 401 }));
-  assert.ok(renderer.root.findByProps({ role: 'alert' }).children.join('').includes('That code didn’t match'));
+  const message = renderer.root.findByProps({ role: 'alert' }).children.join('');
+  assert.ok(message.includes('That PIN didn’t match'));
+  assert.doesNotMatch(message, /telephone|last 4/i);
+  assert.equal(renderer.root.findByProps({ id: 'login-instructions' }).children.join(''), 'Enter your staff PIN.');
 });
 test('username/password remains available and PIN mode can be restored', async t => {
   const { renderer, calls } = await mount(t);
