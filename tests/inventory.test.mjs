@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inventoryChange, inventoryChecked, inventoryReady, inventoryOrderText, inventoryDefaultUnit, nextInventoryDate } from '../src/lib/inventory/model.ts';
+import { inventoryTileState, inventoryChange, inventoryChecked, inventoryReady, inventoryOrderText, inventoryDefaultUnit, nextInventoryDate } from '../src/lib/inventory/model.ts';
 import { workGoods } from '../src/lib/work/goods.ts';
 const date = '2026-10-25', at = '2026-10-25T22:00:00Z';
 const input = { itemId: workGoods[0].id, quantity: 2.5, unit: 'lb', action: 'sufficient', version: 0, orderQuantity: 2, orderUnit: 'case' };
@@ -44,4 +44,16 @@ test('shared list includes every open request and its buy quantity, not sufficie
   assert.match(text, /3 case to order/); assert.match(text, /on hand 0 lb/);
   assert.equal(inventoryOrderText({ [workGoods[0].id]: { ...item, orderOpen: false } }), 'Restaurant order list');
   assert.equal(inventoryDefaultUnit('5 lb bag'), 'bag'); assert.equal(inventoryDefaultUnit('4 lbs'), 'lb'); assert.equal(inventoryDefaultUnit('Bunch'), 'bunch');
+});
+test('can works for counting, ordering, and package defaults', () => {
+  const item = inventoryChange({ ...input, unit: 'can', action: 'order', orderUnit: 'can', orderQuantity: 12 }, undefined, date, at, 'BOH-Team');
+  assert.equal(item.unit, 'can'); assert.equal(item.orderUnit, 'can'); assert.equal(inventoryDefaultUnit('6 cans'), 'can');
+});
+test('tile cues distinguish zero stock, open orders, fresh checks, and old checks', () => {
+  const item = inventoryChange(input, undefined, date, at, 'BOH-Team');
+  assert.equal(inventoryTileState(undefined, date), 'unchecked');
+  assert.equal(inventoryTileState(item, date), 'checked');
+  assert.equal(inventoryTileState(item, '2026-10-26'), 'stale');
+  assert.equal(inventoryTileState({ ...item, orderOpen: true }, date), 'order');
+  assert.equal(inventoryTileState({ ...item, quantity: 0, orderOpen: true }, date), 'out');
 });

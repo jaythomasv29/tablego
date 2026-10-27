@@ -6,7 +6,7 @@ import AdminLayout from '@/components/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { workGoods } from '@/lib/work/goods';
-import { inventoryChecked, inventoryReady, inventoryUnits, inventoryDefaultUnit, inventoryOrderText, type InventoryDraft, type InventoryItem, type InventoryRecords } from '@/lib/inventory/model';
+import { inventoryTileState, inventoryTileLabels, inventoryChecked, inventoryReady, inventoryUnits, inventoryDefaultUnit, inventoryOrderText, type InventoryDraft, type InventoryItem, type InventoryRecords } from '@/lib/inventory/model';
 import { eligibleCrew, teamForStation, isInventoryTask, type WorkBoard } from '@/lib/work/model';
 import styles from './inventory.module.css';
 type Board = { items: InventoryRecords; today: string; timezone: string };
@@ -38,6 +38,12 @@ export default function InventoryPage() {
       }
       setData(inventory); setWork(board); setDate(day || inventory.today); setTaskId(params.get('task') || ''); setError(''); } catch (e) { setError((e as Error).message); } finally { setRefreshing(false); } }, []);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const refresh = () => { if (!document.hidden && !saving.current.size && !Object.keys(draftsRef.current).length) void load(); };
+    const timer = setInterval(refresh, 30000);
+    window.addEventListener('focus', refresh);
+    return () => { clearInterval(timer); window.removeEventListener('focus', refresh); };
+  }, [load]);
   useEffect(() => { if (!feedback) return; const timer = setTimeout(() => setFeedback(''), 4500); return () => clearTimeout(timer); }, [feedback]);
   const checked = data ? workGoods.filter(g => inventoryChecked(data.items[g.id], data.today)).length : 0;
   const openOrders = data ? workGoods.filter(g => data.items[g.id]?.orderOpen).length : 0;
@@ -71,6 +77,7 @@ export default function InventoryPage() {
       {view !== 'orders' && <label className={styles.mobileSection}>Section<select value={category} onChange={e => { setCategory(e.target.value); setQuery(''); }}>{categories.map(name => <option key={name}>{name}</option>)}</select></label>}
       {view === 'orders' && <div className={styles.shareActions}><Button variant="outline" className="min-h-12" disabled={!openOrders} onClick={() => { void navigator.clipboard.writeText(inventoryOrderText(data.items)).then(() => setFeedback('Order list copied')).catch(() => setError('Unable to copy. Try Share list or select the order details.')); }}>Copy list</Button><Button variant="outline" className="min-h-12" disabled={!openOrders} onClick={() => { const text = inventoryOrderText(data.items); if (navigator.share) void navigator.share({ title: 'Restaurant order list', text }).catch(e => { if (e.name !== 'AbortError') setError('Unable to share this list. Try Copy list.'); }); else void navigator.clipboard.writeText(text).then(() => setFeedback('Order list copied')).catch(() => setError('Unable to copy this list.')); }}>Share list</Button></div>}
       <div className={styles.sectionHeader}><div><h2>{view === 'orders' ? 'Ready for review' : category}</h2>{view !== 'orders' && <Button variant="ghost" className="min-h-11 mt-1" onClick={() => { setCategory(categories[(categories.indexOf(category) + 1) % categories.length]); setQuery(''); }}>Next section →</Button>}</div><label>Find an item<input type="search" value={query} placeholder="Name, brand or size" onChange={e => setQuery(e.target.value)} /></label></div>
+      <div className={styles.legend} aria-label="Stock color guide">{(['checked', 'order', 'out', 'stale'] as const).map(state => <span key={state} data-stock={state}><i aria-hidden="true" />{inventoryTileLabels[state]}</span>)}</div>
       <div className={styles.items}>{shown.map(good => <Item key={good.id} good={good} draft={drafts[good.id]} changeDraft={changeDraft} item={data.items[good.id]} date={data.today} timezone={data.timezone} disabled={readOnly || !online} readOnly={readOnly} orderView={view === 'orders'} save={save} />)}</div>
       {!shown.length && <p className={styles.empty}>{view === 'orders' ? 'No open order requests match.' : 'No items left in this view. Choose another section or clear your search.'}</p>}
       <footer className={styles.finish}><div><strong>{task?.completedAt ? 'Inventory Check is complete' : ready ? 'All goods have a decision' : 'Finish one section, then move to the next'}</strong><p>Checks carry across today’s shifts. Sufficient stock is due for recheck tomorrow.</p></div>{task && !task.completedAt ? <Button className="min-h-12" disabled={!ready || readOnly || !online || Object.keys(drafts).length > 0} onClick={() => { setMemberId(''); setFinish(true); }}>Finish Inventory Check</Button> : <Link className={styles.back} href={`/admin/work?date=${date}`}>Return to Work</Link>}</footer>
@@ -87,7 +94,7 @@ function Item({ good, item, draft, changeDraft, date, timezone, disabled, readOn
   const quantity = draft?.quantity ?? (item ? String(item.quantity) : ''), unit = draft?.unit || item?.unit || inventoryDefaultUnit(good.detail);
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [ordering, setOrdering] = useState(false);
   const [orderQuantity, setOrderQuantity] = useState('1'), [orderUnit, setOrderUnit] = useState(unit);
-  const checked = inventoryChecked(item, date);
+  const checked = inventoryChecked(item, date), stockState = inventoryTileState(item, date);
   const name = `${good.name}${good.detail ? ` ${good.detail}` : ''}`;
   const edit = (value: string, nextUnit = unit) => changeDraft(good.id, { quantity: value, unit: nextUnit });
   function order() {
@@ -103,14 +110,14 @@ function Item({ good, item, draft, changeDraft, date, timezone, disabled, readOn
     catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   }
-  return <article className={styles.item} data-checked={checked}>
-    <div className={styles.itemTitle}><div><h3>{good.name}</h3><p>{good.detail || good.category}</p></div><span>{draft ? 'Not saved' : checked ? item?.decision === 'order' ? 'Order flagged' : 'Sufficient' : 'Needs check'}</span></div>
+  return <article className={styles.item} data-checked={checked} data-stock={stockState} data-draft={Boolean(draft)}>
+    <div className={styles.itemTitle}><div><h3>{good.name}</h3><p>{good.detail || good.category}</p></div><span>{draft ? 'Not saved' : inventoryTileLabels[stockState]}</span></div>
     {item?.orderOpen && <p className={styles.orderAmount}><ShoppingCart aria-hidden="true" size={16} />{item.orderQuantity !== undefined ? `To order: ${item.orderQuantity} ${item.orderUnit || item.unit}` : 'Set quantity to order'}</p>}
-    {item && <p className={styles.receipt}>{item.checkedBy} · {new Date(item.checkedAt).toLocaleString('en-US', { timeZone: timezone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}{item.orderOpen ? ' · Order request open' : ` · Next check ${item.nextCheck}`}</p>}
+    {item ? <p className={styles.receipt}>Updated <time dateTime={item.checkedAt} title={timezone}>{new Date(item.checkedAt).toLocaleString('en-US', { timeZone: timezone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time> · {item.checkedBy}{item.orderOpen ? ' · Order request open' : ` · Next check ${item.nextCheck}`}</p> : <p className={styles.receipt}>Updated: Not checked yet</p>}
     <fieldset disabled={busy || readOnly}>
       <legend className="sr-only">Count {good.name}</legend>
       <div className={styles.count}>
-        <label>On hand<input aria-label={`Quantity for ${name}`} inputMode="decimal" type="number" min="0" max="999999" step="0.01" value={quantity} onFocus={e => e.target.select()} onChange={e => edit(e.target.value)} /></label>
+        <label><span className={styles.quantityHeading}>On hand<span key={`${quantity}-${unit}`} className={styles.quantityLive} aria-hidden="true">{quantity || '—'} {unit}</span></span><input aria-label={`Quantity for ${name}`} inputMode="decimal" type="number" min="0" max="999999" step="0.01" value={quantity} onFocus={e => e.target.select()} onChange={e => edit(e.target.value)} /></label>
         <label>Unit<select aria-label={`Unit for ${name}`} value={unit} onChange={e => edit(quantity, e.target.value)}>{inventoryUnits.map(u => <option key={u}>{u}</option>)}</select></label>
         <button type="button" aria-label={`Decrease quantity for ${good.name}`} onClick={() => edit(String(Math.max(0, Math.round((Number(quantity) - 1) * 100) / 100)))}>−</button>
         <button type="button" aria-label={`Increase quantity for ${good.name}`} onClick={() => edit(String(Math.min(999999, Math.round((Number(quantity) + 1) * 100) / 100)))}>+</button>

@@ -31,3 +31,9 @@ Order opens a quantity-to-buy dialog, separate from the amount on hand. Positive
 Unfinished counts are saved on the current device under the restaurant date and survive refresh and section changes. They remain marked Not saved until Order or Recheck tomorrow succeeds on the server. Offline counting is allowed, but decisions are never silently sent later; reconnect and explicitly save them. Browser storage failure displays a warning. Refresh preserves drafts, and outstanding drafts block finishing the shift task. Force Refresh in the admin shell clears browser storage, so ordinary Refresh should be used to reload inventory.
 
 Checks: 263 automated tests, lint, typecheck, production-configuration optimized build; local browser count/draft restoration/order dialog/order queue/copy-list checks. Browser checks exercised phone-sized Chrome; physical iPhone Safari testing is the owner's first operational trial.
+
+## Inventory cues — October 27, 2026
+
+Counting and ordering both support **can**. Each tile explicitly shows its server-saved **Updated** timestamp in the restaurant timezone; unchecked items say Not checked yet. Saved zero quantities show red Out of stock; open order requests show amber Order flagged; older checks show amber Recheck due; sufficient checks recorded today show green Checked today. These cues do not infer reorder thresholds from supplier package references. Text labels and a legend accompany the colors.
+
+The on-hand value briefly animates when edited, without remounting or interrupting the input; reduced-motion preferences disable the animation. An idle board refreshes saved data every 30 seconds and on window focus. Refresh pauses while a save or an unfinished count is present, preserving local drafts. Verification includes can counting/ordering validation and stock-state priority tests, plus a staging can-count save and phone-width layout check.

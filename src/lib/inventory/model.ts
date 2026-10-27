@@ -1,7 +1,7 @@
 import { workGoods } from '../work/goods.ts';
 export interface InventoryItem { version: number; quantity: number; unit: string; checkedOn: string; checkedAt: string; checkedBy: string; decision: 'order' | 'sufficient'; nextCheck: string; orderOpen: boolean; orderRequestedAt: string | null; orderQuantity?: number; orderUnit?: string }
 export type InventoryRecords = Record<string, InventoryItem>;
-export const inventoryUnits = ['each', 'lb', 'oz', 'bag', 'box', 'case', 'bunch', 'bottle', 'gallon', 'pack'] as const;
+export const inventoryUnits = ['each', 'lb', 'oz', 'bag', 'box', 'case', 'bunch', 'bottle', 'gallon', 'pack', 'can'] as const;
 export function nextInventoryDate(date: string) { const day = new Date(`${date}T12:00:00Z`); day.setUTCDate(day.getUTCDate() + 1); return day.toISOString().slice(0, 10); }
 export function inventoryChecked(item: InventoryItem | undefined, date: string) { return Boolean(item && item.checkedOn === date && ['order', 'sufficient'].includes(item.decision)); }
 export function inventoryReady(items: InventoryRecords, date: string) { return workGoods.every(good => inventoryChecked(items[good.id], date)); }
@@ -24,6 +24,14 @@ export function inventoryOrderText(items: InventoryRecords) {
 }
 export function inventoryDefaultUnit(detail = '') {
   const value = detail.toLowerCase();
-  for (const [pattern, unit] of [[/case/, 'case'], [/bag/, 'bag'], [/box/, 'box'], [/bunch/, 'bunch'], [/bottle/, 'bottle'], [/gallon/, 'gallon'], [/pack/, 'pack'], [/\blbs?\b/, 'lb'], [/\boz\b/, 'oz']] as const) if (pattern.test(value)) return unit;
+  for (const [pattern, unit] of [[/\bcans?\b/, 'can'], [/case/, 'case'], [/bag/, 'bag'], [/box/, 'box'], [/bunch/, 'bunch'], [/bottle/, 'bottle'], [/gallon/, 'gallon'], [/pack/, 'pack'], [/\blbs?\b/, 'lb'], [/\boz\b/, 'oz']] as const) if (pattern.test(value)) return unit;
   return 'each';
 }
+
+export function inventoryTileState(item: InventoryItem | undefined, date: string): 'unchecked' | 'out' | 'order' | 'stale' | 'checked' {
+  if (!item) return 'unchecked';
+  if (item.quantity === 0) return 'out';
+  if (item.orderOpen) return 'order';
+  return inventoryChecked(item, date) ? 'checked' : 'stale';
+}
+export const inventoryTileLabels = { unchecked: 'Not checked', out: 'Out of stock', order: 'Order flagged', stale: 'Recheck due', checked: 'Checked today' };
