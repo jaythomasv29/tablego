@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inventoryTileState, inventoryChange, inventoryChecked, inventoryReady, inventoryOrderText, inventoryDefaultUnit, nextInventoryDate } from '../src/lib/inventory/model.ts';
+import { validateInventoryUnit, registerInventoryUnit, inventoryUnitOptions, inventoryTileState, inventoryChange, inventoryChecked, inventoryReady, inventoryOrderText, inventoryDefaultUnit, nextInventoryDate } from '../src/lib/inventory/model.ts';
 import { workGoods } from '../src/lib/work/goods.ts';
 const date = '2026-10-25', at = '2026-10-25T22:00:00Z';
 const input = { itemId: workGoods[0].id, quantity: 2.5, unit: 'lb', action: 'sufficient', version: 0, orderQuantity: 2, orderUnit: 'case' };
@@ -56,4 +56,21 @@ test('tile cues distinguish zero stock, open orders, fresh checks, and old check
   assert.equal(inventoryTileState(item, '2026-10-26'), 'stale');
   assert.equal(inventoryTileState({ ...item, orderOpen: true }, date), 'order');
   assert.equal(inventoryTileState({ ...item, quantity: 0, orderOpen: true }, date), 'out');
+});
+
+test('custom units normalize, deduplicate, and work independently for counts and orders', () => {
+  const first = registerInventoryUnit('  large   tray  ');
+  assert.equal(first.unit, 'large tray'); assert.deepEqual(first.customUnits, ['large tray']);
+  assert.equal(registerInventoryUnit('LARGE TRAY', first.customUnits).added, false);
+  assert.equal(registerInventoryUnit('CAN', first.customUnits).unit, 'can');
+  const next = registerInventoryUnit('tub', first.customUnits);
+  const item = inventoryChange({ ...input, unit: 'large tray', action: 'order', orderUnit: 'tub' }, undefined, date, at, 'BOH-Team', next.customUnits);
+  assert.equal(item.unit, 'large tray'); assert.equal(item.orderUnit, 'tub');
+  assert.equal(inventoryUnitOptions(next.customUnits).filter(u => u === 'can').length, 1);
+  assert.throws(() => inventoryChange({ ...input, unit: 'unregistered' }, undefined, date, at, 'BOH-Team', next.customUnits), /custom unit first/);
+});
+test('custom unit labels are bounded and support international names', () => {
+  assert.equal(validateInventoryUnit('ถุง'), 'ถุง'); assert.equal(validateInventoryUnit('1/2 tray'), '1/2 tray');
+  for (const value of ['', '   ', '<script>', '__custom__', 'x'.repeat(25), null]) assert.throws(() => validateInventoryUnit(value), /unit name/);
+  assert.throws(() => registerInventoryUnit('extra', Array.from({ length: 50 }, (_, i) => `unit ${i}`)), /50 custom/);
 });

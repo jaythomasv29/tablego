@@ -37,3 +37,9 @@ Checks: 263 automated tests, lint, typecheck, production-configuration optimized
 Counting and ordering both support **can**. Each tile explicitly shows its server-saved **Updated** timestamp in the restaurant timezone; unchecked items say Not checked yet. Saved zero quantities show red Out of stock; open order requests show amber Order flagged; older checks show amber Recheck due; sufficient checks recorded today show green Checked today. These cues do not infer reorder thresholds from supplier package references. Text labels and a legend accompany the colors.
 
 The on-hand value briefly animates when edited, without remounting or interrupting the input; reduced-motion preferences disable the animation. An idle board refreshes saved data every 30 seconds and on window focus. Refresh pauses while a save or an unfinished count is present, preserving local drafts. Verification includes can counting/ordering validation and stock-state priority tests, plus a staging can-count save and phone-width layout check.
+
+## Custom units — October 27, 2026
+
+Both unit menus offer **+ Custom unit…**. Staff can register a name such as tray, tub, or bundle and immediately select it. Custom units are persisted in the private inventory document and reused across goods, ordering/counting menus, and devices. Existing built-in units and duplicate custom names are matched without case sensitivity; whitespace is normalized. Names support international letters and simple punctuation, up to 24 characters, with up to 50 custom units.
+
+Registering a unit is a separate authenticated, audited transaction that preserves all item records. Creating a unit inside the order dialog does not submit an order. Count and order submissions only accept built-in or registered units. Existing quantity drafts restore with registered custom units after refresh. No unit conversions or stock changes occur merely from adding a unit.
