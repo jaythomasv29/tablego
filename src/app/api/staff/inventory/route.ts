@@ -1,10 +1,10 @@
 import { adminSession, requireAdmin } from '@/lib/auth/admin';
 import { rateLimit } from '@/lib/auth/rateLimit';
 import { privateJson, ReservationError, reservationError } from '@/lib/reservations/http';
-import { getInventory, saveInventory } from '@/lib/inventory/repository';
+import { getInventoryHistory, getInventory, saveInventory } from '@/lib/inventory/repository';
 export async function GET(request: Request) {
   const denied = await requireAdmin(request); if (denied) return denied;
-  try { return privateJson(await getInventory()); } catch (error) { return reservationError(error); }
+  try { const item = new URL(request.url).searchParams.get('history'); return privateJson(item ? await getInventoryHistory(item) : await getInventory()); } catch (error) { return reservationError(error); }
 }
 export async function POST(request: Request) {
   const denied = await requireAdmin(request); if (denied) return denied;

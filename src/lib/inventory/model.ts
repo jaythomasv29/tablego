@@ -1,5 +1,5 @@
 import { workGoods } from '../work/goods.ts';
-export interface InventoryItem { version: number; quantity: number; unit: string; checkedOn: string; checkedAt: string; checkedBy: string; decision: 'order' | 'sufficient'; nextCheck: string; orderOpen: boolean; orderRequestedAt: string | null; orderQuantity?: number; orderUnit?: string }
+export interface InventoryItem { version: number; countedAt?: string | null; updatedAt?: string; quantity: number | null; unit: string; checkedOn: string; checkedAt: string; checkedBy: string; decision: 'order' | 'sufficient'; nextCheck: string; orderOpen: boolean; orderRequestedAt: string | null; orderQuantity?: number; orderUnit?: string }
 export type InventoryRecords = Record<string, InventoryItem>;
 export const inventoryUnits = ['each', 'lb', 'oz', 'bag', 'box', 'case', 'bunch', 'bottle', 'gallon', 'pack', 'can'] as const;
 export function nextInventoryDate(date: string) { const day = new Date(`${date}T12:00:00Z`); day.setUTCDate(day.getUTCDate() + 1); return day.toISOString().slice(0, 10); }
@@ -9,18 +9,19 @@ export function inventoryChange(input: Record<string, unknown>, previous: Invent
   if (!workGoods.some(good => good.id === input.itemId)) throw new Error('Choose a current inventory item');
   if (!Number.isInteger(input.version) || input.version !== (previous?.version || 0)) throw new Error('This item changed on another device. Refresh before saving.');
   if (!['order', 'sufficient', 'received'].includes(String(input.action))) throw new Error('Choose Order or Recheck tomorrow');
-  if (typeof input.quantity !== 'number' || !Number.isFinite(input.quantity) || input.quantity < 0 || input.quantity > 999999 || Math.round(input.quantity * 100) / 100 !== input.quantity) throw new Error('Enter a quantity from 0 to 999999, with up to two decimals');
-  const unit = resolveInventoryUnit(input.unit, customUnits, 'counting');
+  const hasCount = input.quantity !== undefined && input.quantity !== null;
+  if (hasCount && (typeof input.quantity !== 'number' || !Number.isFinite(input.quantity) || input.quantity < 0 || input.quantity > 999999 || Math.round(input.quantity * 100) / 100 !== input.quantity)) throw new Error('Enter a quantity from 0 to 999999, with up to two decimals');
+  const unit = hasCount ? resolveInventoryUnit(input.unit, customUnits, 'counting') : previous?.unit || inventoryDefaultUnit(workGoods.find(g => g.id === input.itemId)?.detail);
   if (input.action === 'received' && !previous?.orderOpen) throw new Error('This item has no open order request');
   if (input.action === 'order' && (typeof input.orderQuantity !== 'number' || !Number.isFinite(input.orderQuantity) || input.orderQuantity <= 0 || input.orderQuantity > 999999 || Math.round(input.orderQuantity * 100) / 100 !== input.orderQuantity)) throw new Error('Enter a quantity to order greater than zero, with up to two decimals');
   const orderUnit = input.action === 'order' ? resolveInventoryUnit(input.orderUnit, customUnits, 'ordering') : undefined;
   const orderOpen = input.action === 'order' || (input.action !== 'received' && Boolean(previous?.orderOpen));
-  return { ...(previous?.orderQuantity !== undefined ? { orderQuantity: previous.orderQuantity, orderUnit: previous.orderUnit || previous.unit } : {}), ...(input.action === 'order' ? { orderQuantity: Number(input.orderQuantity), orderUnit: orderUnit! } : {}), version: (previous?.version || 0) + 1, quantity: input.quantity, unit, checkedOn: date, checkedAt: at, checkedBy: by, decision: input.action === 'order' ? 'order' : 'sufficient', nextCheck: nextInventoryDate(date), orderOpen, orderRequestedAt: input.action === 'order' ? previous?.orderRequestedAt || at : input.action === 'received' ? null : previous?.orderRequestedAt || null };
+  return { ...(previous?.orderQuantity !== undefined ? { orderQuantity: previous.orderQuantity, orderUnit: previous.orderUnit || previous.unit } : {}), ...(input.action === 'order' ? { orderQuantity: Number(input.orderQuantity), orderUnit: orderUnit! } : {}), version: (previous?.version || 0) + 1, quantity: hasCount ? Number(input.quantity) : previous?.quantity ?? null, countedAt: hasCount ? at : inventoryCountedAt(previous), updatedAt: at, unit, checkedOn: date, checkedAt: at, checkedBy: by, decision: input.action === 'order' ? 'order' : 'sufficient', nextCheck: nextInventoryDate(date), orderOpen, orderRequestedAt: input.action === 'order' ? previous?.orderRequestedAt || at : input.action === 'received' ? null : previous?.orderRequestedAt || null };
 }
 
 export interface InventoryDraft { quantity: string; unit: string }
 export function inventoryOrderText(items: InventoryRecords) {
-  return ['Restaurant order list', ...workGoods.filter(g => items[g.id]?.orderOpen).map(g => { const item = items[g.id]; return `• ${g.name}${g.detail ? ` (${g.detail})` : ''}: ${item.orderQuantity !== undefined ? `${item.orderQuantity} ${item.orderUnit || item.unit} to order` : 'order amount not set'} · on hand ${item.quantity} ${item.unit}`; })].join('\n');
+  return ['Restaurant order list', ...workGoods.filter(g => items[g.id]?.orderOpen).map(g => { const item = items[g.id]; return `• ${g.name}${g.detail && workGoods.filter(other => other.name === g.name).length > 1 ? ` (${g.detail})` : ''} — ${item.orderQuantity !== undefined ? `${item.orderQuantity} ${item.orderUnit || item.unit}` : 'quantity needed'}`; })].join('\n');
 }
 export function inventoryDefaultUnit(detail = '') {
   const value = detail.toLowerCase();
@@ -30,11 +31,11 @@ export function inventoryDefaultUnit(detail = '') {
 
 export function inventoryTileState(item: InventoryItem | undefined, date: string): 'unchecked' | 'out' | 'order' | 'stale' | 'checked' {
   if (!item) return 'unchecked';
-  if (item.quantity === 0) return 'out';
+  if (item.quantity === 0 && inventoryCountedAt(item) === item.checkedAt && inventoryChecked(item, date)) return 'out';
   if (item.orderOpen) return 'order';
   return inventoryChecked(item, date) ? 'checked' : 'stale';
 }
-export const inventoryTileLabels = { unchecked: 'Not checked', out: 'Out of stock', order: 'Order flagged', stale: 'Recheck due', checked: 'Checked today' };
+export const inventoryTileLabels = { unchecked: 'Not checked', out: 'Out of stock', order: 'Order flagged', stale: 'Recheck due', checked: 'Reviewed today' };
 
 export function validateInventoryUnit(value: unknown): string {
   if (typeof value !== 'string') throw new Error('Enter a unit name (1–24 characters)');
@@ -57,4 +58,9 @@ function resolveInventoryUnit(value: unknown, customUnits: string[], kind: strin
   const unit = typeof value === 'string' ? inventoryUnitOptions(customUnits).find(option => option.toLocaleLowerCase() === value.trim().toLocaleLowerCase()) : undefined;
   if (!unit) throw new Error(`Choose a ${kind} unit or add a custom unit first`);
   return unit;
+}
+
+export function inventoryCountedAt(item: InventoryItem | undefined): string | null {
+  if (!item || item.quantity === null) return null;
+  return item.countedAt === undefined ? item.checkedAt : item.countedAt;
 }

@@ -33,7 +33,14 @@ export async function saveInventory(input: unknown, actor: string) {
     try { item = inventoryChange(value, items[id], date, new Date().toISOString(), 'BOH-Team', customUnits); }
     catch (error) { throw new ReservationError((error as Error).message, /another device/.test((error as Error).message) ? 409 : 400); }
     tx.set(db.doc('inventory/current'), { ...saved.data(), items: { ...items, [id]: item } });
-    tx.create(db.doc(`inventory/current/events/${randomUUID()}`), { action: value.action, itemId: id, before: items[id] || null, after: item, actor, at: item.checkedAt });
+    tx.create(db.doc(`inventory/current/events/${randomUUID()}`), { action: value.action, itemId: id, before: items[id] || null, after: item, actor, at: item.updatedAt || item.checkedAt });
     return { item };
   });
+}
+
+export async function getInventoryHistory(itemId: string) {
+  const { workGoods } = await import('../work/goods');
+  if (!workGoods.some(good => good.id === itemId)) throw new ReservationError('Choose a current inventory item');
+  const events = await getServerDatabase().collection('inventory/current/events').where('itemId', '==', itemId).orderBy('at', 'desc').limit(30).get();
+  return { events: events.docs.map(doc => { const event = doc.data(); return { id: doc.id, action: event.action, at: event.at, before: event.before || null, after: event.after || null }; }) };
 }

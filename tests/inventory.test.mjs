@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateInventoryUnit, registerInventoryUnit, inventoryUnitOptions, inventoryTileState, inventoryChange, inventoryChecked, inventoryReady, inventoryOrderText, inventoryDefaultUnit, nextInventoryDate } from '../src/lib/inventory/model.ts';
+import { inventoryCountedAt, validateInventoryUnit, registerInventoryUnit, inventoryUnitOptions, inventoryTileState, inventoryChange, inventoryChecked, inventoryReady, inventoryOrderText, inventoryDefaultUnit, nextInventoryDate } from '../src/lib/inventory/model.ts';
 import { workGoods } from '../src/lib/work/goods.ts';
 const date = '2026-10-25', at = '2026-10-25T22:00:00Z';
 const input = { itemId: workGoods[0].id, quantity: 2.5, unit: 'lb', action: 'sufficient', version: 0, orderQuantity: 2, orderUnit: 'case' };
@@ -41,7 +41,7 @@ test('order amounts are independent of on-hand amounts and require a positive qu
 test('shared list includes every open request and its buy quantity, not sufficient stock', () => {
   const item = inventoryChange({ ...input, quantity: 0, action: 'order', orderQuantity: 3, orderUnit: 'case' }, undefined, date, at, 'BOH-Team');
   const text = inventoryOrderText({ [workGoods[0].id]: item });
-  assert.match(text, /3 case to order/); assert.match(text, /on hand 0 lb/);
+  assert.match(text, /3 case/); assert.doesNotMatch(text, /on hand|4 lbs|to order/);
   assert.equal(inventoryOrderText({ [workGoods[0].id]: { ...item, orderOpen: false } }), 'Restaurant order list');
   assert.equal(inventoryDefaultUnit('5 lb bag'), 'bag'); assert.equal(inventoryDefaultUnit('4 lbs'), 'lb'); assert.equal(inventoryDefaultUnit('Bunch'), 'bunch');
 });
@@ -73,4 +73,27 @@ test('custom unit labels are bounded and support international names', () => {
   assert.equal(validateInventoryUnit('ถุง'), 'ถุง'); assert.equal(validateInventoryUnit('1/2 tray'), '1/2 tray');
   for (const value of ['', '   ', '<script>', '__custom__', 'x'.repeat(25), null]) assert.throws(() => validateInventoryUnit(value), /unit name/);
   assert.throws(() => registerInventoryUnit('extra', Array.from({ length: 50 }, (_, i) => `unit ${i}`)), /50 custom/);
+});
+
+test('ordering needs no on-hand count and never turns an unknown quantity into zero', () => {
+  const item = inventoryChange({ ...input, action: 'order', quantity: undefined, unit: undefined }, undefined, date, at, 'BOH-Team');
+  assert.equal(item.quantity, null); assert.equal(item.countedAt, null); assert.equal(item.orderQuantity, 2); assert.equal(item.orderOpen, true);
+  assert.equal(inventoryTileState(item, date), 'order');
+});
+test('next-day orders and sufficient reviews preserve the last real count and its time', () => {
+  const original = inventoryChange(input, undefined, date, at, 'BOH-Team');
+  const tomorrow = '2026-10-26', later = '2026-10-26T22:00:00Z';
+  const ordered = inventoryChange({ ...input, version: 1, action: 'order', quantity: undefined, unit: 'case' }, original, tomorrow, later, 'BOH-Team');
+  assert.equal(ordered.quantity, 2.5); assert.equal(ordered.unit, 'lb'); assert.equal(ordered.countedAt, at); assert.equal(ordered.checkedAt, later);
+  assert.equal(inventoryChecked(original, tomorrow), false); assert.equal(inventoryChecked(ordered, tomorrow), true);
+  const reviewed = inventoryChange({ ...input, version: 2, quantity: undefined }, ordered, tomorrow, later, 'BOH-Team');
+  assert.equal(reviewed.quantity, 2.5); assert.equal(reviewed.countedAt, at);
+  const recounted = inventoryChange({ ...input, version: 3, quantity: 1 }, reviewed, tomorrow, later, 'BOH-Team');
+  assert.equal(recounted.quantity, 1); assert.equal(recounted.countedAt, later); assert.equal(original.quantity, 2.5);
+});
+test('legacy counts retain their original date when no new count is supplied', () => {
+  const legacy = { ...inventoryChange(input, undefined, date, at, 'BOH-Team') }; delete legacy.countedAt;
+  assert.equal(inventoryCountedAt(legacy), at);
+  const next = inventoryChange({ ...input, version: 1, quantity: undefined }, legacy, '2026-10-26', '2026-10-26T22:00:00Z', 'BOH-Team');
+  assert.equal(next.countedAt, at); assert.equal(next.quantity, 2.5);
 });
