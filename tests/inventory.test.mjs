@@ -97,3 +97,20 @@ test('legacy counts retain their original date when no new count is supplied', (
   const next = inventoryChange({ ...input, version: 1, quantity: undefined }, legacy, '2026-10-26', '2026-10-26T22:00:00Z', 'BOH-Team');
   assert.equal(next.countedAt, at); assert.equal(next.quantity, 2.5);
 });
+
+test('custom goods participate in checks and copied requests without changing starter goods', () => {
+  const goods = [{ id: 'custom-rice', name: 'House rice', category: 'Pantry', detail: '25 lb bag' }];
+  const counted = inventoryChange({ itemId: 'custom-rice', version: 0, action: 'order', orderQuantity: 2, orderUnit: 'bag' }, undefined, '2026-10-28', '2026-10-28T18:00:00Z', 'Team', [], goods);
+  assert.equal(counted.quantity, null);
+  assert.equal(inventoryReady({ 'custom-rice': counted }, '2026-10-28', goods), true);
+  assert.equal(inventoryReady({}, '2026-10-28', goods), false);
+  assert.match(inventoryOrderText({ 'custom-rice': counted }, goods), /House rice — 2 bag/);
+});
+
+test('review without recount preserves receipt estimate and physical count snapshot', () => {
+  const received = { version: 2, quantity: 14, unit: 'lb', countedAt: '2026-10-27T18:00:00Z', lastCountQuantity: 4, lastCountUnit: 'lb', stockSource: 'receipt', stockUpdatedAt: '2026-10-28T18:00:00Z', receivedAt: '2026-10-28T18:00:00Z', checkedAt: '2026-10-27T18:00:00Z', checkedOn: '2026-10-27', checkedBy: 'Team', decision: 'sufficient', nextCheck: '2026-10-28', orderOpen: false, orderRequestedAt: null };
+  const reviewed = inventoryChange({ itemId: 'basil', version: 2, action: 'sufficient' }, received, '2026-10-28', '2026-10-28T19:00:00Z', 'Team');
+  assert.equal(reviewed.quantity, 14); assert.equal(reviewed.lastCountQuantity, 4); assert.equal(reviewed.stockSource, 'receipt');
+  const recounted = inventoryChange({ itemId: 'basil', version: 3, action: 'sufficient', quantity: 12, unit: 'lb' }, reviewed, '2026-10-28', '2026-10-28T20:00:00Z', 'Team');
+  assert.equal(recounted.quantity, 12); assert.equal(recounted.lastCountQuantity, 12); assert.equal(recounted.stockSource, 'count');
+});

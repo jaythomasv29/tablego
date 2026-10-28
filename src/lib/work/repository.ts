@@ -1,4 +1,4 @@
-import { inventoryReady } from '../inventory/model';
+import { inventoryReady, mergeInventoryGoods, type CheckGood } from '../inventory/model';
 import { starterWorkCrew } from './crew';
 import { createHash, randomUUID } from 'node:crypto';
 import type { Transaction } from 'firebase-admin/firestore';
@@ -65,6 +65,8 @@ export async function changeWork(input: unknown, actor: string) {
     if (!ctx.initialized && v.settingsVersion !== undefined && v.settingsVersion !== ctx.config.version) throw new ReservationError('The recurring plan changed. Refresh before checking in.', 409);
     if (day.version !== v.version) throw new ReservationError('This checklist changed on another device. Refresh before trying again.', 409);
     const inventory = v.action === 'complete' && day.tasks.some(t => t.id === v.taskId && isInventoryTask(t)) ? await tx.get(db.doc('inventory/current')) : null;
+    const catalog = inventory ? await tx.get(db.collection('inventoryOperations/goods/records').limit(1000)) : null;
+    const goods = mergeInventoryGoods(catalog?.docs.map(d => ({ ...d.data(), id: d.id }) as CheckGood) || []);
     const before = JSON.parse(JSON.stringify(day)) as WorkDay;
     let task = day.tasks.find(t => t.id === v.taskId);
     try {
@@ -84,7 +86,7 @@ export async function changeWork(input: unknown, actor: string) {
         if (!task) throw new Error('This task no longer exists');
         if (v.action === 'complete') {
           if (date > restaurantClock(day.timezone).date) throw new Error('Future checklists cannot be completed in advance');
-          if (isInventoryTask(task) && !inventoryReady(inventory?.data()?.items || {}, date)) throw new Error('Open Inventory Check and record a quantity and decision for every item first');
+          if (isInventoryTask(task) && !inventoryReady(inventory?.data()?.items || {}, date, goods)) throw new Error('Open Inventory Check and save a review decision for every item first');
           if (task.completedAt) throw new Error('This task is already complete');
           const personSelected = v.memberId !== undefined && v.memberId !== null && v.memberId !== '';
           const member = personSelected ? eligibleCrew(ctx.crew, task.station, ctx.config.stationCrews).find(m => m.id === v.memberId) : undefined;
@@ -96,7 +98,7 @@ export async function changeWork(input: unknown, actor: string) {
           if (!task.completedAt) throw new Error('This task is already open');
           task.completedAt = null; task.completedBy = ''; task.completedById = null; task.completedCrew = null; delete task.completionIdentity; task.note = '';
         } else {
-          if (isInventoryTask(task) && !inventoryReady(inventory?.data()?.items || {}, date)) throw new Error('Open Inventory Check and record a quantity and decision for every item first');
+          if (isInventoryTask(task) && !inventoryReady(inventory?.data()?.items || {}, date, goods)) throw new Error('Open Inventory Check and save a review decision for every item first');
           if (task.completedAt) throw new Error('Reopen this task before changing its assignment');
           task.station = workText(v.station, 'a station', 50);
           task.assignee = workText(v.assignee, 'an assignee', 80, false);

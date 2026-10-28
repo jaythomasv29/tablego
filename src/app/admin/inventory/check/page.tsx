@@ -6,16 +6,17 @@ import AdminLayout from '@/components/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { restaurantClock } from '@/lib/reservations/availability';
-import { workGoods } from '@/lib/work/goods';
+import { workGoods, type WorkGood } from '@/lib/work/goods';
 import { inventoryCountedAt, inventoryTileState, inventoryTileLabels, inventoryChecked, inventoryReady, inventoryUnitOptions, inventoryDefaultUnit, inventoryOrderText, type InventoryDraft, type InventoryItem, type InventoryRecords } from '@/lib/inventory/model';
 import { eligibleCrew, teamForStation, isInventoryTask, type WorkBoard } from '@/lib/work/model';
 import styles from './inventory.module.css';
-type Board = { customUnits: string[]; items: InventoryRecords; today: string; timezone: string };
-const categories = Array.from(new Set(workGoods.map(g => g.category)));
+type CheckGood = WorkGood & { baseUnit?: string; location?: string };
+type Board = { goods: CheckGood[]; customUnits: string[]; items: InventoryRecords; today: string; timezone: string };
+
 async function request(path: string, body?: unknown) { const response = await fetch(path, { cache: 'no-store', ...(body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}) }); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Unable to save. Please try again.'); return data; }
 export default function InventoryPage() {
   const [data, setData] = useState<Board | null>(null), [work, setWork] = useState<WorkBoard | null>(null);
-  const [category, setCategory] = useState(categories[0]), [query, setQuery] = useState(''), [view, setView] = useState('pending');
+  const [category, setCategory] = useState('Produce'), [query, setQuery] = useState(''), [view, setView] = useState('pending');
   const [error, setError] = useState(''), [feedback, setFeedback] = useState(''), [refreshing, setRefreshing] = useState(false);
   const [taskId, setTaskId] = useState(''), [date, setDate] = useState(''), [finish, setFinish] = useState(false), [memberId, setMemberId] = useState(''), [finishing, setFinishing] = useState(false);
   const saving = useRef(new Set<string>()), generation = useRef(0), draftDay = useRef('');
@@ -33,11 +34,11 @@ export default function InventoryPage() {
         draftDay.current = inventory.today;
         try {
           const stored = JSON.parse(localStorage.getItem(`tablego-inventory-drafts:${inventory.today}`) || '{}');
-          const restored = Object.fromEntries(Object.entries(stored).filter(([id, value]) => { const draft = value as InventoryDraft; return workGoods.some(g => g.id === id) && draft && typeof draft.quantity === 'string' && draft.quantity.length <= 20 && inventoryUnitOptions(inventory.customUnits).includes(draft.unit); })) as Record<string, InventoryDraft>;
+          const restored = Object.fromEntries(Object.entries(stored).filter(([id, value]) => { const draft = value as InventoryDraft; return inventory.goods.some((g: CheckGood) => g.id === id) && draft && typeof draft.quantity === 'string' && draft.quantity.length <= 20 && inventoryUnitOptions(inventory.customUnits).includes(draft.unit); })) as Record<string, InventoryDraft>;
           draftsRef.current = restored; setDrafts(restored);
         } catch { setDraftWarning('Unfinished counts could not be restored. Save each count before leaving this page.'); }
       }
-      setData(inventory); setWork(board); setDate(day || inventory.today); setTaskId(params.get('task') || ''); setError(''); } catch (e) { setError((e as Error).message); } finally { setRefreshing(false); } }, []);
+      setData(inventory); setCategory(previous => inventory.goods.some((g: CheckGood) => g.category === previous) ? previous : inventory.goods[0]?.category || 'Produce'); setWork(board); setDate(day || inventory.today); setTaskId(params.get('task') || ''); setError(''); } catch (e) { setError((e as Error).message); } finally { setRefreshing(false); } }, []);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
     const refresh = () => { if (!document.hidden && !saving.current.size && !Object.keys(draftsRef.current).length) void load(); };
@@ -46,9 +47,11 @@ export default function InventoryPage() {
     return () => { clearInterval(timer); window.removeEventListener('focus', refresh); };
   }, [load]);
   useEffect(() => { if (!feedback) return; const timer = setTimeout(() => setFeedback(''), 4500); return () => clearTimeout(timer); }, [feedback]);
-  const checked = data ? workGoods.filter(g => inventoryChecked(data.items[g.id], data.today)).length : 0;
-  const openOrders = data ? workGoods.filter(g => data.items[g.id]?.orderOpen).length : 0;
-  const ready = data ? inventoryReady(data.items, data.today) : false;
+  const goods = data?.goods || workGoods;
+  const categories = Array.from(new Set(goods.map(g => g.category)));
+  const checked = data ? goods.filter(g => inventoryChecked(data.items[g.id], data.today)).length : 0;
+  const openOrders = data ? goods.filter(g => data.items[g.id]?.orderOpen).length : 0;
+  const ready = data ? inventoryReady(data.items, data.today, goods) : false;
   const readOnly = Boolean(data && date !== data.today);
   const task = work?.day.tasks.find(t => isInventoryTask(t) && (taskId ? t.id === taskId : !t.completedAt));
   async function save(id: string, quantity: number | undefined, unit: string, action: string, order?: { orderQuantity: number; orderUnit: string }) {
@@ -69,23 +72,23 @@ export default function InventoryPage() {
   }
   async function complete() {
     if (!data || !task || finishing || Object.keys(draftsRef.current).length || saving.current.size) return; setFinishing(true); setError('');
-    try { const board: WorkBoard = await request(`/api/staff/work?date=${date}`); const result = await request('/api/staff/work', { action: 'complete', date, taskId: task.id, memberId, note: 'Inventory quantities and decisions recorded.', version: board.day.version, settingsVersion: board.day.settingsVersion }); setWork(result); setFinish(false); setFeedback('Inventory Check completed · Saved to the shift checklist'); }
+    try { const board: WorkBoard = await request(`/api/staff/work?date=${date}`); const result = await request('/api/staff/work', { action: 'complete', date, taskId: task.id, memberId, note: 'Inventory reviews and optional counts recorded.', version: board.day.version, settingsVersion: board.day.settingsVersion }); setWork(result); setFinish(false); setFeedback('Inventory Check completed · Saved to the shift checklist'); }
     catch (e) { setError((e as Error).message); } finally { setFinishing(false); }
   }
-  const shown = data ? workGoods.filter(g => (view === 'orders' || Boolean(query.trim()) || g.category === category) && (!query.trim() || `${g.name} ${g.detail || ''}`.toLowerCase().includes(query.trim().toLowerCase())) && (view !== 'pending' || !inventoryChecked(data.items[g.id], data.today)) && (view !== 'orders' || data.items[g.id]?.orderOpen)) : [];
+  const shown = data ? goods.filter(g => (view === 'orders' || Boolean(query.trim()) || g.category === category) && (!query.trim() || `${g.name} ${g.detail || ''}`.toLowerCase().includes(query.trim().toLowerCase())) && (view !== 'pending' || !inventoryChecked(data.items[g.id], data.today)) && (view !== 'orders' || data.items[g.id]?.orderOpen)) : [];
   return <AdminLayout><main className={styles.page}>
-    <header className={styles.header}><div><Link className={styles.back} href={`/admin/work${date ? `?date=${date}` : ''}`}><ArrowLeft aria-hidden="true" size={18} />Back to shift</Link><Link className={`${styles.back} ${styles.supplierLink}`} style={{ marginLeft: 16 }} href="/admin/inventory">Supplier tools & history</Link><p className={styles.eyebrow}>BOH · Daily stock routine</p><h1>Inventory Check</h1><p>Order quickly or review stock, one section at a time. Counts are optional.</p></div><Button variant="outline" className="min-h-11" disabled={refreshing} onClick={() => void load()}><RefreshCw aria-hidden="true" size={18} className="mr-2" />Refresh</Button></header>
+    <header className={styles.header}><div><Link className={styles.back} href={`/admin/work${date ? `?date=${date}` : ''}`}><ArrowLeft aria-hidden="true" size={18} />Back to shift</Link><Link className={`${styles.back} ${styles.supplierLink}`} style={{ marginLeft: 16 }} href="/admin/inventory/manage">Stock, suppliers & invoices</Link><p className={styles.eyebrow}>BOH · Daily stock routine</p><h1>Inventory Check</h1><p>Order quickly or review stock, one section at a time. Counts are optional.</p></div><Button variant="outline" className="min-h-11" disabled={refreshing} onClick={() => void load()}><RefreshCw aria-hidden="true" size={18} className="mr-2" />Refresh</Button></header>
     {error && <div role="alert" className={styles.error}>{error} <Button variant="outline" onClick={() => void load()}>Retry / Refresh</Button></div>}<div role="status" aria-live="polite" className={feedback ? styles.toast : undefined}>{feedback}</div>
     {draftWarning && <p role="alert" className={styles.notice}>{draftWarning}</p>}
     {!online && <p role="status" className={styles.notice}>Offline · Keep counting. Reconnect to save checks and order requests.</p>}
     {Object.keys(drafts).length > 0 && <p className={styles.notice}>{Object.keys(drafts).length} unsaved count{Object.keys(drafts).length === 1 ? '' : 's'} kept on this phone. Save the count with Recheck tomorrow, or include it when ordering.</p>}
     {!data ? <p>Loading inventory…</p> : <>
-      <section className={styles.summary} aria-label="Inventory progress"><Package aria-hidden="true" /><div><strong>{checked} / {workGoods.length} reviewed today</strong><p>{data.today} · Saved across devices · {openOrders} open order requests</p><progress aria-label="Goods checked today" max={workGoods.length} value={checked} /></div><span>{ready ? 'Ready to finish' : `${workGoods.length - checked} to go`}</span></section>
+      <section className={styles.summary} aria-label="Inventory progress"><Package aria-hidden="true" /><div><strong>{checked} / {goods.length} reviewed today</strong><p>{data.today} · Saved across devices · {openOrders} open order requests</p><progress aria-label="Goods checked today" max={goods.length} value={checked} /></div><span>{ready ? 'Ready to finish' : `${goods.length - checked} to go`}</span></section>
       {readOnly && <p role="alert" className={styles.error}>This shift is for {date}. Inventory checks record today’s stock only. Open today’s Work board to check in.</p>}
       <nav className={styles.tabs} aria-label="Inventory views">{[['all', 'Check stock'], ['pending', 'Needs check'], ['orders', `Order list (${openOrders})`]].map(([id, name]) => <button key={id} aria-pressed={view === id} onClick={() => { setView(id); setQuery(''); }}>{id === 'orders' && <ShoppingCart aria-hidden="true" size={18} />}{name}</button>)}</nav>
-      {view === 'orders' ? <div className={styles.intro}><h2>Order requests</h2><p>Daily check requests for internal review. Nothing is sent to suppliers. Requests stay here until stock is marked received. Supplier tools keep their separate order history.</p></div> : <nav className={styles.phases} aria-label="Inventory sections">{categories.map((name, i) => { const goods = workGoods.filter(g => g.category === name), count = goods.filter(g => inventoryChecked(data.items[g.id], data.today)).length; return <button key={name} aria-pressed={category === name} onClick={() => { setCategory(name); setQuery(''); }}><span>{count === goods.length ? <Check aria-hidden="true" size={16} /> : i + 1}</span><strong>{name}</strong><small>{count}/{goods.length}</small></button>; })}</nav>}
+      {view === 'orders' ? <div className={styles.intro}><h2>Order requests</h2><p>Daily check requests for internal review. Nothing is sent to suppliers. Requests stay here until stock is marked received. Supplier tools keep their separate order history.</p></div> : <nav className={styles.phases} aria-label="Inventory sections">{categories.map((name, i) => { const sectionGoods = goods.filter(g => g.category === name), count = sectionGoods.filter(g => inventoryChecked(data.items[g.id], data.today)).length; return <button key={name} aria-pressed={category === name} onClick={() => { setCategory(name); setQuery(''); }}><span>{count === sectionGoods.length ? <Check aria-hidden="true" size={16} /> : i + 1}</span><strong>{name}</strong><small>{count}/{sectionGoods.length}</small></button>; })}</nav>}
       {view !== 'orders' && <label className={styles.mobileSection}>Section<select value={category} onChange={e => { setCategory(e.target.value); setQuery(''); }}>{categories.map(name => <option key={name}>{name}</option>)}</select></label>}
-      {view === 'orders' && <div className={styles.shareActions}><Button variant="outline" className="min-h-12" disabled={!openOrders} onClick={() => { void navigator.clipboard.writeText(inventoryOrderText(data.items)).then(() => setFeedback('Order list copied')).catch(() => setError('Unable to copy. Try Share list or select the order details.')); }}>Copy list</Button><Button variant="outline" className="min-h-12" disabled={!openOrders} onClick={() => { const text = inventoryOrderText(data.items); if (navigator.share) void navigator.share({ title: 'Restaurant order list', text }).catch(e => { if (e.name !== 'AbortError') setError('Unable to share this list. Try Copy list.'); }); else void navigator.clipboard.writeText(text).then(() => setFeedback('Order list copied')).catch(() => setError('Unable to copy this list.')); }}>Share list</Button></div>}
+      {view === 'orders' && <div className={styles.shareActions}><Button variant="outline" className="min-h-12" disabled={!openOrders} onClick={() => { void navigator.clipboard.writeText(inventoryOrderText(data.items, goods)).then(() => setFeedback('Order list copied')).catch(() => setError('Unable to copy. Try Share list or select the order details.')); }}>Copy list</Button><Button variant="outline" className="min-h-12" disabled={!openOrders} onClick={() => { const text = inventoryOrderText(data.items, goods); if (navigator.share) void navigator.share({ title: 'Restaurant order list', text }).catch(e => { if (e.name !== 'AbortError') setError('Unable to share this list. Try Copy list.'); }); else void navigator.clipboard.writeText(text).then(() => setFeedback('Order list copied')).catch(() => setError('Unable to copy this list.')); }}>Share list</Button></div>}
       <div className={styles.sectionHeader}><div><h2>{view === 'orders' ? 'Ready for review' : category}</h2>{view !== 'orders' && <Button variant="ghost" className="min-h-11 mt-1" onClick={() => { setCategory(categories[(categories.indexOf(category) + 1) % categories.length]); setQuery(''); }}>Next section →</Button>}</div><label>Find an item<input type="search" value={query} placeholder="Name, brand or size" onChange={e => setQuery(e.target.value)} /></label></div>
       <p className={styles.nextDayHint}>Previous counts stay saved. Each new day starts a fresh review; enter a new count only when you recount the item.</p>
       <div className={styles.legend} aria-label="Stock color guide">{(['checked', 'order', 'out', 'stale'] as const).map(state => <span key={state} data-stock={state}><i aria-hidden="true" />{inventoryTileLabels[state]}</span>)}</div>
@@ -97,14 +100,14 @@ export default function InventoryPage() {
   </main></AdminLayout>;
 }
 function Item({ good, item, units, addUnit, draft, changeDraft, date, timezone, disabled, readOnly, orderView, save }: {
-  good: typeof workGoods[number]; item?: InventoryItem; units: string[]; addUnit: (name: string) => Promise<string>; draft?: InventoryDraft;
+  good: CheckGood; item?: InventoryItem; units: string[]; addUnit: (name: string) => Promise<string>; draft?: InventoryDraft;
   changeDraft: (id: string, value: InventoryDraft) => void;
   date: string; timezone: string; disabled: boolean; readOnly: boolean; orderView: boolean;
   save: (id: string, quantity: number | undefined, unit: string, action: string, order?: { orderQuantity: number; orderUnit: string }) => Promise<void>;
 }) {
   const countedAt = inventoryCountedAt(item);
   const countedToday = countedAt ? restaurantClock(timezone, new Date(countedAt)).date === date : false;
-  const quantity = draft?.quantity ?? (item && countedToday && item.quantity !== null ? String(item.quantity) : ''), unit = draft?.unit || item?.unit || inventoryDefaultUnit(good.detail);
+  const quantity = draft?.quantity ?? (item && item.stockSource !== 'receipt' && countedToday && item.quantity !== null ? String(item.quantity) : ''), unit = draft?.unit || item?.unit || good.baseUnit || inventoryDefaultUnit(good.detail);
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [ordering, setOrdering] = useState(false);
   const [includeCount, setIncludeCount] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false), [history, setHistory] = useState<{ id: string; action: string; at: string; before: InventoryItem | null; after: InventoryItem | null }[] | null>(null), [historyError, setHistoryError] = useState('');
@@ -132,8 +135,9 @@ function Item({ good, item, units, addUnit, draft, changeDraft, date, timezone, 
   return <article className={styles.item} data-checked={checked} data-stock={stockState} data-draft={Boolean(draft)}>
     <div className={styles.itemTitle}><div><h3>{good.name}</h3><p>{good.detail || good.category}</p></div><span>{draft ? 'Not saved' : inventoryTileLabels[stockState]}</span></div>
     {item?.orderOpen && <p className={styles.orderAmount}><ShoppingCart aria-hidden="true" size={16} />{item.orderQuantity !== undefined ? `To order: ${item.orderQuantity} ${item.orderUnit || item.unit}` : 'Set quantity to order'}</p>}
-    {item ? <p className={styles.receipt}>Updated <time dateTime={item.checkedAt} title={timezone}>{new Date(item.checkedAt).toLocaleString('en-US', { timeZone: timezone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time> · {item.checkedBy}{item.orderOpen ? ' · Order request open' : ` · Next check ${item.nextCheck}`}</p> : <p className={styles.receipt}>Updated: Not checked yet</p>}
-      <div className={styles.lastCount}><span>{item?.quantity !== null && item?.quantity !== undefined && countedAt ? <>Last counted: <strong>{item.quantity} {item.unit}</strong> · {new Date(countedAt).toLocaleString('en-US', { timeZone: timezone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</> : 'No count recorded yet'}</span><button type="button" onClick={() => void showHistory()}>History</button></div>
+    {item ? <p className={styles.receipt}>Updated <time dateTime={item.updatedAt || item.checkedAt} title={timezone}>{new Date(item.updatedAt || item.checkedAt).toLocaleString('en-US', { timeZone: timezone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time> · {item.checkedBy}{item.orderOpen ? ' · Order request open' : ` · Next check ${item.nextCheck}`}</p> : <p className={styles.receipt}>Updated: Not checked yet</p>}
+      <div className={styles.lastCount}><span>{item?.quantity !== null && item?.quantity !== undefined && countedAt ? <>Last counted: <strong>{item.lastCountQuantity ?? item.quantity} {item.lastCountUnit || item.unit}</strong> · {new Date(countedAt).toLocaleString('en-US', { timeZone: timezone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</> : 'No count recorded yet'}</span><button type="button" onClick={() => void showHistory()}>History</button></div>
+    {item?.stockSource === 'receipt' && <p className={styles.receipt}>Stock after delivery: {item.quantity} {item.unit} · Estimated from the last count plus received goods. Recount to confirm.</p>}
     <fieldset disabled={busy || readOnly}>
       <legend className="sr-only">Count {good.name}</legend>
 
@@ -157,7 +161,7 @@ function Item({ good, item, units, addUnit, draft, changeDraft, date, timezone, 
       </form>
     </DialogContent></Dialog>
     <Dialog open={historyOpen} onOpenChange={setHistoryOpen}><DialogContent className="max-h-[85vh] overflow-y-auto"><DialogTitle>{good.name} history</DialogTitle><DialogDescription>Recent saved reviews, order requests, and counts. Ordering without a count keeps the earlier amount and count time. Older activity stays saved.</DialogDescription>
-      {historyError ? <p role="alert">{historyError}</p> : history === null ? <p>Loading history…</p> : !history.length ? <p>No saved activity yet.</p> : <ol className={styles.historyList}>{history.map(event => { const after = event.after; const newCount = after && inventoryCountedAt(after) === event.at; return <li key={event.id}><strong>{event.action === 'order' ? `Order: ${after?.orderQuantity ?? '—'} ${after?.orderUnit || ''}` : event.action === 'received' ? 'Stock received' : 'Sufficient · Recheck tomorrow'}</strong><time dateTime={event.at}>{new Date(event.at).toLocaleString('en-US', { timeZone: timezone, month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</time><p>{newCount ? `Counted: ${after.quantity} ${after.unit}` : 'No new count recorded'}{!newCount && after?.quantity !== null && after?.quantity !== undefined ? ` · Kept ${after.quantity} ${after.unit}` : ''}</p></li>; })}</ol>}
+      {historyError ? <p role="alert">{historyError}</p> : history === null ? <p>Loading history…</p> : !history.length ? <p>No saved activity yet.</p> : <ol className={styles.historyList}>{history.map(event => { const after = event.after; const newCount = after && inventoryCountedAt(after) === event.at; return <li key={event.id}><strong>{event.action === 'order' ? `Order: ${after?.orderQuantity ?? '—'} ${after?.orderUnit || ''}` : event.action === 'received' || event.action === 'receipt' ? 'Stock received' : event.action === 'count' ? 'Physical count' : 'Sufficient · Recheck tomorrow'}</strong><time dateTime={event.at}>{new Date(event.at).toLocaleString('en-US', { timeZone: timezone, month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</time><p>{newCount ? `Counted: ${after.quantity} ${after.unit}` : 'No new count recorded'}{!newCount && after?.quantity !== null && after?.quantity !== undefined ? ` · Kept ${after.quantity} ${after.unit}` : ''}</p></li>; })}</ol>}
     </DialogContent></Dialog>
   </article>;
 }

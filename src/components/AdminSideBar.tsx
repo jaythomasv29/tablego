@@ -40,7 +40,7 @@ const NAV_GROUPS = [
   { label: 'Restaurant Operations', items: [
     { id: 'work', href: '/admin/work', label: 'Work', icon: ClipboardCheck },
     { id: 'team', href: '/admin/team', label: 'Team View', icon: Users },
-    { id: 'inventory', href: '/admin/inventory/check', label: 'Inventory', icon: Package },
+    { id: 'inventory', href: '/admin/inventory/manage', label: 'Inventory', icon: Package },
     { id: 'hours', href: '/admin/hours', label: 'Hours', icon: Clock },
     { id: 'special-dates', href: '/admin/special-dates', label: 'Business Holidays', icon: Calendar },
     { id: 'cater', href: '/admin/cater', label: 'Catering', icon: Utensils },

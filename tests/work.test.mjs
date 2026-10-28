@@ -60,11 +60,11 @@ test('recurring task settings bound input and preserve editable stations, offset
 function fixture() {
   const records = new Map([['settings/general', { timezone: policy.timezone }], ['settings/businessHours', policy.businessHours]]);
   const snap = path => ({ exists: records.has(path), id: path.split('/').at(-1), data: () => records.has(path) ? structuredClone(records.get(path)) : undefined });
-  const db = { doc: path => ({ path }), collection: path => ({ path }) };
+  const db = { doc: path => ({ path }), collection: path => ({ path, limit: () => ({ path }) }) };
   db.runTransaction = async fn => {
     const staged = new Map(); let wrote = false;
     const tx = {
-      get: async ref => { assert.equal(wrote, false, 'no reads after writes'); return ref.path === 'specialDates' ? { docs: [] } : snap(ref.path); },
+      get: async ref => { assert.equal(wrote, false, 'no reads after writes'); return ref.path === 'specialDates' ? { docs: [] } : ref.path === 'inventoryOperations/goods/records' ? { docs: Array.from(records.entries()).filter(([key]) => key.startsWith(ref.path + '/')).map(([key]) => snap(key)) } : snap(ref.path); },
       set: (ref, value) => { wrote = true; staged.set(ref.path, structuredClone(value)); },
       create: (ref, value) => { assert.equal(records.has(ref.path) || staged.has(ref.path), false, 'unique durable intent'); wrote = true; staged.set(ref.path, structuredClone(value)); },
     };

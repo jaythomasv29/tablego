@@ -1,18 +1,19 @@
+import { getInventoryGoods } from './catalog';
 import { randomUUID } from 'node:crypto';
 import { getServerDatabase } from '../serverFirebase';
 import { businessTimezone } from '../reservations/policy';
 import { restaurantClock } from '../reservations/availability';
 import { ReservationError } from '../reservations/http';
-import { registerInventoryUnit, inventoryChange, type InventoryRecords } from './model';
+import { inventoryUnitOptions, registerInventoryUnit, inventoryChange, type InventoryRecords } from './model';
 export async function getInventory() {
   const db = getServerDatabase();
-  const [saved, general] = await Promise.all([db.doc('inventory/current').get(), db.doc('settings/general').get()]);
+  const [saved, general, goods] = await Promise.all([db.doc('inventory/current').get(), db.doc('settings/general').get(), getInventoryGoods()]);
   const timezone = businessTimezone(general.data());
-  return { customUnits: (saved.data()?.customUnits || []) as string[], items: (saved.data()?.items || {}) as InventoryRecords, today: restaurantClock(timezone).date, timezone };
+  return { goods, customUnits: inventoryUnitOptions([...(saved.data()?.customUnits || []), ...goods.map(g => g.baseUnit || '').filter(Boolean)]).filter(u => !['each','lb','oz','bag','box','case','bunch','bottle','gallon','pack','can'].includes(u)), items: (saved.data()?.items || {}) as InventoryRecords, today: restaurantClock(timezone).date, timezone };
 }
 export async function saveInventory(input: unknown, actor: string) {
   if (!input || typeof input !== 'object') throw new ReservationError('Enter an inventory check');
-  const value = input as Record<string, unknown>, db = getServerDatabase();
+  const value = input as Record<string, unknown>, db = getServerDatabase(), goods = await getInventoryGoods();
   return db.runTransaction(async tx => {
     const [saved, general] = await Promise.all([tx.get(db.doc('inventory/current')), tx.get(db.doc('settings/general'))]);
     const date = restaurantClock(businessTimezone(general.data())).date;
@@ -30,7 +31,7 @@ export async function saveInventory(input: unknown, actor: string) {
     }
     const items = (saved.data()?.items || {}) as InventoryRecords, id = String(value.itemId);
     let item;
-    try { item = inventoryChange(value, items[id], date, new Date().toISOString(), 'BOH-Team', customUnits); }
+    try { item = inventoryChange(value, items[id], date, new Date().toISOString(), 'BOH-Team', inventoryUnitOptions([...customUnits, ...goods.map(g => g.baseUnit || '').filter(Boolean)]), goods); }
     catch (error) { throw new ReservationError((error as Error).message, /another device/.test((error as Error).message) ? 409 : 400); }
     tx.set(db.doc('inventory/current'), { ...saved.data(), items: { ...items, [id]: item } });
     tx.create(db.doc(`inventory/current/events/${randomUUID()}`), { action: value.action, itemId: id, before: items[id] || null, after: item, actor, at: item.updatedAt || item.checkedAt });
@@ -39,8 +40,8 @@ export async function saveInventory(input: unknown, actor: string) {
 }
 
 export async function getInventoryHistory(itemId: string) {
-  const { workGoods } = await import('../work/goods');
-  if (!workGoods.some(good => good.id === itemId)) throw new ReservationError('Choose a current inventory item');
+  const goods = await getInventoryGoods();
+  if (!goods.some(good => good.id === itemId)) throw new ReservationError('Choose a current inventory item');
   const events = await getServerDatabase().collection('inventory/current/events').where('itemId', '==', itemId).orderBy('at', 'desc').limit(30).get();
   return { events: events.docs.map(doc => { const event = doc.data(); return { id: doc.id, action: event.action, at: event.at, before: event.before || null, after: event.after || null }; }) };
 }
