@@ -119,6 +119,8 @@ async function mount(
             DialogTitle: (p) => React.createElement("h2", p),
             DialogDescription: (p) => React.createElement("p", p),
           };
+        if (name === "@/components/inventory/InventoryTextLog") return { __esModule: true, default: () => null };
+        if (name === "@/lib/inventory/invoiceCatalog") return { invoiceCatalogSuggestions: lines => lines.map((_, lineIndex) => ({ lineIndex, ambiguous: false })) };
         if (name === "@/components/inventory/InvoiceCapture")
           return {
             __esModule: true,

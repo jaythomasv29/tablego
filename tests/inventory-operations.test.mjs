@@ -64,7 +64,7 @@ test("supplier mapping snapshots exact supplier name, code and conversion on ord
   assert.equal(o.lines[0].packSize, 5);
   assert.equal(o.status, "ordered");
 });
-test("partial receiving adds usable stock and retains physical count time", () => {
+test("partial receiving records arrivals without changing physical counts", () => {
   const result = receiveInput(
     { lines: [{ itemId: "basil", receivedQuantity: 1, damagedQuantity: 0.2 }] },
     "receipt",
@@ -73,9 +73,9 @@ test("partial receiving adds usable stock and retains physical count time", () =
     at,
     "Manager",
   );
-  assert.equal(result.stock.basil.quantity, 8);
+  assert.equal(result.stock.basil.quantity, 4);
   assert.equal(result.stock.basil.countedAt, previous.countedAt);
-  assert.equal(result.stock.basil.version, 2);
+  assert.equal(result.stock.basil.version, 1);
   assert.equal(result.order.status, "partial");
   assert.equal(previous.quantity, 4);
   const complete = receiveInput(
@@ -87,7 +87,7 @@ test("partial receiving adds usable stock and retains physical count time", () =
     "Team",
   );
   assert.equal(complete.order.status, "received");
-  assert.equal(complete.stock.basil.quantity, 13);
+  assert.equal(complete.stock.basil.quantity, 4);
 });
 test("receipt never invents a stock count or converts unspecified unit", () => {
   for (const stock of [
@@ -104,7 +104,7 @@ test("receipt never invents a stock count or converts unspecified unit", () => {
       "Team",
     );
     assert.deepEqual(result.stock, stock);
-    assert.match(result.receipt.lines[0].stockNote, /count needed/);
+    assert.match(result.receipt.lines[0].stockNote, /Arrival recorded only/);
   }
 });
 test("receiving rejects overdelivery, duplicate lines, zero deliveries and invalid damage", () => {
@@ -210,7 +210,7 @@ test("validation rejects unsafe IDs and fractional precision, supports custom go
   );
 });
 
-test("multiple receipts retain original physical-count snapshot", () => {
+test("multiple receipts leave all stock records unchanged", () => {
   const first = receiveInput(
     { lines: [{ itemId: "basil", receivedQuantity: 1, damagedQuantity: 0 }] },
     "first",
@@ -227,10 +227,8 @@ test("multiple receipts retain original physical-count snapshot", () => {
     at,
     "Team",
   );
-  assert.equal(second.stock.basil.quantity, 14);
-  assert.equal(second.stock.basil.lastCountQuantity, 4);
-  assert.equal(second.stock.basil.lastCountUnit, "lb");
-  assert.equal(second.stock.basil.stockSource, "receipt");
+  assert.equal(second.stock.basil.quantity, 4);
+  assert.deepEqual(second.stock.basil, previous);
 });
 
 test("invoice reconciliation aggregates split lines and flags missing or damaged goods", () => {
@@ -324,8 +322,8 @@ test("response budgets retain stock/catalog, prioritize active orders, preserve 
   assert.equal(page.nextCursor, "one");
 });
 
-test('receipt units match case-insensitively without inventing conversions', () => {
+test('receiving does not convert or replenish even matching units', () => {
   const result = receiveInput({ lines: [{ itemId: 'basil', receivedQuantity: 1, damagedQuantity: 0 }] }, 'case-match', order(), { basil: { ...previous, unit: 'LB' } }, at, 'Team');
-  assert.equal(result.stock.basil.quantity, 9);
+  assert.equal(result.stock.basil.quantity, 4);
   assert.equal(result.stock.basil.unit, 'LB');
 });

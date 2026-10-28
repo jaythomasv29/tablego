@@ -1,6 +1,6 @@
 import {
   inventoryDefaultUnit,
-  inventoryCountedAt,
+  registerInventoryUnit,
   nextInventoryDate,
   validateInventoryUnit,
   type InventoryItem,
@@ -54,6 +54,7 @@ export interface PurchaseOrder {
   lines: PurchaseLine[];
 }
 export interface InvoiceLine {
+  sku?: string; createCatalog?: boolean; catalogName?: string; catalogCategory?: string;
   itemId?: string;
   description: string;
   quantity: number;
@@ -78,6 +79,7 @@ export interface Invoice {
   updatedAt: string;
 }
 export interface ReceiptLine {
+  unit?: string;
   itemId: string;
   orderedQuantity: number;
   receivedQuantity: number;
@@ -86,6 +88,7 @@ export interface ReceiptLine {
   stockNote?: string;
 }
 export interface Receipt {
+  supplierId?: string; supplierName?: string;
   id: string;
   orderId: string;
   at: string;
@@ -258,8 +261,7 @@ export function receiveInput(
   const v = object(value);
   if (!Array.isArray(v.lines) || !v.lines.length || v.lines.length > 150)
     throw new Error("Enter received items");
-  const next = { ...stock },
-    seen = new Set<string>();
+  const seen = new Set<string>();
   let accepted = 0;
   const lines = v.lines.map((raw) => {
     const l = object(raw),
@@ -279,39 +281,11 @@ export function receiveInput(
         "Received quantity exceeds order, or damage exceeds delivery",
       );
     accepted += receivedQuantity;
-    const previous = stock[itemId],
-      usable =
-        Math.round(
-          (receivedQuantity - damagedQuantity) * ordered.packSize * 100,
-        ) / 100;
-    let stockNote =
-      "No stock change: count needed or counting unit differs from package unit";
-    if (
-      previous &&
-      previous.quantity !== null &&
-      previous.unit.toLocaleLowerCase() === ordered.packUnit.toLocaleLowerCase()
-    ) {
-      const quantity = Math.round((previous.quantity + usable) * 100) / 100;
-      amount(quantity);
-      next[itemId] = {
-        ...previous,
-        quantity,
-        countedAt: inventoryCountedAt(previous),
-        updatedAt: at,
-        version: previous.version + 1,
-        ...{
-          receivedAt: at,
-          stockUpdatedAt: at,
-          stockSource: "receipt" as const,
-          lastCountQuantity: previous.lastCountQuantity ?? previous.quantity,
-          lastCountUnit: previous.lastCountUnit || previous.unit,
-        },
-      };
-      stockNote = `Added ${usable} ${ordered.packUnit}; last physical count time retained`;
-    }
+    const stockNote = "Arrival recorded only. On-hand stock changes through a confirmed physical count.";
     return {
       itemId,
       orderedQuantity: ordered.quantity,
+      unit: ordered.unit,
       receivedQuantity,
       damagedQuantity,
       note: textValue(l.note, 500, false),
@@ -339,12 +313,14 @@ export function receiveInput(
     receipt: {
       id,
       orderId: order.id,
+      supplierId: order.supplierId,
+      supplierName: order.supplierName,
       at,
       by,
       lines,
       note: textValue(v.note, 1000, false),
     },
-    stock: next,
+    stock,
   };
 }
 export function countInput(
@@ -416,6 +392,8 @@ export function invoiceInput(
       throw new Error("Choose a current inventory item");
     return {
       ...(itemId ? { itemId } : {}),
+      ...(l.sku ? { sku: textValue(l.sku, 100) } : {}),
+      ...(!itemId && l.createCatalog === true ? { createCatalog: true, ...(l.catalogName ? { catalogName: textValue(l.catalogName) } : {}), ...(l.catalogCategory ? { catalogCategory: textValue(l.catalogCategory, 80) } : {}) } : {}),
       description: textValue(l.description, 300),
       quantity: amount(l.quantity),
       unit: validateInventoryUnit(l.unit),
@@ -637,4 +615,24 @@ export function budgetHistoryRecords<T extends { id: string }>(
         ? included[included.length - 1].id
         : null,
   };
+}
+
+export function confirmStockLog(value: unknown, goods: CatalogGood[], stock: InventoryRecords, customUnits: string[], today: string, at: string, by: string) {
+  const v = object(value);
+  if (v.date !== today) throw new Error('The restaurant date changed. Refresh and review this stock log again.');
+  const text = textValue(v.text, 20000);
+  if (!Array.isArray(v.lines) || !v.lines.length || v.lines.length > 200) throw new Error('Confirm 1–200 inventory items at a time');
+  const updates: InventoryRecords = {}, seen = new Set<string>();
+  let units = [...customUnits];
+  const lines = v.lines.map(raw => {
+    const line = object(raw), itemId = identifier(line.itemId);
+    if (!goods.some(g => g.id === itemId)) throw new Error('Match every included row to a current inventory item');
+    if (seen.has(itemId)) throw new Error('The log contains this item more than once. Resolve duplicates before confirming.');
+    seen.add(itemId);
+    const registered = registerInventoryUnit(line.unit, units); units = registered.customUnits;
+    const after = countInput({ ...line, unit: registered.unit }, stock[itemId], today, at, by);
+    updates[itemId] = after;
+    return { itemId, before: stock[itemId] || null, after };
+  });
+  return { updates, customUnits: units, text, lines };
 }

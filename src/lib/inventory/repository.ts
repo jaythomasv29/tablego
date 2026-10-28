@@ -43,5 +43,5 @@ export async function getInventoryHistory(itemId: string) {
   const goods = await getInventoryGoods();
   if (!goods.some(good => good.id === itemId)) throw new ReservationError('Choose a current inventory item');
   const events = await getServerDatabase().collection('inventory/current/events').where('itemId', '==', itemId).orderBy('at', 'desc').limit(30).get();
-  return { events: events.docs.map(doc => { const event = doc.data(); return { id: doc.id, action: event.action, at: event.at, before: event.before || null, after: event.after || null }; }) };
+  return { events: events.docs.map(doc => { const event = doc.data(); return { id: doc.id, action: event.action, at: event.at, before: event.before || null, after: event.after || null, ...(event.arrival ? { arrival: event.arrival } : {}) }; }) };
 }

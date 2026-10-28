@@ -8,6 +8,8 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import InventoryTextLog from "@/components/inventory/InventoryTextLog";
+import { invoiceCatalogSuggestions } from "@/lib/inventory/invoiceCatalog";
 import InvoiceCapture from "@/components/inventory/InvoiceCapture";
 import {
   reconcileInvoice,
@@ -22,6 +24,7 @@ import {
 import { restaurantClock } from "@/lib/reservations/availability";
 import { inventoryCountedAt } from "@/lib/inventory/model";
 import styles from "./manage.module.css";
+const activityLabel = (action: string) => ({ count: 'Physical count', confirmTextLog: 'Stock log confirmed', receive: 'Arrival recorded', createOrder: 'Order recorded', saveInvoice: 'Invoice saved', saveGood: 'Catalog item saved', saveSupplier: 'Supplier saved', saveOffer: 'Supplier product linked' } as Record<string, string>)[action] || 'Inventory updated';
 const endpoint = "/api/staff/inventory/operations";
 async function request(body?: unknown): Promise<OperationsBoard> {
   const response = await fetch(endpoint, {
@@ -496,9 +499,7 @@ export default function InventoryManagePage() {
                     <summary>How stock works</summary>
                     <p>
                       Counts show the last known amount. Reviewed today can mean
-                      stock was sufficient without a new count. Deliveries add
-                      usable stock only when units match; usage is not deducted
-                      automatically. Physical count dates stay visible.
+                      stock was sufficient without a new count. Receiving and invoices record purchase history and arrivals only. Only a confirmed physical count updates on-hand stock.
                     </p>
                     <Link href="/admin/inventory">
                       Previous supplier tools & history ↗
@@ -507,6 +508,7 @@ export default function InventoryManagePage() {
                 </div>
               </>
             )}
+            {view === 'Overview' && <InventoryTextLog board={board} onSaved={next => { setBoard(next); historyCursors.current = {}; setOlderEnd({}); setError(''); }} />}
             {(view === "Overview" || view === "Directory") && (
               <>
                 {view === "Directory" && (
@@ -550,6 +552,9 @@ export default function InventoryManagePage() {
                   {goods.map((g) => {
                     const s = board.stock[g.id],
                       offers = board.offers.filter((o) => o.itemId === g.id);
+                    const lastOrder = board.orders.find(o => o.lines.some(l => l.itemId === g.id));
+                    const lastArrival = board.receipts.find(r => r.lines.some(l => l.itemId === g.id));
+                    const lastInvoice = board.invoices.find(i => i.lines.some(l => l.itemId === g.id));
                     return (
                       <article key={g.id} className={styles.card}>
                         <div className={styles.row}>
@@ -560,6 +565,7 @@ export default function InventoryManagePage() {
                           {g.detail}
                           {g.location ? ` · ${g.location}` : ""}
                         </p>
+                        {(lastOrder || lastArrival || lastInvoice) && <details><summary>Purchase & arrival history</summary>{lastOrder && <p>Last ordered: {date(lastOrder.orderedAt)} · {lastOrder.supplierName} · {Math.max(0, Math.floor((new Date(board.today + 'T12:00:00Z').getTime() - new Date(lastOrder.orderedAt).getTime()) / 86400000))} days ago</p>}{lastArrival && <p>Latest arrival: {date(lastArrival.at)} · {lastArrival.lines.find(l => l.itemId === g.id)?.receivedQuantity} {lastArrival.lines.find(l => l.itemId === g.id)?.unit || board.orders.find(o => o.id === lastArrival.orderId)?.lines.find(l => l.itemId === g.id)?.unit || 'ordering units'} received{lastArrival.supplierName ? ` · ${lastArrival.supplierName}` : ''}</p>}{lastInvoice && <p>Last invoiced: {lastInvoice.date} · {lastInvoice.supplierName} · {lastInvoice.status}</p>}</details>}
                         {view === "Overview" ? (
                           <>
                             <div className={styles.row}>
@@ -567,11 +573,11 @@ export default function InventoryManagePage() {
                                 {s?.quantity === null ||
                                 s?.quantity === undefined
                                   ? "Not counted"
-                                  : `${s.quantity} ${s.unit}`}
+                                  : `${s.stockSource === 'receipt' ? s.lastCountQuantity ?? 'Unknown' : s.quantity} ${s.stockSource === 'receipt' ? s.lastCountUnit || s.unit : s.unit}`}
                               </strong>
                               <span className={styles.badge}>
                                 {s?.stockSource === "receipt"
-                                  ? "Delivery estimate"
+                                  ? "Recount needed"
                                   : inventoryCountedAt(s) &&
                                       restaurantClock(
                                         board.timezone,
@@ -592,8 +598,7 @@ export default function InventoryManagePage() {
                               {s?.stockSource === "receipt" && (
                                 <>
                                   <br />
-                                  Current amount includes received goods; usage
-                                  is not deducted.
+                                  Previous delivery estimate excluded. Recount to confirm stock.
                                 </>
                               )}
                               {s?.updatedAt &&
@@ -922,7 +927,7 @@ export default function InventoryManagePage() {
                     <>
                       <p>
                         {modal.good.name} · Previous:{" "}
-                        {board.stock[modal.good.id]?.quantity ?? "Unknown"}{" "}
+                        {(board.stock[modal.good.id]?.stockSource === 'receipt' ? board.stock[modal.good.id]?.lastCountQuantity : board.stock[modal.good.id]?.quantity) ?? "Unknown"}{" "}
                         {board.stock[modal.good.id]?.unit || ""}
                       </p>
                       {field("quantity", "On hand now", {
@@ -1196,9 +1201,7 @@ export default function InventoryManagePage() {
                         placeholder: "Team",
                       })}
                       <p>
-                        Usable delivery is added to stock only when the stored
-                        counting unit matches the package contents unit.
-                        Otherwise a fresh count is needed.
+                        This records an arrival only. On-hand stock is updated through a confirmed physical count or stock log.
                       </p>
                     </>
                   )}
@@ -1250,7 +1253,7 @@ export default function InventoryManagePage() {
                         </Link>
                       )}
                       {supplierSelect(draft.supplierId, (value) =>
-                        setDraft({ ...draft, supplierId: value, orderId: "" }),
+                        setDraft({ ...draft, supplierId: value, orderId: "", lines: draft.lines.map((line, index) => { const match = invoiceCatalogSuggestions(draft.lines, board.goods, board.offers, value)[index]; return !line.itemId && match.itemId ? { ...line, itemId: match.itemId } : line; }) }),
                       )}
                       <div className={styles.pair}>
                         <label>
@@ -1363,6 +1366,7 @@ export default function InventoryManagePage() {
                           }
                         />
                       </label>
+                      {draft.lines.some(line => !line.itemId) && <button type="button" onClick={() => setDraft({ ...draft, lines: draft.lines.map(line => line.itemId ? line : { ...line, createCatalog: true }) })}>Add unmatched products to catalog on review</button>}
                       {draft.lines.map((line, index) => {
                         const update = (patch: Partial<InvoiceLine>) =>
                           setDraft({
@@ -1420,6 +1424,8 @@ export default function InventoryManagePage() {
                                 ))}
                               </select>
                             </label>
+                            {!line.itemId && <><label className={styles.check}><input type="checkbox" checked={Boolean(line.createCatalog)} onChange={e => update({ createCatalog: e.target.checked })} />Add this product to the catalog when this invoice is reviewed</label>{line.createCatalog && <><label>Kitchen item name<input value={line.catalogName || line.description} maxLength={160} onChange={e => update({ catalogName: e.target.value })} /></label><label>Category<input value={line.catalogCategory || 'Unsorted goods'} maxLength={80} onChange={e => update({ catalogCategory: e.target.value })} /></label><p>The invoice unit becomes the default counting unit. Package contents can be refined in Directory. No stock quantity will be added.</p></>}</>}
+                            <label>Supplier product code (optional)<input value={line.sku || ''} maxLength={100} onChange={e => update({ sku: e.target.value })} /></label>
                             <div className={styles.pair}>
                               <label>
                                 Quantity
@@ -1556,7 +1562,7 @@ export default function InventoryManagePage() {
                         .slice(0, 20)
                         .map((e) => (
                           <div className={styles.activity} key={e.id}>
-                            {e.action} · {date(e.at)}
+                            {activityLabel(e.action)} · {date(e.at)}
                             <p>{e.by || e.actor}</p>
                             {e.action === "count" && (
                               <p>
