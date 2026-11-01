@@ -20,6 +20,7 @@ import {
   receiveInput,
   invoiceInput,
   countInput,
+  checkItemInput,
   confirmStockLog,
   type CatalogGood,
   type Supplier,
@@ -143,12 +144,19 @@ export async function mutateOperations(raw: unknown, actor: string) {
       "receive",
       "saveInvoice",
       "count",
+      "checkItem",
       "confirmTextLog",
     ];
     if (!allowed.includes(action))
       throw new Error("Choose an inventory action");
     const board = await getOperations();
-    const requestId = ["createOrder", "receive", "count", "confirmTextLog"].includes(action)
+    const requestId = v.requestId !== undefined || [
+      "createOrder",
+      "receive",
+      "count",
+      "confirmTextLog",
+      "checkItem",
+    ].includes(action)
       ? identifier(v.requestId)
       : randomUUID();
     const generatedId: string = randomUUID();
@@ -234,26 +242,81 @@ export async function mutateOperations(raw: unknown, actor: string) {
           );
           if (linked.exists) invoiceOrders.push(linked.data() as PurchaseOrder);
         }
-        const invoiceGoods = [...board.goods], invoiceOffers = [...board.offers];
-        const catalogWrites: { kind: string; id: string; data: CatalogGood | SupplierOffer }[] = [];
+        const invoiceGoods = [...board.goods],
+          invoiceOffers = [...board.offers];
+        const catalogWrites: {
+          kind: string;
+          id: string;
+          data: CatalogGood | SupplierOffer;
+        }[] = [];
         const prepared = { ...input };
-        if (input.status === 'reviewed' && Array.isArray(input.lines) && input.lines.length <= 150) {
-          prepared.lines = input.lines.map(rawLine => {
+        if (
+          input.status === "reviewed" &&
+          Array.isArray(input.lines) &&
+          input.lines.length <= 150
+        ) {
+          prepared.lines = input.lines.map((rawLine) => {
             const line = object(rawLine);
             if (line.itemId || line.createCatalog !== true) return line;
-            const description = textValue(line.description, 300), unit = textValue(line.unit, 24);
-            const suggestion = invoiceCatalogSuggestions([{ description, unit, ...(line.sku ? { sku: textValue(line.sku, 100) } : {}) }], invoiceGoods, invoiceOffers, String(input.supplierId))[0];
-            if (suggestion.ambiguous) throw new Error('Several catalog items match this invoice line. Choose the existing item before saving.');
+            const description = textValue(line.description, 300),
+              unit = textValue(line.unit, 24);
+            const suggestion = invoiceCatalogSuggestions(
+              [
+                {
+                  description,
+                  unit,
+                  ...(line.sku ? { sku: textValue(line.sku, 100) } : {}),
+                },
+              ],
+              invoiceGoods,
+              invoiceOffers,
+              String(input.supplierId),
+            )[0];
+            if (suggestion.ambiguous)
+              throw new Error(
+                "Several catalog items match this invoice line. Choose the existing item before saving.",
+              );
             let itemId = suggestion.itemId;
             if (!itemId) {
               itemId = randomUUID();
-              const good = goodInput({ name: line.catalogName || description, category: line.catalogCategory || 'Unsorted goods', baseUnit: unit, detail: 'Added from a reviewed supplier invoice' }, itemId);
-              invoiceGoods.push(good); catalogWrites.push({ kind: 'goods', id: itemId, data: good });
+              const good = goodInput(
+                {
+                  name: line.catalogName || description,
+                  category: line.catalogCategory || "Unsorted goods",
+                  baseUnit: unit,
+                  detail: "Added from a reviewed supplier invoice",
+                },
+                itemId,
+              );
+              invoiceGoods.push(good);
+              catalogWrites.push({ kind: "goods", id: itemId, data: good });
             }
-            if (!invoiceOffers.some(o => o.itemId === itemId && o.supplierId === input.supplierId && o.supplierItemName.toLocaleLowerCase() === description.toLocaleLowerCase())) {
+            if (
+              !invoiceOffers.some(
+                (o) =>
+                  o.itemId === itemId &&
+                  o.supplierId === input.supplierId &&
+                  o.supplierItemName.toLocaleLowerCase() ===
+                    description.toLocaleLowerCase(),
+              )
+            ) {
               const offerId = randomUUID();
-              const offer = offerInput({ itemId, supplierId: input.supplierId, supplierItemName: description, sku: line.sku || '', packSize: 1, packUnit: unit, orderUnit: unit }, offerId, invoiceGoods, board.suppliers);
-              invoiceOffers.push(offer); catalogWrites.push({ kind: 'offers', id: offerId, data: offer });
+              const offer = offerInput(
+                {
+                  itemId,
+                  supplierId: input.supplierId,
+                  supplierItemName: description,
+                  sku: line.sku || "",
+                  packSize: 1,
+                  packUnit: unit,
+                  orderUnit: unit,
+                },
+                offerId,
+                invoiceGoods,
+                board.suppliers,
+              );
+              invoiceOffers.push(offer);
+              catalogWrites.push({ kind: "offers", id: offerId, data: offer });
             }
             return { ...line, itemId };
           });
@@ -267,10 +330,12 @@ export async function mutateOperations(raw: unknown, actor: string) {
           invoiceOrders,
           at,
         );
-        for (const write of catalogWrites) tx.create(db.doc(`${path(write.kind)}/${write.id}`), write.data);
+        for (const write of catalogWrites)
+          tx.create(db.doc(`${path(write.kind)}/${write.id}`), write.data);
       }
       if (action === "receive") {
-        const orderId = identifier(v.orderId), orderDoc = await tx.get(db.doc(`${path("orders")}/${orderId}`));
+        const orderId = identifier(v.orderId),
+          orderDoc = await tx.get(db.doc(`${path("orders")}/${orderId}`));
         if (!orderDoc.exists) throw new Error("Choose an existing order");
         const previous = orderDoc.data() as PurchaseOrder,
           result = receiveInput(v, id, previous, {}, at, by);
@@ -280,26 +345,115 @@ export async function mutateOperations(raw: unknown, actor: string) {
         tx.set(db.doc(`${path("orders")}/${orderId}`), result.order);
         for (const line of result.receipt.lines) {
           tx.create(db.doc(`inventory/current/events/${randomUUID()}`), {
-            action: 'arrival', itemId: line.itemId, before: null, after: null,
-            actor, by, at, receiptId: id,
-            arrival: { quantity: line.receivedQuantity, unit: previous.lines.find(l => l.itemId === line.itemId)!.unit, damagedQuantity: line.damagedQuantity, supplierName: previous.supplierName, orderId },
+            action: "arrival",
+            itemId: line.itemId,
+            before: null,
+            after: null,
+            actor,
+            by,
+            at,
+            receiptId: id,
+            arrival: {
+              quantity: line.receivedQuantity,
+              unit: previous.lines.find((l) => l.itemId === line.itemId)!.unit,
+              damagedQuantity: line.damagedQuantity,
+              supplierName: previous.supplierName,
+              orderId,
+            },
           });
         }
       }
-      if (action === 'confirmTextLog') {
-        const [saved, general] = await Promise.all([tx.get(stockRef), tx.get(db.doc('settings/general'))]);
+      if (action === "confirmTextLog") {
+        const [saved, general] = await Promise.all([
+          tx.get(stockRef),
+          tx.get(db.doc("settings/general")),
+        ]);
         const stock = (saved.data()?.items || {}) as InventoryRecords;
         const today = restaurantClock(businessTimezone(general.data())).date;
-        const result = confirmStockLog(v, board.goods, stock, (saved.data()?.customUnits || []) as string[], today, at, by);
+        const result = confirmStockLog(
+          v,
+          board.goods,
+          stock,
+          (saved.data()?.customUnits || []) as string[],
+          today,
+          at,
+          by,
+        );
         id = requestId;
-        before = { lines: result.lines.map(line => ({ itemId: line.itemId, count: line.before })) };
-        after = { text: result.text, lines: result.lines.map(line => ({ itemId: line.itemId, quantity: line.after.quantity, unit: line.after.unit })) };
-        tx.set(stockRef, { ...saved.data(), customUnits: result.customUnits, items: { ...stock, ...result.updates } });
-        for (const line of result.lines) tx.create(db.doc(`inventory/current/events/${randomUUID()}`), {
-          action: 'count', itemId: line.itemId, before: line.before, after: line.after, actor, by, at, source: 'text-log', textLogId: requestId,
+        before = {
+          lines: result.lines.map((line) => ({
+            itemId: line.itemId,
+            count: line.before,
+          })),
+        };
+        after = {
+          text: result.text,
+          lines: result.lines.map((line) => ({
+            itemId: line.itemId,
+            quantity: line.after.quantity,
+            unit: line.after.unit,
+          })),
+        };
+        tx.set(stockRef, {
+          ...saved.data(),
+          customUnits: result.customUnits,
+          items: { ...stock, ...result.updates },
         });
+        for (const line of result.lines)
+          tx.create(db.doc(`inventory/current/events/${randomUUID()}`), {
+            action: "count",
+            itemId: line.itemId,
+            before: line.before,
+            after: line.after,
+            actor,
+            by,
+            at,
+            source: "text-log",
+            textLogId: requestId,
+          });
       }
 
+      if (action === "checkItem") {
+        id = identifier(v.itemId);
+        const [saved, general] = await Promise.all([
+          tx.get(stockRef),
+          tx.get(db.doc("settings/general")),
+        ]);
+        const stock = (saved.data()?.items || {}) as InventoryRecords,
+          today = restaurantClock(businessTimezone(general.data())).date;
+        before = stock[id] || null;
+        const result = checkItemInput(
+          v,
+          stock[id],
+          board.goods,
+          (saved.data()?.customUnits || []) as string[],
+          today,
+          at,
+          by,
+        );
+        after = result.item;
+        tx.set(stockRef, {
+          ...saved.data(),
+          customUnits: result.customUnits,
+          items: { ...stock, [id]: result.item },
+        });
+        tx.create(db.doc(`inventory/current/events/${randomUUID()}`), {
+          action:
+            v.decision === "cancelOrder"
+              ? "order-request.removed"
+              : v.decision === "order"
+                ? "order-request.saved"
+                : v.decision === "sufficient"
+                  ? "stock.sufficient"
+                  : "count",
+          itemId: id,
+          before,
+          after,
+          actor,
+          by,
+          at,
+        });
+      }
       if (action === "count") {
         id = identifier(v.itemId);
         if (!board.goods.some((g) => g.id === id))
@@ -311,8 +465,17 @@ export async function mutateOperations(raw: unknown, actor: string) {
           stock = (saved.data()?.items || {}) as InventoryRecords,
           today = restaurantClock(businessTimezone(general.data())).date;
         before = stock[id] || null;
-        const registration = registerInventoryUnit(v.unit, (saved.data()?.customUnits || []) as string[]);
-        after = countInput({ ...v, unit: registration.unit }, stock[id], today, at, by);
+        const registration = registerInventoryUnit(
+          v.unit,
+          (saved.data()?.customUnits || []) as string[],
+        );
+        after = countInput(
+          { ...v, unit: registration.unit },
+          stock[id],
+          today,
+          at,
+          by,
+        );
         const customUnits = registration.customUnits;
         tx.set(stockRef, {
           ...saved.data(),
@@ -332,7 +495,16 @@ export async function mutateOperations(raw: unknown, actor: string) {
       if (kind)
         tx.set(db.doc(`${path(kind)}/${id}`), after as Record<string, unknown>);
       tx.create(db.doc(`${path("events")}/${randomUUID()}`), {
-        action,
+        action:
+          action === "checkItem"
+            ? v.decision === "cancelOrder"
+              ? "order-request.removed"
+              : v.decision === "order"
+                ? "order-request.saved"
+                : v.decision === "sufficient"
+                  ? "stock.sufficient"
+                  : "count"
+            : action,
         actor,
         by,
         at,
@@ -359,7 +531,9 @@ export async function mutateOperations(raw: unknown, actor: string) {
     const message = (error as Error).message;
     throw new ReservationError(
       message,
-      /another device|already used|restaurant date changed/.test(message) ? 409 : 400,
+      /another device|already used|restaurant date changed/.test(message)
+        ? 409
+        : 400,
     );
   }
 }

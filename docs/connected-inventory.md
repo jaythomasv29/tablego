@@ -37,3 +37,13 @@ Reviewed invoices can explicitly add unmatched products and exact supplier mappi
 Verification includes parser, UI and atomic repository tests plus a staging lifecycle proving receiving leaves stock byte-for-byte unchanged, confirmation is atomic and retry-safe, and reviewed invoice catalog creation never creates or changes stock quantities.
 
 Stock-log release verification: 336 full-suite tests passed, together with typecheck, lint, production build, actual staging transaction tests, and a phone-size browser log review/confirmation. The staging API additionally verified the deployed confirmation handler rejects invalid logs without changing stock.
+
+## Faster checks and shopping lists — November 1, 2026
+
+Overview has direct on-hand and unit entry on each item, Save count, Recheck tomorrow, and an inline Order editor. An order request can be saved without a physical count; a typed count is included only when explicitly selected. Count and order drafts survive category changes and reloads on the same device/date. Uncertain responses retry the identical payload and request key, while stale records require a refresh.
+
+A floating completion banner reports all catalog goods reviewed today, actual physical counts, open shopping requests and unsaved drafts, independently of the current category/search. Needs check and Unsaved filter the overview; To order opens the shopping list. Restaurant timezone controls daily counts. Version-aware response merging prevents simultaneous item saves from reverting a newer count.
+
+Orders opens to To order, grouped by supplier, with quantity/unit editing, explicit request removal, and clean copy/share text containing buy amounts and supplier product names/SKUs. Unlinked products stay visible. Save edits before copying or preparing an order. Placed / arriving and History are separate views. Removing a shopping request never changes physical stock or cancels a placed supplier order.
+
+Verification: 365 full-suite tests, typecheck, lint and optimized production build passed. Actual staging transactions verified metadata retry protection, ordering without a count, no fabricated zero, count/order independence, preserved physical-count timestamps, and stale-version rejection. Browser checks at iPhone 393px and iPad 768px verified the inline controls, saved count, shopping list and persistent completion banner.

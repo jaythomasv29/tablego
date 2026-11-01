@@ -93,3 +93,25 @@ test('reviewed catalog creation reuses exact known goods and refuses ambiguous n
  await assert.rejects(ambiguous.repository.mutateOperations(input,'staff-session'),/choose|ambiguous|match/i);
  assert.equal(JSON.stringify(Array.from(ambiguous.records.entries())),before);assert.equal(ambiguous.writes.length,0);
 });
+const quick={action:'checkItem',requestId:'quick-1',itemId:'basil',date:'2026-10-28',version:0,decision:'order',quantity:3,unit:'basket',orderQuantity:2,orderUnit:'tray'};
+test('quick count plus request commits once and identical retry creates no duplicate stock version or audit',async()=>{
+ const {repository,records,writes}=fixture();await repository.mutateOperations(quick,'staff-session');const saved=records.get('inventory/current');assert.equal(saved.items.basil.quantity,3);assert.equal(saved.items.basil.orderQuantity,2);assert.equal(saved.items.basil.version,1);assert.deepEqual(saved.customUnits,['basket','tray']);
+ const before=JSON.stringify(Array.from(records.entries())),writeCount=writes.length;
+ await repository.mutateOperations(quick,'staff-session');assert.equal(JSON.stringify(Array.from(records.entries())),before);assert.equal(writes.length,writeCount);assert.equal(Array.from(records.keys()).filter(k=>k.startsWith('inventory/current/events/')).length,1);
+ await assert.rejects(repository.mutateOperations({...quick,requestId:'quick-duplicate'},'staff-session'),error=>error.status===409&&/another device/.test(error.message));assert.equal(JSON.stringify(Array.from(records.entries())),before);assert.equal(writes.length,writeCount);
+});
+test('quick stale date and version errors commit no count, order, custom unit or audit changes',async()=>{
+ for(const patch of [{date:'2026-10-27'},{version:3}]){const {repository,records,writes}=fixture(),before=JSON.stringify(Array.from(records.entries()));await assert.rejects(repository.mutateOperations({...quick,...patch},'staff-session'),error=>error.status===409);assert.equal(JSON.stringify(Array.from(records.entries())),before);assert.equal(writes.length,0);}
+});
+test('quick order without quantity preserves last count then cancellation preserves review date',async()=>{
+ const {repository,records,writes}=fixture(),old={version:1,quantity:8,unit:'lb',countedAt:'2026-10-26T20:00:00Z',lastCountQuantity:8,lastCountUnit:'lb',checkedAt:'2026-10-26T20:00:00Z',checkedOn:'2026-10-26',checkedBy:'Team',decision:'sufficient',nextCheck:'2026-10-27',orderOpen:false,orderRequestedAt:null};records.set('inventory/current',{customUnits:[],items:{basil:old}});
+ await repository.mutateOperations({...quick,version:1,quantity:undefined,unit:undefined},'staff-session');const ordered=records.get('inventory/current').items.basil;assert.equal(ordered.quantity,8);assert.equal(ordered.countedAt,old.countedAt);assert.equal(ordered.checkedOn,'2026-10-28');assert.equal(ordered.orderOpen,true);
+ await repository.mutateOperations({action:'checkItem',requestId:'cancel-quick',itemId:'basil',date:'2026-10-28',version:2,decision:'cancelOrder'},'staff-session');const cancelled=records.get('inventory/current').items.basil;assert.equal(cancelled.quantity,8);assert.equal(cancelled.countedAt,old.countedAt);assert.equal(cancelled.checkedOn,ordered.checkedOn);assert.equal(cancelled.checkedAt,ordered.checkedAt);assert.equal(cancelled.orderOpen,false);assert.equal(cancelled.version,3);assert.equal(Array.from(records.keys()).filter(k=>k.startsWith('inventoryOperations/orders/records/')).length,0);assert.equal(writes.filter(k=>k==='inventory/current').length,2);
+});
+test('quick internal order without any known count never invents zero on hand',async()=>{const {repository,records}=fixture();await repository.mutateOperations({...quick,quantity:undefined,unit:undefined},'staff-session');const item=records.get('inventory/current').items.basil;assert.equal(item.quantity,null);assert.equal(item.countedAt,null);assert.equal(item.orderOpen,true);});
+test('metadata create honors stable request ID and lost-response retry cannot duplicate catalog goods',async()=>{
+ const {repository,records,writes}=fixture(),input={action:'saveGood',requestId:'metadata-good-1',good:{name:'Fresh test herb',category:'Produce',baseUnit:'bunch'}};
+ await repository.mutateOperations(input,'staff-session');const saved=Array.from(records.entries()).filter(([key])=>key.startsWith('inventoryOperations/goods/records/'));assert.equal(saved.length,1);const before=JSON.stringify(Array.from(records.entries())),writeCount=writes.length;
+ await repository.mutateOperations(input,'staff-session');assert.equal(JSON.stringify(Array.from(records.entries())),before);assert.equal(writes.length,writeCount);
+ await assert.rejects(repository.mutateOperations({...input,good:{...input.good,name:'Changed after lost response'}},'staff-session'),error=>error.status===409&&/already used/.test(error.message));assert.equal(JSON.stringify(Array.from(records.entries())),before);assert.equal(writes.length,writeCount);
+});

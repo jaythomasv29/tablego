@@ -8,6 +8,9 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import InlineStockCheck from "@/components/inventory/InlineStockCheck";
+import InventoryOrderList from "@/components/inventory/InventoryOrderList";
+import { inventoryProgress, mergeInventoryBoard, storedInventoryDrafts } from "@/lib/inventory/progress";
 import InventoryTextLog from "@/components/inventory/InventoryTextLog";
 import { invoiceCatalogSuggestions } from "@/lib/inventory/invoiceCatalog";
 import InvoiceCapture from "@/components/inventory/InvoiceCapture";
@@ -22,7 +25,7 @@ import {
   type Supplier,
 } from "@/lib/inventory/operations";
 import { restaurantClock } from "@/lib/reservations/availability";
-import { inventoryCountedAt } from "@/lib/inventory/model";
+import { inventoryChecked, inventoryCountedAt, inventoryUnitOptions } from "@/lib/inventory/model";
 import styles from "./manage.module.css";
 const activityLabel = (action: string) => ({ count: 'Physical count', confirmTextLog: 'Stock log confirmed', receive: 'Arrival recorded', createOrder: 'Order recorded', saveInvoice: 'Invoice saved', saveGood: 'Catalog item saved', saveSupplier: 'Supplier saved', saveOffer: 'Supplier product linked' } as Record<string, string>)[action] || 'Inventory updated';
 const endpoint = "/api/staff/inventory/operations";
@@ -90,6 +93,32 @@ export default function InventoryManagePage() {
     [category, setCategory] = useState("All categories"),
     [query, setQuery] = useState(""),
     [month, setMonth] = useState("");
+  const [stockFilter, setStockFilter] = useState<'all' | 'pending' | 'drafts'>('all');
+  const [stockDraftIds, setStockDraftIds] = useState<string[]>([]);
+  const [orderDraftIds, setOrderDraftIds] = useState<string[]>([]);
+  const acceptBoard = useCallback((next: OperationsBoard) => {
+    setBoard(previous => mergeInventoryBoard(previous, next));
+    setOlderEnd({}); historyCursors.current = {}; setError('');
+  }, []);
+  const trackStockDraft = useCallback((id: string, dirty: boolean) => setStockDraftIds(previous => {
+    if (previous.includes(id) === dirty) return previous;
+    return dirty ? [...previous, id] : previous.filter(value => value !== id);
+  }), []);
+  const draftDay = board?.today || '';
+  const draftGoodsKey = board?.goods.map(g => g.id).join('|') || '';
+  useEffect(() => {
+    if (!draftDay) return;
+    const goods = draftGoodsKey.split('|').filter(Boolean).map(id => ({ id }));
+    const restore = () => { try {
+      setStockDraftIds(storedInventoryDrafts(localStorage, draftDay, goods));
+      const order = JSON.parse(localStorage.getItem(`tablego-order-list:${draftDay}`) || '{}');
+      const ids = new Set(goods.map(g => g.id));
+      setOrderDraftIds(Array.from(new Set([...Object.keys(order.drafts || {}), ...Object.keys(order.pending || {})])).filter(id => ids.has(id)));
+    } catch {} };
+    restore(); window.addEventListener('storage', restore); window.addEventListener('tablego-inventory-drafts', restore);
+    return () => { window.removeEventListener('storage', restore); window.removeEventListener('tablego-inventory-drafts', restore); };
+  }, [draftDay, draftGoodsKey]);
+  const progress = board ? inventoryProgress(board.goods, board.stock, board.today, board.timezone, [...stockDraftIds, ...orderDraftIds]) : null;
   const [error, setError] = useState(""),
     [modalError, setModalError] = useState(""),
     [busy, setBusy] = useState(false),
@@ -101,7 +130,8 @@ export default function InventoryManagePage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setBoard(await request());
+      const nextBoard = await request();
+      setBoard(previous => mergeInventoryBoard(previous, nextBoard));
       setOlderEnd({});
       historyCursors.current = {};
       setError("");
@@ -192,7 +222,8 @@ export default function InventoryManagePage() {
     };
     pendingSave.current = payload;
     try {
-      setBoard(await request(payload));
+      const nextBoard = await request(payload);
+      setBoard(previous => mergeInventoryBoard(previous, nextBoard));
       setOlderEnd({});
       historyCursors.current = {};
       setModal(null);
@@ -361,10 +392,9 @@ export default function InventoryManagePage() {
   const goods =
     board?.goods.filter(
       (g) =>
-        (category === "All categories" || g.category === category) &&
-        `${g.name} ${g.detail || ""} ${g.location || ""}`
-          .toLowerCase()
-          .includes(query.toLowerCase()),
+        (query.trim() || category === 'All categories' || g.category === category) &&
+        `${g.name} ${g.detail || ''} ${g.location || ''} ${board.offers.filter(o => o.itemId === g.id).map(o => `${o.supplierItemName} ${o.sku}`).join(' ')}`.toLowerCase().includes(query.trim().toLowerCase()) &&
+        (view !== 'Overview' || stockFilter === 'all' || stockFilter === 'pending' && !inventoryChecked(board.stock[g.id], board.today) || stockFilter === 'drafts' && stockDraftIds.includes(g.id)),
     ) || [];
   const categories = Array.from(
     new Set(board?.goods.map((g) => g.category) || []),
@@ -476,17 +506,7 @@ export default function InventoryManagePage() {
                   <h2>
                     {board.goods.length} goods{" "}
                     <span>
-                      {
-                        board.goods.filter((g) => {
-                          const at = inventoryCountedAt(board.stock[g.id]);
-                          return (
-                            at &&
-                            restaurantClock(board.timezone, new Date(at))
-                              .date === board.today
-                          );
-                        }).length
-                      }{" "}
-                      counted today
+                      {progress?.reviewed} checked today · {progress?.counted} counted
                     </span>
                   </h2>
                   <button
@@ -508,7 +528,7 @@ export default function InventoryManagePage() {
                 </div>
               </>
             )}
-            {view === 'Overview' && <InventoryTextLog board={board} onSaved={next => { setBoard(next); historyCursors.current = {}; setOlderEnd({}); setError(''); }} />}
+            {view === 'Overview' && <InventoryTextLog board={board} onSaved={acceptBoard} />}
             {(view === "Overview" || view === "Directory") && (
               <>
                 {view === "Directory" && (
@@ -534,7 +554,7 @@ export default function InventoryManagePage() {
                     >
                       <option>All categories</option>
                       {categories.map((c) => (
-                        <option key={c}>{c}</option>
+                        <option key={c} value={c}>{c} · {board.goods.filter(g => g.category === c && inventoryChecked(board.stock[g.id], board.today)).length}/{board.goods.filter(g => g.category === c).length} checked</option>
                       ))}
                     </select>
                   </label>
@@ -548,6 +568,7 @@ export default function InventoryManagePage() {
                     />
                   </label>
                 </div>
+                {view === 'Overview' && stockFilter !== 'all' && <div className={styles.filterNotice}><span>{stockFilter === 'pending' ? 'Showing items that still need checking today' : 'Showing unsaved stock entries'}</span><button onClick={() => setStockFilter('all')}>Show all</button></div>}
                 <div className={styles.cards}>
                   {goods.map((g) => {
                     const s = board.stock[g.id],
@@ -561,99 +582,12 @@ export default function InventoryManagePage() {
                           <h3>{g.name}</h3>
                           <span className={styles.badge}>{g.category}</span>
                         </div>
-                        <p>
-                          {g.detail}
-                          {g.location ? ` · ${g.location}` : ""}
-                        </p>
+                        {view === 'Directory' && <p>{g.detail}{g.location ? ` · ${g.location}` : ''}</p>}
                         {(lastOrder || lastArrival || lastInvoice) && <details><summary>Purchase & arrival history</summary>{lastOrder && <p>Last ordered: {date(lastOrder.orderedAt)} · {lastOrder.supplierName} · {Math.max(0, Math.floor((new Date(board.today + 'T12:00:00Z').getTime() - new Date(lastOrder.orderedAt).getTime()) / 86400000))} days ago</p>}{lastArrival && <p>Latest arrival: {date(lastArrival.at)} · {lastArrival.lines.find(l => l.itemId === g.id)?.receivedQuantity} {lastArrival.lines.find(l => l.itemId === g.id)?.unit || board.orders.find(o => o.id === lastArrival.orderId)?.lines.find(l => l.itemId === g.id)?.unit || 'ordering units'} received{lastArrival.supplierName ? ` · ${lastArrival.supplierName}` : ''}</p>}{lastInvoice && <p>Last invoiced: {lastInvoice.date} · {lastInvoice.supplierName} · {lastInvoice.status}</p>}</details>}
-                        {view === "Overview" ? (
-                          <>
-                            <div className={styles.row}>
-                              <strong className={styles.amount}>
-                                {s?.quantity === null ||
-                                s?.quantity === undefined
-                                  ? "Not counted"
-                                  : `${s.stockSource === 'receipt' ? s.lastCountQuantity ?? 'Unknown' : s.quantity} ${s.stockSource === 'receipt' ? s.lastCountUnit || s.unit : s.unit}`}
-                              </strong>
-                              <span className={styles.badge}>
-                                {s?.stockSource === "receipt"
-                                  ? "Recount needed"
-                                  : inventoryCountedAt(s) &&
-                                      restaurantClock(
-                                        board.timezone,
-                                        new Date(inventoryCountedAt(s)!),
-                                      ).date === board.today
-                                    ? "Counted today"
-                                    : s?.checkedOn === board.today
-                                      ? "Reviewed · count unchanged"
-                                      : "Needs review"}
-                              </span>
-                            </div>
-                            <p>
-                              Physical count:{" "}
-                              {s?.stockSource === "receipt"
-                                ? `${s.lastCountQuantity ?? "Unknown"} ${s.lastCountUnit || s.unit} · `
-                                : ""}
-                              {date(inventoryCountedAt(s))}
-                              {s?.stockSource === "receipt" && (
-                                <>
-                                  <br />
-                                  Previous delivery estimate excluded. Recount to confirm stock.
-                                </>
-                              )}
-                              {s?.updatedAt &&
-                              s.updatedAt !== inventoryCountedAt(s) ? (
-                                <>
-                                  <br />
-                                  Stock updated: {date(s.updatedAt)}
-                                </>
-                              ) : null}
-                            </p>
-                            {s?.orderOpen && (
-                              <div className={styles.warning}>
-                                Daily check request: {s.orderQuantity}{" "}
-                                {s.orderUnit} to order
-                                {offers.length ? (
-                                  <button
-                                    onClick={() =>
-                                      open({ kind: "order", good: g })
-                                    }
-                                  >
-                                    Build supplier order
-                                  </button>
-                                ) : (
-                                  <button
-                                    onClick={() =>
-                                      open({ kind: "offer", good: g })
-                                    }
-                                  >
-                                    Link supplier to order
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                            <div className={styles.row}>
-                              <button
-                                onClick={() => open({ kind: "good", good: g })}
-                              >
-                                Edit item
-                              </button>
-                              <button
-                                className={styles.primary}
-                                onClick={() => open({ kind: "count", good: g })}
-                              >
-                                Quick count
-                              </button>
-                              <button
-                                onClick={() =>
-                                  open({ kind: "detail", good: g })
-                                }
-                              >
-                                History & sources
-                              </button>
-                            </div>
-                          </>
-                        ) : (
+                        {view === 'Overview' ? <>
+                          <InlineStockCheck good={g} item={s} units={inventoryUnitOptions([...board.customUnits, g.baseUnit])} date={board.today} timezone={board.timezone} onSaved={acceptBoard} onDraftChange={trackStockDraft} />
+                          <details className={styles.itemMore}><summary>Details & sources</summary><p>{g.detail}{g.location ? ` · ${g.location}` : ''}</p><div className={styles.row}><button onClick={() => open({ kind: 'good', good: g })}>Edit item</button><button onClick={() => open({ kind: 'detail', good: g })}>History & sources</button></div></details>
+                        </> : (
                           <>
                             {offers.length ? (
                               offers.map(offerSummary)
@@ -694,96 +628,7 @@ export default function InventoryManagePage() {
                 )}
               </>
             )}
-            {view === "Orders & receiving" && (
-              <>
-                <div className={styles.row}>
-                  <p>
-                    Record what you order, then check what actually arrives.
-                  </p>
-                  <button
-                    className={styles.primary}
-                    onClick={() => open({ kind: "order" })}
-                  >
-                    Build supplier order
-                  </button>
-                </div>
-                <div className={styles.notice}>
-                  Recording an order does not send it to the supplier. Copy it,
-                  place it through your usual channel, then record the delivery
-                  here.
-                </div>
-                <div className={styles.cards}>
-                  {board.orders.map((order) => (
-                    <article className={styles.card} key={order.id}>
-                      <div className={styles.row}>
-                        <h3>{order.supplierName}</h3>
-                        <span className={styles.badge}>{order.status}</span>
-                      </div>
-                      <p>
-                        {date(order.orderedAt)} · {order.orderedBy}
-                      </p>
-                      {order.lines.map((l) => (
-                        <div key={l.itemId}>
-                          <b>{l.supplierItemName}</b>
-                          <p>
-                            {l.sku ? `${l.sku} · ` : ""}
-                            {l.quantity} {l.unit} ordered · {l.receivedQuantity}{" "}
-                            delivered
-                          </p>
-                        </div>
-                      ))}
-                      <div className={styles.row}>
-                        <button onClick={() => void copyOrder(order)}>
-                          Copy supplier list
-                        </button>
-                        {order.status !== "received" && (
-                          <button
-                            className={styles.primary}
-                            onClick={() => open({ kind: "receive", order })}
-                          >
-                            Receive delivery
-                          </button>
-                        )}
-                      </div>
-                      {board.receipts
-                        .filter((r) => r.orderId === order.id)
-                        .map((r) => (
-                          <details key={r.id}>
-                            <summary>Delivery · {date(r.at)}</summary>
-                            <p>Recorded by {r.by}</p>
-                            {r.lines.map((l) => (
-                              <p key={l.itemId}>
-                                {
-                                  board.goods.find((g) => g.id === l.itemId)
-                                    ?.name
-                                }
-                                : {l.receivedQuantity} delivered,{" "}
-                                {l.damagedQuantity} damaged. {l.note}
-                                <br />
-                                {l.stockNote}
-                              </p>
-                            ))}
-                          </details>
-                        ))}
-                    </article>
-                  ))}
-                </div>
-                {!board.orders.length && (
-                  <p className={styles.empty}>
-                    No supplier orders recorded yet. Link supplier products in
-                    Directory to get started.
-                  </p>
-                )}
-                {board.historyHasMore && !olderEnd.orders && (
-                  <button
-                    disabled={loading}
-                    onClick={() => void loadOlder("orders")}
-                  >
-                    {loading ? "Loading…" : "Load older orders"}
-                  </button>
-                )}
-              </>
-            )}
+            {view === 'Orders & receiving' && <InventoryOrderList board={board} onSaved={acceptBoard} onBuildOrder={supplierId => { open({ kind: 'order' }); if (supplierId) setSupplier(supplierId); }} onLinkSupplier={good => open({ kind: 'offer', good })} onReceive={order => open({ kind: 'receive', order })} onLoadOlder={() => void loadOlder('orders')} loadingOlder={loading} hasOlder={Boolean(board.historyHasMore && !olderEnd.orders)} />}
             {view === "Invoices" && (
               <>
                 <div className={styles.row}>
@@ -1664,6 +1509,11 @@ export default function InventoryManagePage() {
             </div>
           </DialogContent>
         </Dialog>
+        {board && progress && <aside className={styles.progressDock} aria-label="Inventory completion">
+          <div className={styles.progressHeading}><strong>{progress.reviewed} / {progress.total} checked today</strong><span>{progress.counted} counted · {progress.toOrder} to order{progress.unsaved ? ` · ${progress.unsaved} unsaved` : ''}</span></div>
+          <progress aria-label="Inventory checked today" max={progress.total || 1} value={progress.reviewed} />
+          <div className={styles.progressActions}><button aria-pressed={view === 'Overview' && stockFilter === 'pending'} onClick={() => { setView('Overview'); setStockFilter(stockFilter === 'pending' ? 'all' : 'pending'); setCategory('All categories'); setQuery(''); }}>{stockFilter === 'pending' && view === 'Overview' ? 'Show all' : `Needs check (${progress.remaining})`}</button>{progress.unsaved > 0 && <button onClick={() => { setView(orderDraftIds.length ? 'Orders & receiving' : 'Overview'); setStockFilter('drafts'); setCategory('All categories'); setQuery(''); }}>Unsaved ({progress.unsaved})</button>}<button onClick={() => setView('Orders & receiving')}>To order ({progress.toOrder})</button></div>
+        </aside>}
         {toast && (
           <div className={styles.toast} role="status">
             {toast}

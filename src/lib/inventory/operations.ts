@@ -1,5 +1,6 @@
 import {
   inventoryDefaultUnit,
+  inventoryChange,
   registerInventoryUnit,
   nextInventoryDate,
   validateInventoryUnit,
@@ -54,7 +55,10 @@ export interface PurchaseOrder {
   lines: PurchaseLine[];
 }
 export interface InvoiceLine {
-  sku?: string; createCatalog?: boolean; catalogName?: string; catalogCategory?: string;
+  sku?: string;
+  createCatalog?: boolean;
+  catalogName?: string;
+  catalogCategory?: string;
   itemId?: string;
   description: string;
   quantity: number;
@@ -88,7 +92,8 @@ export interface ReceiptLine {
   stockNote?: string;
 }
 export interface Receipt {
-  supplierId?: string; supplierName?: string;
+  supplierId?: string;
+  supplierName?: string;
   id: string;
   orderId: string;
   at: string;
@@ -281,7 +286,8 @@ export function receiveInput(
         "Received quantity exceeds order, or damage exceeds delivery",
       );
     accepted += receivedQuantity;
-    const stockNote = "Arrival recorded only. On-hand stock changes through a confirmed physical count.";
+    const stockNote =
+      "Arrival recorded only. On-hand stock changes through a confirmed physical count.";
     return {
       itemId,
       orderedQuantity: ordered.quantity,
@@ -393,7 +399,15 @@ export function invoiceInput(
     return {
       ...(itemId ? { itemId } : {}),
       ...(l.sku ? { sku: textValue(l.sku, 100) } : {}),
-      ...(!itemId && l.createCatalog === true ? { createCatalog: true, ...(l.catalogName ? { catalogName: textValue(l.catalogName) } : {}), ...(l.catalogCategory ? { catalogCategory: textValue(l.catalogCategory, 80) } : {}) } : {}),
+      ...(!itemId && l.createCatalog === true
+        ? {
+            createCatalog: true,
+            ...(l.catalogName ? { catalogName: textValue(l.catalogName) } : {}),
+            ...(l.catalogCategory
+              ? { catalogCategory: textValue(l.catalogCategory, 80) }
+              : {}),
+          }
+        : {}),
       description: textValue(l.description, 300),
       quantity: amount(l.quantity),
       unit: validateInventoryUnit(l.unit),
@@ -617,22 +631,119 @@ export function budgetHistoryRecords<T extends { id: string }>(
   };
 }
 
-export function confirmStockLog(value: unknown, goods: CatalogGood[], stock: InventoryRecords, customUnits: string[], today: string, at: string, by: string) {
+export function confirmStockLog(
+  value: unknown,
+  goods: CatalogGood[],
+  stock: InventoryRecords,
+  customUnits: string[],
+  today: string,
+  at: string,
+  by: string,
+) {
   const v = object(value);
-  if (v.date !== today) throw new Error('The restaurant date changed. Refresh and review this stock log again.');
+  if (v.date !== today)
+    throw new Error(
+      "The restaurant date changed. Refresh and review this stock log again.",
+    );
   const text = textValue(v.text, 20000);
-  if (!Array.isArray(v.lines) || !v.lines.length || v.lines.length > 200) throw new Error('Confirm 1–200 inventory items at a time');
-  const updates: InventoryRecords = {}, seen = new Set<string>();
+  if (!Array.isArray(v.lines) || !v.lines.length || v.lines.length > 200)
+    throw new Error("Confirm 1–200 inventory items at a time");
+  const updates: InventoryRecords = {},
+    seen = new Set<string>();
   let units = [...customUnits];
-  const lines = v.lines.map(raw => {
-    const line = object(raw), itemId = identifier(line.itemId);
-    if (!goods.some(g => g.id === itemId)) throw new Error('Match every included row to a current inventory item');
-    if (seen.has(itemId)) throw new Error('The log contains this item more than once. Resolve duplicates before confirming.');
+  const lines = v.lines.map((raw) => {
+    const line = object(raw),
+      itemId = identifier(line.itemId);
+    if (!goods.some((g) => g.id === itemId))
+      throw new Error("Match every included row to a current inventory item");
+    if (seen.has(itemId))
+      throw new Error(
+        "The log contains this item more than once. Resolve duplicates before confirming.",
+      );
     seen.add(itemId);
-    const registered = registerInventoryUnit(line.unit, units); units = registered.customUnits;
-    const after = countInput({ ...line, unit: registered.unit }, stock[itemId], today, at, by);
+    const registered = registerInventoryUnit(line.unit, units);
+    units = registered.customUnits;
+    const after = countInput(
+      { ...line, unit: registered.unit },
+      stock[itemId],
+      today,
+      at,
+      by,
+    );
     updates[itemId] = after;
     return { itemId, before: stock[itemId] || null, after };
   });
   return { updates, customUnits: units, text, lines };
+}
+
+export function checkItemInput(
+  value: unknown,
+  previous: InventoryItem | undefined,
+  goods: CatalogGood[],
+  customUnits: string[],
+  today: string,
+  at: string,
+  by: string,
+): { item: InventoryItem; customUnits: string[] } {
+  const v = object(value),
+    itemId = identifier(v.itemId);
+  if (!goods.some((g) => g.id === itemId))
+    throw new Error("Choose a current inventory item");
+  if (v.date !== today)
+    throw new Error(
+      "The restaurant date changed. Refresh before checking stock.",
+    );
+  if (!Number.isInteger(v.version) || v.version !== (previous?.version || 0))
+    throw new Error(
+      "This item changed on another device. Refresh before saving.",
+    );
+  const decision = String(v.decision);
+  if (!["count", "sufficient", "order", "cancelOrder"].includes(decision))
+    throw new Error("Choose a stock action");
+  if (decision === "cancelOrder") {
+    if (!previous?.orderOpen)
+      throw new Error("This item has no open internal order request");
+    if (v.quantity !== undefined && v.quantity !== null)
+      throw new Error(
+        "Save a count separately before removing an order request",
+      );
+    return {
+      item: {
+        ...previous,
+        version: previous.version + 1,
+        updatedAt: at,
+        orderOpen: false,
+        orderRequestedAt: null,
+      },
+      customUnits,
+    };
+  }
+  let units = [...customUnits],
+    input = { ...v };
+  const hasCount = v.quantity !== undefined && v.quantity !== null;
+  if (decision === "count" || hasCount) {
+    amount(v.quantity);
+    const result = registerInventoryUnit(v.unit, units);
+    units = result.customUnits;
+    input = { ...input, unit: result.unit };
+  }
+  if (decision === "order") {
+    amount(v.orderQuantity, true);
+    const result = registerInventoryUnit(v.orderUnit, units);
+    units = result.customUnits;
+    input = { ...input, orderUnit: result.unit };
+  }
+  const item =
+    decision === "count"
+      ? countInput(input, previous, today, at, by)
+      : inventoryChange(
+          { ...input, action: decision },
+          previous,
+          today,
+          at,
+          by,
+          units,
+          goods,
+        );
+  return { item, customUnits: units };
 }

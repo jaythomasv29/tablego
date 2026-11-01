@@ -6,6 +6,7 @@ import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
+import * as progress from "../src/lib/inventory/progress.ts";
 const filename = new URL(
     "../src/app/admin/inventory/manage/page.tsx",
     import.meta.url,
@@ -119,6 +120,9 @@ async function mount(
             DialogTitle: (p) => React.createElement("h2", p),
             DialogDescription: (p) => React.createElement("p", p),
           };
+        if (name === '@/components/inventory/InlineStockCheck') return { __esModule: true, default: props => React.createElement('inline-check', props) };
+        if (name === '@/components/inventory/InventoryOrderList') return { __esModule: true, default: props => React.createElement('order-list', props, props.hasOlder && React.createElement('button', { onClick: props.onLoadOlder }, 'Load older orders')) };
+        if (name === '@/lib/inventory/progress') return progress;
         if (name === "@/components/inventory/InventoryTextLog") return { __esModule: true, default: () => null };
         if (name === "@/lib/inventory/invoiceCatalog") return { invoiceCatalogSuggestions: lines => lines.map((_, lineIndex) => ({ lineIndex, ambiguous: false })) };
         if (name === "@/components/inventory/InvoiceCapture")
@@ -131,7 +135,7 @@ async function mount(
         if (name === "@/lib/reservations/availability")
           return { restaurantClock: () => ({ date: "2026-10-28" }) };
         if (name === "@/lib/inventory/model")
-          return { inventoryCountedAt: (s) => s?.countedAt };
+          return { inventoryCountedAt: s => s?.countedAt, inventoryChecked: (s, day) => s?.checkedOn === day, inventoryUnitOptions: units => ['each','lb',...units] };
         if (name.endsWith(".module.css"))
           return { __esModule: true, default: {} };
         return normalRequire(name);
@@ -150,11 +154,11 @@ const button = (r, text) =>
 const submit = (r) =>
   r.root.findByType("form").props.onSubmit({
     preventDefault() {},
-    currentTarget: { quantity: "5", unit: "lb", performedBy: "James" },
+    currentTarget: { name: 'Fresh rice', category: 'Pantry', baseUnit: 'bag' },
   });
-test("uncertain count retry preserves original payload and request ID rather than writing twice", async (t) => {
+test("uncertain item creation retry preserves its original payload and request ID", async (t) => {
   const { renderer: r, calls } = await mount(t, { failFirst: true });
-  await act(async () => button(r, "Quick count").props.onClick());
+  await act(async () => button(r, "Add item").props.onClick());
   await act(async () => submit(r));
   assert.ok(button(r, "Retry original save"));
   await act(async () => button(r, "Retry original save").props.onClick());
@@ -162,13 +166,13 @@ test("uncertain count retry preserves original payload and request ID rather tha
   assert.equal(posts.length, 2);
   assert.equal(posts[0].body, posts[1].body);
   const saved = JSON.parse(posts[0].body);
-  assert.equal(saved.quantity, 5);
-  assert.equal(saved.version, 2);
-  assert.equal(saved.performedBy, "James");
+  assert.equal(saved.action, 'saveGood');
+  assert.equal(saved.good.name, 'Fresh rice');
+  assert.equal(saved.good.baseUnit, 'bag');
 });
 test("immediate repeated submit is locked while save is pending", async (t) => {
   const { renderer: r, calls, finish } = await mount(t, { defer: true });
-  await act(async () => button(r, "Quick count").props.onClick());
+  await act(async () => button(r, "Add item").props.onClick());
   await act(async () => {
     submit(r);
     submit(r);
@@ -176,14 +180,11 @@ test("immediate repeated submit is locked while save is pending", async (t) => {
   assert.equal(calls.filter((c) => c.method === "POST").length, 1);
   await act(async () => finish());
 });
-test("cancel keeps draft until explicit discard and count input remains required", async (t) => {
+test("catalog modal keeps entries until explicit discard and item name is required", async (t) => {
   const { renderer: r, calls } = await mount(t);
-  await act(async () => button(r, "Quick count").props.onClick());
-  const quantity = r.root
-    .findAllByType("input")
-    .find((i) => i.props.name === "quantity");
-  assert.equal(quantity.props.required, true);
-  assert.equal(quantity.props.min, 0);
+  await act(async () => button(r, "Add item").props.onClick());
+  const name = r.root.findAllByType('input').find(i => i.props.name === 'name');
+  assert.equal(name.props.required, true);
   await act(async () => button(r, "Cancel").props.onClick());
   assert.equal(r.root.findAllByType("form").length, 1);
   await act(async () => button(r, "Keep editing").props.onClick());

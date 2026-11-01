@@ -12,6 +12,7 @@ import {
   orderInput,
   receiveInput,
   countInput,
+  checkItemInput,
   invoiceInput,
   identifier,
   amount,
@@ -322,8 +323,162 @@ test("response budgets retain stock/catalog, prioritize active orders, preserve 
   assert.equal(page.nextCursor, "one");
 });
 
-test('receiving does not convert or replenish even matching units', () => {
-  const result = receiveInput({ lines: [{ itemId: 'basil', receivedQuantity: 1, damagedQuantity: 0 }] }, 'case-match', order(), { basil: { ...previous, unit: 'LB' } }, at, 'Team');
+test("receiving does not convert or replenish even matching units", () => {
+  const result = receiveInput(
+    { lines: [{ itemId: "basil", receivedQuantity: 1, damagedQuantity: 0 }] },
+    "case-match",
+    order(),
+    { basil: { ...previous, unit: "LB" } },
+    at,
+    "Team",
+  );
   assert.equal(result.stock.basil.quantity, 4);
-  assert.equal(result.stock.basil.unit, 'LB');
+  assert.equal(result.stock.basil.unit, "LB");
+});
+
+test("quick order optionally counts in one version and keeps an unknown on-hand unknown", () => {
+  const input = {
+    itemId: "basil",
+    date: "2026-11-01",
+    version: 0,
+    decision: "order",
+    orderQuantity: 2,
+    orderUnit: "tray",
+  };
+  const blank = checkItemInput(
+    input,
+    undefined,
+    goods,
+    [],
+    "2026-11-01",
+    at,
+    "Team",
+  );
+  assert.equal(blank.item.quantity, null);
+  assert.equal(blank.item.countedAt, null);
+  assert.equal(blank.item.orderQuantity, 2);
+  assert.equal(blank.item.orderUnit, "tray");
+  assert.equal(blank.item.version, 1);
+  assert.deepEqual(blank.customUnits, ["tray"]);
+  const counted = checkItemInput(
+    { ...input, quantity: 4.5, unit: "basket" },
+    undefined,
+    goods,
+    [],
+    "2026-11-01",
+    at,
+    "Team",
+  );
+  assert.equal(counted.item.quantity, 4.5);
+  assert.equal(counted.item.orderOpen, true);
+  assert.equal(counted.item.version, 1);
+  assert.equal(counted.item.countedAt, at);
+  assert.deepEqual(counted.customUnits, ["basket", "tray"]);
+});
+test("quick sufficient review and cancel preserve physical counts and cancel does not review anew", () => {
+  const ordered = {
+    ...previous,
+    orderOpen: true,
+    orderRequestedAt: at,
+    orderQuantity: 2,
+    orderUnit: "case",
+  };
+  const reviewed = checkItemInput(
+    { itemId: "basil", date: "2026-11-01", version: 1, decision: "sufficient" },
+    ordered,
+    goods,
+    [],
+    "2026-11-01",
+    at,
+    "Team",
+  ).item;
+  assert.equal(reviewed.quantity, 4);
+  assert.equal(reviewed.countedAt, previous.countedAt);
+  assert.equal(reviewed.orderOpen, true);
+  const cancelled = checkItemInput(
+    {
+      itemId: "basil",
+      date: "2026-11-01",
+      version: 1,
+      decision: "cancelOrder",
+    },
+    ordered,
+    goods,
+    [],
+    "2026-11-01",
+    at,
+    "Team",
+  ).item;
+  assert.equal(cancelled.orderOpen, false);
+  assert.equal(cancelled.quantity, 4);
+  assert.equal(cancelled.countedAt, previous.countedAt);
+  assert.equal(cancelled.checkedOn, previous.checkedOn);
+  assert.equal(ordered.orderOpen, true);
+});
+test("quick count preserves request; stale dates, duplicate saves and invalid units leave inputs unchanged", () => {
+  const input = {
+      itemId: "basil",
+      date: "2026-11-01",
+      version: 1,
+      decision: "count",
+      quantity: 0,
+      unit: "lb",
+    },
+    ordered = { ...previous, orderOpen: true },
+    before = JSON.stringify(ordered);
+  const result = checkItemInput(
+    input,
+    ordered,
+    goods,
+    [],
+    "2026-11-01",
+    at,
+    "Team",
+  );
+  assert.equal(result.item.quantity, 0);
+  assert.equal(result.item.orderOpen, true);
+  assert.equal(result.item.version, 2);
+  assert.throws(
+    () =>
+      checkItemInput(input, result.item, goods, [], "2026-11-01", at, "Team"),
+    /another device/,
+  );
+  assert.throws(
+    () =>
+      checkItemInput(
+        { ...input, date: "2026-10-31" },
+        ordered,
+        goods,
+        [],
+        "2026-11-01",
+        at,
+        "Team",
+      ),
+    /restaurant date changed/,
+  );
+  assert.throws(() =>
+    checkItemInput(
+      { ...input, quantity: undefined },
+      ordered,
+      goods,
+      [],
+      "2026-11-01",
+      at,
+      "Team",
+    ),
+  );
+  assert.throws(
+    () =>
+      checkItemInput(
+        { ...input, unit: "new unit" },
+        ordered,
+        goods,
+        Array.from({ length: 50 }, (_, i) => "unit" + i),
+        "2026-11-01",
+        at,
+        "Team",
+      ),
+    /50/,
+  );
+  assert.equal(JSON.stringify(ordered), before);
 });
