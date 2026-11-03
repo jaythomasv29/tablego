@@ -42,7 +42,7 @@ const board = {
 };
 async function mount(
   t,
-  { failFirst = false, defer = false, history = false } = {},
+  { failFirst = false, defer = false, history = false, mobile = false } = {},
 ) {
   const module = { exports: {} },
     calls = [];
@@ -74,7 +74,7 @@ async function mount(
       crypto: { randomUUID: () => `request-${calls.length}` },
       setTimeout,
       clearTimeout,
-      window: { addEventListener() {}, removeEventListener() {} },
+      window: { addEventListener() {}, removeEventListener() {}, matchMedia: () => ({ matches: mobile, addEventListener() {}, removeEventListener() {} }) },
       fetch: async (url, options = {}) => {
         calls.push({ url, ...options });
         if (
@@ -120,6 +120,7 @@ async function mount(
             DialogTitle: (p) => React.createElement("h2", p),
             DialogDescription: (p) => React.createElement("p", p),
           };
+        if (name === '@/components/inventory/InventorySwipeDeck') return { __esModule: true, default: props => React.createElement('swipe-deck', props), SwipeStockCard: props => React.createElement('swipe-card', props) };
         if (name === '@/components/inventory/InlineStockCheck') return { __esModule: true, default: props => React.createElement('inline-check', props) };
         if (name === '@/components/inventory/InventoryOrderList') return { __esModule: true, default: props => React.createElement('order-list', props, props.hasOlder && React.createElement('button', { onClick: props.onLoadOlder }, 'Load older orders')) };
         if (name === '@/lib/inventory/progress') return progress;
@@ -239,4 +240,16 @@ test("trimmed history restarts at first page and uses server cursors on subseque
     "/api/staff/inventory/operations?history=orders&cursor=page-cursor",
   );
   assert.equal(button(r, "Load older orders"), undefined);
+});
+
+test("mobile inventory toggles between a single deck and multiple cards while retaining shared progress and item actions", async t => {
+  const {renderer:r} = await mount(t, {mobile:true});
+  assert.equal(r.root.findAllByType('swipe-deck').length, 1);
+  assert.equal(button(r,'Single card').props['aria-pressed'], true);
+  await act(async () => button(r,'Multi-card').props.onClick());
+  assert.equal(r.root.findAllByType('swipe-deck').length, 0);
+  assert.equal(r.root.findAllByType('swipe-card').length, 1);
+  assert.equal(r.root.findByType('swipe-card').props.compact, true);
+  await act(async () => button(r,'Single card').props.onClick());
+  assert.equal(r.root.findByType('swipe-deck').props.goods[0].id, 'basil');
 });

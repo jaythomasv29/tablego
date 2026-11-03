@@ -1,0 +1,29 @@
+.deck { min-width:0; display:grid; gap:10px; }
+.progress,.progress span { display:flex; align-items:center; gap:8px; justify-content:space-between; font-size:13px; }
+.deck progress { width:100%; height:5px; accent-color:var(--accent); }
+.hint { font-size:12px; color:var(--muted-foreground); line-height:1.5; }
+.announcement { font-size:13px; color:var(--accent); }
+.announcement:empty { display:none; }
+.stage { position:relative; padding:8px 6px 20px; min-width:0; overflow:hidden; }
+.card { position:relative; z-index:1; padding:20px; border:1px solid var(--border); border-radius:24px; background:var(--card); box-shadow:0 12px 30px #00000012; animation:enter .22s ease-out; }
+.backCard { position:absolute; inset:14px 14px 48px; transform:rotate(2deg); border:1px solid var(--border); border-radius:24px; background:var(--muted); padding:20px; display:grid; align-content:end; gap:4px; }
+.backCard span { font-size:12px; color:var(--muted-foreground); }
+.swipeSurface { touch-action:pan-y; cursor:grab; padding-bottom:20px; user-select:none; }
+.swipeSurface:active { cursor:grabbing; }
+.grip { display:block; width:36px; height:4px; border-radius:8px; background:var(--border); margin:0 auto 20px; }
+.swipeSurface p { font-size:12px; line-height:1.5; color:var(--muted-foreground); overflow-wrap:anywhere; }
+.swipeSurface h3 { font-size:clamp(24px,6vw,34px); font-weight:700; line-height:1.15; letter-spacing:-.025em; margin:10px 0; overflow-wrap:anywhere; }
+.directions { display:flex; justify-content:space-between; gap:12px; margin-top:18px; font-size:11px; color:var(--muted-foreground); }
+.directions span { display:flex; align-items:center; gap:4px; }
+.stamp { pointer-events:none; position:absolute; top:75px; border:2px solid currentColor; border-radius:8px; padding:8px; font-size:14px; font-weight:800; background:var(--card); }
+.left { left:16px; color:var(--accent); transform:rotate(-10deg); }.right { right:16px; color:var(--foreground); transform:rotate(10deg); }
+.compact { padding:12px; border-radius:18px; box-shadow:0 4px 14px #0000000a; }
+.compact .swipeSurface { padding-bottom:12px; }
+.compact .swipeSurface h3 { font-size:18px; line-height:1.25; }
+.compact .grip { margin-bottom:12px; width:24px; }
+.compact .directions { display:none; }
+.compact .stamp { font-size:10px; padding:4px; top:30px; }
+.complete { text-align:center; padding:40px 20px; border:1px solid var(--border); border-radius:24px; background:var(--card); }
+.complete svg { margin:0 auto 16px; color:var(--accent); }.complete h3 { font-size:24px; font-weight:700; }.complete p { font-size:14px; line-height:1.6; margin-top:10px; color:var(--muted-foreground); }
+@keyframes enter { from { opacity:.3; translate:0 8px; } to { opacity:1; translate:0 0; } }
+@media(prefers-reduced-motion:reduce) { .card { animation:none; }.backCard { transform:none; } }

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useImperativeHandle, useRef, useState, type Ref } from "react";
 import {
   inventoryCountedAt,
   validateInventoryUnit,
@@ -36,6 +36,10 @@ type Props = {
   timezone: string;
   onSaved: (board: OperationsBoard) => void;
   onDraftChange?: (id: string, dirty: boolean) => void;
+  card?: boolean;
+  controls?: Ref<{ recheck: () => void; order: () => void }>;
+  onCommitted?: (decision: Decision) => void;
+  onInteractionChange?: (locked: boolean) => void;
 };
 const validAmount = (value: string, positive = false) =>
   value.trim() !== "" &&
@@ -58,6 +62,10 @@ export default function InlineStockCheck({
   timezone,
   onSaved,
   onDraftChange,
+  card = false,
+  controls,
+  onCommitted,
+  onInteractionChange,
 }: Props) {
   const initial = (): Draft => ({
     quantity: "",
@@ -149,6 +157,12 @@ export default function InlineStockCheck({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
   const dirty = Boolean(draft.quantity.trim() || draft.ordering || uncertain);
+  const interactionLocked = !ready || busy || uncertain || conflict || draft.ordering || cancel;
+  useEffect(() => { onInteractionChange?.(interactionLocked); }, [interactionLocked, onInteractionChange]);
+  useImperativeHandle(controls, () => ({
+    recheck: () => { if (!interactionLocked) void save("sufficient"); },
+    order: () => { if (!interactionLocked) order(); },
+  }));
   useEffect(() => {
     if (ready) callback.current?.(good.id, dirty);
   }, [ready, dirty, good.id]);
@@ -280,6 +294,7 @@ export default function InlineStockCheck({
         `${payload.decision === "order" ? "Order request saved" : payload.decision === "cancelOrder" ? "Order request cancelled" : payload.decision === "count" ? "Count saved" : "Stock reviewed"}${at ? ` · ${format(at)}` : ""}`,
       );
       onSaved(board);
+      onCommitted?.(payload.decision);
     } catch (e) {
       const status = (e as Error & { status?: number }).status;
       if (status && status < 500) {
@@ -332,7 +347,7 @@ export default function InlineStockCheck({
         ? item.lastCountUnit || item.unit
         : item?.unit;
   return (
-    <section className={styles.check} aria-label={`Check ${good.name}`}>
+    <section className={`${styles.check} ${card ? styles.cardCheck : ''}`} aria-label={`Check ${good.name}`}>
       <p>
         {lastQuantity === null || lastQuantity === undefined
           ? "No physical count yet"
@@ -341,7 +356,7 @@ export default function InlineStockCheck({
       </p>
       <div className={styles.fields}>
         <label>
-          On hand
+          {card ? 'Remaining (optional)' : 'On hand'}
           <input
             aria-label={`On hand for ${good.name}`}
             disabled={!ready || busy || uncertain}
@@ -398,14 +413,14 @@ export default function InlineStockCheck({
           disabled={!ready || busy || uncertain}
           onClick={() => void save("sufficient")}
         >
-          Recheck tomorrow
+          {card ? '← Check tomorrow' : 'Recheck tomorrow'}
         </button>
         <button
           type="button"
           disabled={!ready || busy || uncertain}
           onClick={order}
         >
-          {item?.orderOpen ? "Edit order request" : "Order"}
+          {item?.orderOpen ? "Edit order request" : card ? "Order →" : "Order"}
         </button>
       </div>
       {item?.orderOpen && (

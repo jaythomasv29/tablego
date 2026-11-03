@@ -295,6 +295,19 @@
 }
 
 .page { padding-bottom: 150px; }
+.cardViewSwitch { display:flex; gap:8px; }
+.cardCategory { grid-column:1/-1; font-size:17px; font-weight:700; margin-top:12px; }
+.cardViewSwitch button { flex:1; min-height:44px; border:1px solid var(--border); border-radius:12px; font-size:14px; }
+.cardViewSwitch button[aria-pressed='true'] { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 12%,var(--card)); font-weight:700; }
+@media(max-width:767px) {
+  .multiCards { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; overflow:hidden; }
+  .multiCards > article { padding:12px; border-radius:18px; overflow-wrap:anywhere; }
+  .multiCards > article > div:first-child { align-items:flex-start; flex-direction:column; gap:6px; }
+  .multiCards h3 { font-size:17px; }
+  .multiCards input { padding:8px 6px; }
+  .multiCards button { overflow-wrap:normal; }
+}
+@media(max-width:359px) { .multiCards { grid-template-columns:1fr; } }
 .itemMore { font-size: 13px; border-top: 1px solid var(--border); }
 .itemMore summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: var(--muted-foreground); }
 .itemMore summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

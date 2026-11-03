@@ -38,6 +38,7 @@ async function mount(
     failFirst = false,
     conflict = false,
     defer = false,
+    extraProps = {},
   } = {},
 ) {
   const module = { exports: {} },
@@ -107,6 +108,7 @@ async function mount(
       (renderer = create(
         React.createElement(module.exports.default, {
           good,
+          ...extraProps,
           item: record,
           units: ["lb", "case", "bunch"],
           date: "2026-11-01",
@@ -249,4 +251,17 @@ test("unsaved count and order fields restore when a filtered tile mounts again",
     "case",
   );
   assert.equal(second.drafts.at(-1).dirty, true);
+});
+
+test("card gestures use the existing confirmed-save flow and never advance on validation or interrupted responses", async t => {
+  const controls = React.createRef(), committed=[];
+  const {renderer:r,calls} = await mount(t, {failFirst:true, extraProps:{card:true,controls,onCommitted:d=>committed.push(d)}});
+  await act(async()=>controls.current.order());
+  assert.equal(calls.length,0);
+  await fill(r,'Quantity to buy for Basil','2');
+  await act(async()=>button(r,'Save order request').props.onClick());
+  assert.equal(committed.length,0);
+  await act(async()=>button(r,'Retry original save').props.onClick());
+  assert.deepEqual(committed,['order']);
+  assert.equal(calls[0].body,calls[1].body);
 });

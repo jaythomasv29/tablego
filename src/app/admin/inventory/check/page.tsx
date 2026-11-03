@@ -3,6 +3,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check, Package, RefreshCw, ShoppingCart } from 'lucide-react';
 import AdminLayout from '@/components/AdminLayout';
+import InventorySwipeDeck, { SwipeStockCard } from '@/components/inventory/InventorySwipeDeck';
+import { storedInventoryDrafts } from '@/lib/inventory/progress';
+import type { OperationsBoard } from '@/lib/inventory/operations';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { restaurantClock } from '@/lib/reservations/availability';
@@ -16,11 +19,26 @@ type Board = { goods: CheckGood[]; customUnits: string[]; items: InventoryRecord
 async function request(path: string, body?: unknown) { const response = await fetch(path, { cache: 'no-store', ...(body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}) }); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Unable to save. Please try again.'); return data; }
 export default function InventoryPage() {
   const [data, setData] = useState<Board | null>(null), [work, setWork] = useState<WorkBoard | null>(null);
+  const [mobile, setMobile] = useState(false), [cardView, setCardView] = useState<'single' | 'multi'>('single'), [cardDrafts, setCardDrafts] = useState<string[]>([]);
+  const [classicView, setClassicView] = useState(false);
+  useEffect(() => { const media = window.matchMedia('(max-width: 767px)'); const update = () => setMobile(media.matches); update(); media.addEventListener('change', update); return () => media.removeEventListener('change', update); }, []);
+  const trackCardDraft = useCallback((id: string, dirty: boolean) => setCardDrafts(previous => previous.includes(id) === dirty ? previous : dirty ? [...previous, id] : previous.filter(value => value !== id)), []);
+  const acceptCardBoard = useCallback((next: OperationsBoard) => {
+    ++generation.current;
+    setData(previous => ({ goods: next.goods, customUnits: next.customUnits, items: { ...next.stock, ...Object.fromEntries(Object.entries(previous?.items || {}).filter(([id, item]) => item.version > (next.stock[id]?.version || 0))) }, today: next.today, timezone: next.timezone }));
+  }, []);
   const [category, setCategory] = useState('Produce'), [query, setQuery] = useState(''), [view, setView] = useState('pending');
   const [error, setError] = useState(''), [feedback, setFeedback] = useState(''), [refreshing, setRefreshing] = useState(false);
   const [taskId, setTaskId] = useState(''), [date, setDate] = useState(''), [finish, setFinish] = useState(false), [memberId, setMemberId] = useState(''), [finishing, setFinishing] = useState(false);
   const saving = useRef(new Set<string>()), generation = useRef(0), draftDay = useRef('');
   const draftsRef = useRef<Record<string, InventoryDraft>>({});
+  const cardDay = data?.today || '', cardGoods = data?.goods.map(g => g.id).join('|') || '';
+  useEffect(() => {
+    if (!cardDay) return;
+    const restore = () => setCardDrafts(storedInventoryDrafts(localStorage, cardDay, cardGoods.split('|').map(id => ({ id }))));
+    restore(); window.addEventListener('storage', restore);
+    return () => window.removeEventListener('storage', restore);
+  }, [cardDay, cardGoods]);
   const [drafts, setDrafts] = useState<Record<string, InventoryDraft>>({}), [online, setOnline] = useState(true), [draftWarning, setDraftWarning] = useState('');
   function persistDrafts(next: Record<string, InventoryDraft>) {
     draftsRef.current = next; setDrafts(next);
@@ -71,17 +89,20 @@ export default function InventoryPage() {
     } finally { saving.current.delete('__custom_unit__'); }
   }
   async function complete() {
-    if (!data || !task || finishing || Object.keys(draftsRef.current).length || saving.current.size) return; setFinishing(true); setError('');
+    if (!data || !task || finishing || Object.keys(draftsRef.current).length || cardDrafts.length || saving.current.size) return; setFinishing(true); setError('');
     try { const board: WorkBoard = await request(`/api/staff/work?date=${date}`); const result = await request('/api/staff/work', { action: 'complete', date, taskId: task.id, memberId, note: 'Inventory reviews and optional counts recorded.', version: board.day.version, settingsVersion: board.day.settingsVersion }); setWork(result); setFinish(false); setFeedback('Inventory Check completed · Saved to the shift checklist'); }
     catch (e) { setError((e as Error).message); } finally { setFinishing(false); }
   }
   const shown = data ? goods.filter(g => (view === 'orders' || Boolean(query.trim()) || g.category === category) && (!query.trim() || `${g.name} ${g.detail || ''}`.toLowerCase().includes(query.trim().toLowerCase())) && (view !== 'pending' || !inventoryChecked(data.items[g.id], data.today)) && (view !== 'orders' || data.items[g.id]?.orderOpen)) : [];
+  const cardBoard = data ? { goods: data.goods.map(g => ({ ...g, baseUnit: g.baseUnit || inventoryDefaultUnit(g.detail) })), stock: data.items, customUnits: data.customUnits, today: data.today, timezone: data.timezone } : null;
+  const cardGoodsShown = cardBoard?.goods.filter(g => shown.some(item => item.id === g.id)) || [];
   return <AdminLayout><main className={styles.page}>
     <header className={styles.header}><div><Link className={styles.back} href={`/admin/work${date ? `?date=${date}` : ''}`}><ArrowLeft aria-hidden="true" size={18} />Back to shift</Link><Link className={`${styles.back} ${styles.supplierLink}`} style={{ marginLeft: 16 }} href="/admin/inventory/manage">Stock, suppliers & invoices</Link><p className={styles.eyebrow}>BOH · Daily stock routine</p><h1>Inventory Check</h1><p>Order quickly or review stock, one section at a time. Counts are optional.</p></div><Button variant="outline" className="min-h-11" disabled={refreshing} onClick={() => void load()}><RefreshCw aria-hidden="true" size={18} className="mr-2" />Refresh</Button></header>
     {error && <div role="alert" className={styles.error}>{error} <Button variant="outline" onClick={() => void load()}>Retry / Refresh</Button></div>}<div role="status" aria-live="polite" className={feedback ? styles.toast : undefined}>{feedback}</div>
     {draftWarning && <p role="alert" className={styles.notice}>{draftWarning}</p>}
+    {cardDrafts.length > 0 && <p className={styles.notice}>{cardDrafts.length} unfinished card entries kept on this device. Finish or clear them before completing the check.</p>}
     {!online && <p role="status" className={styles.notice}>Offline · Keep counting. Reconnect to save checks and order requests.</p>}
-    {Object.keys(drafts).length > 0 && <p className={styles.notice}>{Object.keys(drafts).length} unsaved count{Object.keys(drafts).length === 1 ? '' : 's'} kept on this phone. Save the count with Recheck tomorrow, or include it when ordering.</p>}
+    {Object.keys(drafts).length > 0 && <p className={styles.notice}>{Object.keys(drafts).length} unsaved count{Object.keys(drafts).length === 1 ? '' : 's'} kept on this phone. Save the count with Recheck tomorrow, or include it when ordering. {mobile && <button className="min-h-11 underline" onClick={() => setClassicView(true)}>Review older list drafts</button>}</p>}
     {!data ? <p>Loading inventory…</p> : <>
       <section className={styles.summary} aria-label="Inventory progress"><Package aria-hidden="true" /><div><strong>{checked} / {goods.length} reviewed today</strong><p>{data.today} · Saved across devices · {openOrders} open order requests</p><progress aria-label="Goods checked today" max={goods.length} value={checked} /></div><span>{ready ? 'Ready to finish' : `${goods.length - checked} to go`}</span></section>
       {readOnly && <p role="alert" className={styles.error}>This shift is for {date}. Inventory checks record today’s stock only. Open today’s Work board to check in.</p>}
@@ -92,9 +113,10 @@ export default function InventoryPage() {
       <div className={styles.sectionHeader}><div><h2>{view === 'orders' ? 'Ready for review' : category}</h2>{view !== 'orders' && <Button variant="ghost" className="min-h-11 mt-1" onClick={() => { setCategory(categories[(categories.indexOf(category) + 1) % categories.length]); setQuery(''); }}>Next section →</Button>}</div><label>Find an item<input type="search" value={query} placeholder="Name, brand or size" onChange={e => setQuery(e.target.value)} /></label></div>
       <p className={styles.nextDayHint}>Previous counts stay saved. Each new day starts a fresh review; enter a new count only when you recount the item.</p>
       <div className={styles.legend} aria-label="Stock color guide">{(['checked', 'order', 'out', 'stale'] as const).map(state => <span key={state} data-stock={state}><i aria-hidden="true" />{inventoryTileLabels[state]}</span>)}</div>
-      <div className={styles.items}>{shown.map(good => <Item key={good.id} good={good} units={inventoryUnitOptions(data.customUnits)} addUnit={addUnit} draft={drafts[good.id]} changeDraft={changeDraft} item={data.items[good.id]} date={data.today} timezone={data.timezone} disabled={readOnly || !online} readOnly={readOnly} orderView={view === 'orders'} save={save} />)}</div>
+      {mobile && !readOnly && view !== 'orders' && <div role="group" aria-label="Inventory card view" className={styles.cardViewSwitch}><button aria-pressed={!classicView && cardView === 'single'} onClick={() => { setClassicView(false); setCardView('single'); }}>Single card</button><button aria-pressed={!classicView && cardView === 'multi'} onClick={() => { setClassicView(false); setCardView('multi'); }}>Multi-card</button></div>}
+      {mobile && !classicView && !readOnly && view !== 'orders' && cardBoard ? cardView === 'single' ? <InventorySwipeDeck key={`${data.today}:${category}:${query}:${view}`} board={cardBoard} goods={cardGoodsShown} onSaved={acceptCardBoard} onDraftChange={trackCardDraft} /> : <div className={styles.multiCards}>{categories.flatMap(c => cardGoodsShown.filter(g => g.category === c)).map(good => <SwipeStockCard key={good.id} compact good={good} board={cardBoard} onSaved={acceptCardBoard} onDraftChange={trackCardDraft} />)}</div> : <div className={styles.items}>{shown.map(good => <Item key={good.id} good={good} units={inventoryUnitOptions(data.customUnits)} addUnit={addUnit} draft={drafts[good.id]} changeDraft={changeDraft} item={data.items[good.id]} date={data.today} timezone={data.timezone} disabled={readOnly || !online} readOnly={readOnly} orderView={view === 'orders'} save={save} />)}</div>}
       {!shown.length && <p className={styles.empty}>{view === 'orders' ? 'No open order requests match.' : 'No items left in this view. Choose another section or clear your search.'}</p>}
-      <footer className={styles.finish}><div><strong>{task?.completedAt ? 'Inventory Check is complete' : ready ? 'All goods have a decision' : 'Finish one section, then move to the next'}</strong><p>Checks carry across today’s shifts. Sufficient stock is due for recheck tomorrow.</p></div>{task && !task.completedAt ? <Button className="min-h-12" disabled={!ready || readOnly || !online || Object.keys(drafts).length > 0} onClick={() => { setMemberId(''); setFinish(true); }}>Finish Inventory Check</Button> : <Link className={styles.back} href={`/admin/work?date=${date}`}>Return to Work</Link>}</footer>
+      <footer className={styles.finish}><div><strong>{task?.completedAt ? 'Inventory Check is complete' : ready ? 'All goods have a decision' : 'Finish one section, then move to the next'}</strong><p>Checks carry across today’s shifts. Sufficient stock is due for recheck tomorrow.</p></div>{task && !task.completedAt ? <Button className="min-h-12" disabled={!ready || readOnly || !online || Object.keys(drafts).length > 0 || cardDrafts.length > 0} onClick={() => { setMemberId(''); setFinish(true); }}>Finish Inventory Check</Button> : <Link className={styles.back} href={`/admin/work?date=${date}`}>Return to Work</Link>}</footer>
     </>}
     <Dialog open={finish} onOpenChange={open => { if (!finishing) setFinish(open); }}><DialogContent><DialogTitle>Finish Inventory Check</DialogTitle><DialogDescription>Save this shift task with the completion time. All goods have a saved Order or Recheck tomorrow decision. Counts remain optional.</DialogDescription><label className={styles.crew}>Completed by (optional)<select value={memberId} onChange={e => setMemberId(e.target.value)}><option value="">{teamForStation(task?.station || 'Back of house', work?.settings.stationCrews)} (default)</option>{eligibleCrew(work?.crew || [], task?.station || 'Back of house', work?.settings.stationCrews).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>{error && <p role="alert">{error}</p>}<Button disabled={finishing} onClick={() => void complete()}>{finishing ? 'Saving…' : 'Confirm completion'}</Button></DialogContent></Dialog>
   </main></AdminLayout>;

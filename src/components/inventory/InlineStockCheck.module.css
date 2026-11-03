@@ -4,6 +4,12 @@
   --accent: #365c4c;
   min-width: 0;
 }
+.cardCheck .fields { grid-template-columns:minmax(0,1fr) minmax(0,.8fr); }
+.cardCheck .fields > button { grid-column:1/-1; }
+.cardCheck .actions { margin-top:6px; }
+.cardCheck .actions button { min-height:52px; }
+.cardCheck .actions button:first-child { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 12%,var(--card)); }
+.cardCheck .actions button:last-child { font-weight:750; }
 .check p {
   font-size: 12px;
   line-height: 1.45;

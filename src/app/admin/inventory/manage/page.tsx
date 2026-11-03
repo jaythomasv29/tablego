@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AdminLayout from "@/components/AdminLayout";
 import {
@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import InlineStockCheck from "@/components/inventory/InlineStockCheck";
+import InventorySwipeDeck, { SwipeStockCard } from "@/components/inventory/InventorySwipeDeck";
 import InventoryOrderList from "@/components/inventory/InventoryOrderList";
 import { inventoryProgress, mergeInventoryBoard, storedInventoryDrafts } from "@/lib/inventory/progress";
 import InventoryDailyStock from "@/components/inventory/InventoryDailyStock";
@@ -95,6 +96,14 @@ export default function InventoryManagePage() {
     [query, setQuery] = useState(""),
     [month, setMonth] = useState("");
   const [stockFilter, setStockFilter] = useState<'all' | 'pending' | 'drafts'>('all');
+  const [mobile, setMobile] = useState(false), [cardView, setCardView] = useState<'single' | 'multi'>('single');
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const media = window.matchMedia('(max-width: 767px)');
+    const update = () => setMobile(media.matches);
+    update(); media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
   const [stockDraftIds, setStockDraftIds] = useState<string[]>([]);
   const [orderDraftIds, setOrderDraftIds] = useState<string[]>([]);
   const acceptBoard = useCallback((next: OperationsBoard) => {
@@ -573,13 +582,18 @@ export default function InventoryManagePage() {
                   </label>
                 </div>
                 {view === 'Overview' && stockFilter !== 'all' && <div className={styles.filterNotice}><span>{stockFilter === 'pending' ? 'Showing items that still need checking today' : 'Showing unsaved stock entries'}</span><button onClick={() => setStockFilter('all')}>Show all</button></div>}
-                <div className={styles.cards}>
-                  {goods.map((g) => {
+                {view === 'Overview' && mobile && <div className={styles.cardViewSwitch} role="group" aria-label="Inventory card view"><button aria-pressed={cardView === 'single'} onClick={() => setCardView('single')}>Single card</button><button aria-pressed={cardView === 'multi'} onClick={() => setCardView('multi')}>Multi-card</button></div>}
+                {view === 'Overview' && mobile && cardView === 'single' ? <InventorySwipeDeck key={`${board.today}:${category}:${query}:${stockFilter}`} board={board} goods={goods} onSaved={acceptBoard} onDraftChange={trackStockDraft} /> : <div className={`${styles.cards} ${view === 'Overview' && mobile ? styles.multiCards : ''}`}>
+                  {(view === 'Overview' && mobile ? categories.flatMap(c => goods.filter(g => g.category === c)) : goods).map((g, index, displayed) => {
                     const s = board.stock[g.id],
                       offers = board.offers.filter((o) => o.itemId === g.id);
                     const lastOrder = board.orders.find(o => o.lines.some(l => l.itemId === g.id));
                     const lastArrival = board.receipts.find(r => r.lines.some(l => l.itemId === g.id));
                     const lastInvoice = board.invoices.find(i => i.lines.some(l => l.itemId === g.id));
+                    if (view === 'Overview' && mobile) return <Fragment key={g.id}>
+                      {(index === 0 || displayed[index - 1].category !== g.category) && <h2 className={styles.cardCategory}>{g.category}</h2>}
+                      <SwipeStockCard compact good={g} board={board} onSaved={acceptBoard} onDraftChange={trackStockDraft} />
+                    </Fragment>;
                     return (
                       <article key={g.id} className={styles.card}>
                         <div className={styles.row}>
@@ -589,7 +603,7 @@ export default function InventoryManagePage() {
                         {view === 'Directory' && <p>{g.detail}{g.location ? ` · ${g.location}` : ''}</p>}
                         {(lastOrder || lastArrival || lastInvoice) && <details><summary>Purchase & arrival history</summary>{lastOrder && <p>Last ordered: {date(lastOrder.orderedAt)} · {lastOrder.supplierName} · {Math.max(0, Math.floor((new Date(board.today + 'T12:00:00Z').getTime() - new Date(lastOrder.orderedAt).getTime()) / 86400000))} days ago</p>}{lastArrival && <p>Latest arrival: {date(lastArrival.at)} · {lastArrival.lines.find(l => l.itemId === g.id)?.receivedQuantity} {lastArrival.lines.find(l => l.itemId === g.id)?.unit || board.orders.find(o => o.id === lastArrival.orderId)?.lines.find(l => l.itemId === g.id)?.unit || 'ordering units'} received{lastArrival.supplierName ? ` · ${lastArrival.supplierName}` : ''}</p>}{lastInvoice && <p>Last invoiced: {lastInvoice.date} · {lastInvoice.supplierName} · {lastInvoice.status}</p>}</details>}
                         {view === 'Overview' ? <>
-                          <InlineStockCheck good={g} item={s} units={inventoryUnitOptions([...board.customUnits, g.baseUnit])} date={board.today} timezone={board.timezone} onSaved={acceptBoard} onDraftChange={trackStockDraft} />
+                          <InlineStockCheck good={g} item={s} units={inventoryUnitOptions([...board.customUnits, g.baseUnit])} date={board.today} timezone={board.timezone} onSaved={acceptBoard} onDraftChange={trackStockDraft} card={mobile} />
                           <details className={styles.itemMore}><summary>Details & sources</summary><p>{g.detail}{g.location ? ` · ${g.location}` : ''}</p><div className={styles.row}><button onClick={() => open({ kind: 'good', good: g })}>Edit item</button><button onClick={() => open({ kind: 'detail', good: g })}>History & sources</button></div></details>
                         </> : (
                           <>
@@ -608,7 +622,7 @@ export default function InventoryManagePage() {
                       </article>
                     );
                   })}
-                </div>
+                </div>}
                 {!goods.length && (
                   <p className={styles.empty}>No goods match this search.</p>
                 )}

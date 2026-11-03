@@ -1,4 +1,4 @@
-.page { max-width: 1200px; margin: auto; padding: 24px; display: grid; gap: 24px; --inventory-accent: #365c4c; }
+.page { max-width: 1200px; margin: auto; padding: 24px; display: grid; gap: 24px; --inventory-accent: #365c4c; --accent:var(--inventory-accent); }
 :global(.dark) .page { --inventory-accent: #b4c8bd; }
 .page button, .page a, .page input, .page select { -webkit-tap-highlight-color: transparent; }
 .page button:focus-visible, .page a:focus-visible, .page input:focus-visible, .page select:focus-visible { outline: 2px solid var(--inventory-accent); outline-offset: 3px; }
@@ -27,6 +27,9 @@
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
 .notice { border: 1px solid var(--border); border-left: 3px solid var(--inventory-accent); border-radius: 10px; padding: 12px 16px; font-size: 14px; background: var(--card); }
 .mobileSection { display: none; }
+.cardViewSwitch { display:flex; gap:8px; }.cardViewSwitch button { flex:1; min-height:44px; border:1px solid var(--border); border-radius:12px; }.cardViewSwitch button[aria-pressed='true'] { border-color:var(--inventory-accent); background:color-mix(in srgb,var(--inventory-accent) 12%,var(--card)); font-weight:700; }
+.multiCards { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; overflow:hidden; }
+@media(max-width:359px) { .multiCards { grid-template-columns:1fr; } }
 .shareActions { display: flex; gap: 10px; }
 .orderAmount { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 15px; font-weight: 650; color: var(--inventory-accent); }
 .orderForm { display: grid; gap: 16px; }.orderForm label { display: grid; gap: 6px; font-size: 14px; font-weight: 650; }.orderForm p { font-size: 13px; color: var(--muted-foreground); }
