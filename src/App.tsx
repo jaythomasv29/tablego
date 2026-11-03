@@ -2,7 +2,6 @@ import { useInitialBusinessDate } from '@/components/reservations/useInitialBusi
 import { useBusinessPolicy } from '@/components/reservations/useBusinessPolicy';
 import { ReservationReceipt, type ReceiptDetails } from '@/components/reservations/ReservationReceipt';
 import MagneticButton from '@/components/MagneticButton';
-import EmailSignup from '@/components/mailing/EmailSignup';
 import PromotionModal from '@/components/mailing/PromotionModal';
 import { calendarDate, slotsForDate, openAt } from '@/lib/reservations/availability';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -339,12 +338,9 @@ function App() {
       </svg>
 
       <div ref={bannerRef} className="fixed inset-x-0 top-0 z-50 border-b border-black/10 bg-[#A3B18A] px-4 py-3">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
-          <div className="text-center lg:text-left">
-            {bannerData?.text && <p className="text-xs font-medium text-zinc-900 sm:text-sm">{bannerData.text}{bannerData.link && <Link href={bannerData.link} target="_blank" rel="noopener noreferrer" className="ml-2 underline">{bannerData.linkText || 'Details'}</Link>}</p>}
-            <button id="promotion-opener" type="button" onClick={() => setShowPromotion(true)} className="mt-1 text-xs font-semibold text-zinc-900 underline underline-offset-4">Monthly offers</button>
-          </div>
-          <div className="mx-auto w-full max-w-lg lg:mx-0"><EmailSignup source="banner" compact /></div>
+        <div className="mx-auto max-w-7xl text-center">
+          {bannerData?.text && <p className="text-xs font-medium text-zinc-900 sm:text-sm">{bannerData.text}{bannerData.link && <Link href={bannerData.link} target="_blank" rel="noopener noreferrer" className="ml-2 underline">{bannerData.linkText || 'Details'}</Link>}</p>}
+          <button id="promotion-opener" type="button" onClick={() => setShowPromotion(true)} className="mt-1 text-xs font-semibold text-zinc-900 underline underline-offset-4">Monthly offers</button>
         </div>
       </div>
 
