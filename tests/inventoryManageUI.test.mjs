@@ -123,6 +123,7 @@ async function mount(
         if (name === '@/components/inventory/InlineStockCheck') return { __esModule: true, default: props => React.createElement('inline-check', props) };
         if (name === '@/components/inventory/InventoryOrderList') return { __esModule: true, default: props => React.createElement('order-list', props, props.hasOlder && React.createElement('button', { onClick: props.onLoadOlder }, 'Load older orders')) };
         if (name === '@/lib/inventory/progress') return progress;
+        if (name === "@/components/inventory/InventoryDailyStock") return { __esModule: true, default: () => React.createElement("button", {}, "Daily stock") };
         if (name === "@/components/inventory/InventoryTextLog") return { __esModule: true, default: () => null };
         if (name === "@/lib/inventory/invoiceCatalog") return { invoiceCatalogSuggestions: lines => lines.map((_, lineIndex) => ({ lineIndex, ambiguous: false })) };
         if (name === "@/components/inventory/InvoiceCapture")

@@ -11,6 +11,7 @@ import {
 import InlineStockCheck from "@/components/inventory/InlineStockCheck";
 import InventoryOrderList from "@/components/inventory/InventoryOrderList";
 import { inventoryProgress, mergeInventoryBoard, storedInventoryDrafts } from "@/lib/inventory/progress";
+import InventoryDailyStock from "@/components/inventory/InventoryDailyStock";
 import InventoryTextLog from "@/components/inventory/InventoryTextLog";
 import { invoiceCatalogSuggestions } from "@/lib/inventory/invoiceCatalog";
 import InvoiceCapture from "@/components/inventory/InvoiceCapture";
@@ -451,12 +452,15 @@ export default function InventoryManagePage() {
             <h1>Inventory</h1>
             <p>Stock, orders & invoices.</p>
           </div>
+          <div className={styles.row}>
+          <InventoryDailyStock />
           <button
             disabled={loading || busy || !!modal}
             onClick={() => void load()}
           >
             {loading ? "Refreshing…" : "Refresh"}
           </button>
+          </div>
         </header>
         <nav className={styles.tabs} aria-label="Inventory sections">
           {["Overview", "Directory", "Orders & receiving", "Invoices"].map(

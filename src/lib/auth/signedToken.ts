@@ -1,4 +1,4 @@
-export type TokenKind = 'admin' | 'phone';
+export type TokenKind = 'admin' | 'phone' | 'inventory-view';
 export interface SignedClaims {
   version: 1;
   kind: TokenKind;
