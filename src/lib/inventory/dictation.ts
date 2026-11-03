@@ -8,6 +8,7 @@ export interface DictationRow {
   unit: string;
   issue: string;
   confirmed?: boolean;
+  suggestedName?: string;
 }
 const small: Record<string, number> = {
   zero: 0,
@@ -75,6 +76,17 @@ const units: Record<string, string> = {
   liters: "liter",
   litre: "liter",
   litres: "liter",
+  g: "g", gram: "g", grams: "g",
+  ml: "ml", milliliter: "ml", milliliters: "ml", millilitre: "ml", millilitres: "ml",
+  l: "liter", gal: "gallon", gals: "gallon",
+  qt: "quart", qts: "quart", quart: "quart", quarts: "quart",
+  pt: "pint", pts: "pint", pint: "pint", pints: "pint",
+  kilo: "kg", kilos: "kg", kgs: "kg",
+  pc: "each", pcs: "each", pkg: "pack", package: "pack", packages: "pack",
+  tray: "tray", trays: "tray", roll: "roll", rolls: "roll",
+  sleeve: "sleeve", sleeves: "sleeve", crate: "crate", crates: "crate",
+  jar: "jar", jars: "jar", carton: "carton", cartons: "carton",
+  bucket: "bucket", buckets: "bucket", dozen: "dozen", dozens: "dozen",
   kg: "kg",
   kilogram: "kg",
   kilograms: "kg",
@@ -96,6 +108,11 @@ const isNumber = (word: string) =>
 function numberValue(words: string[]): number | null {
   const phrase = words.join(" ").replace(/\ba\s+(half|quarter)\b/g, "$1");
   if (/^\d+(?:\.\d+)?$/.test(phrase)) return Number(phrase);
+  if (/^\d+ \d+\/\d+$/.test(phrase)) {
+    const [whole, fraction] = phrase.split(" ");
+    const part = numberValue([fraction]);
+    return part === null ? null : Number(whole) + part;
+  }
   if (/^\d+\/\d+$/.test(phrase)) {
     const [a, b] = phrase.split("/").map(Number);
     return b ? a / b : null;
@@ -280,6 +297,7 @@ export function parseInventoryLog(
   goods: CatalogGood[],
   offers: SupplierOffer[],
   stock: InventoryRecords,
+  customUnits: string[] = [],
 ): DictationRow[] {
   const aliases = goods
     .map((g) => ({ id: g.id, name: normalize(g.name) }))
@@ -291,6 +309,7 @@ export function parseInventoryLog(
     );
   const knownUnits = { ...units };
   for (const unit of [
+    ...customUnits,
     ...goods.map((g) => g.baseUnit),
     ...Object.values(stock).map((item) => item.unit),
     ...offers
@@ -298,15 +317,23 @@ export function parseInventoryLog(
       .filter(Boolean),
   ]) {
     const key = normalize(unit);
-    if (key && !key.includes(" ") && !knownUnits[key]) {
+    if (key && !knownUnits[key]) {
       knownUnits[key] = unit;
       const singular = singularToken(key);
       if (!knownUnits[singular]) knownUnits[singular] = unit;
       if (!knownUnits[singular + "s"]) knownUnits[singular + "s"] = unit;
     }
   }
+  const unitAbbreviations = /\b(lbs?|oz|kgs?|g|ml|l|gal|gals|qt|qts|pt|pts|ea|pcs?|pkg)\.(?=\s|$)/gi;
+  const unitKeys = Object.keys(knownUnits).sort((a, b) => b.length - a.length);
   const parts = clauses(
-    text.slice(0, 20000),
+    text.slice(0, 20000).replace(unitAbbreviations, (match, unit: string, offset: number, input: string) => {
+      const prefix = input.slice(0, offset).split(/[,;\n]|\.(?!\d)/).at(-1)?.trim() || "";
+      const quantityFirst = prefix && normalize(prefix).split(" ").every(word => isNumber(word) || ["and", "a", "an"].includes(word));
+      return quantityFirst || /^\s+(?:of|left|remaining)\b/i.test(input.slice(offset + match.length)) ? unit : match;
+    })
+      .replace(/(\d)(?=[a-z])/gi, "$1 ")
+      .replace(/½/g, " 1/2").replace(/¼/g, " 1/4").replace(/¾/g, " 3/4"),
     aliases.map((a) => a.name),
   ).flatMap((source) =>
     continuousClauses(
@@ -319,19 +346,25 @@ export function parseInventoryLog(
   const sources = parts.slice(0, truncated ? 199 : 200);
   const rows: DictationRow[] = sources.map((source, index) => {
     const issues: string[] = [];
-    const words = normalize(source).replace(/-/g, " ").split(" "),
+    const words = normalize(source)
+      .replace(/(\d)([a-z])/g, "$1 $2")
+      .replace(/\b([a-z]+)\.(?=\s|$)/g, "$1")
+      .replace(/-/g, " ").split(" "),
       numberGroups: { words: string[]; indexes: number[] }[] = [],
       unitValues: string[] = [],
       removed = new Set<number>();
     for (let i = 0; i < words.length; i++) {
       const word = words[i];
-      if (knownUnits[word]) {
-        unitValues.push(knownUnits[word]);
-        removed.add(i);
+      const matchedUnit = unitKeys.find(unit => unit.split(" ").every((token, offset) => words[i + offset] === token));
+      if (matchedUnit) {
+        unitValues.push(knownUnits[matchedUnit]);
+        for (let offset = 0; offset < matchedUnit.split(" ").length; offset++) removed.add(i + offset);
+        i += matchedUnit.split(" ").length - 1;
         continue;
       }
-      if (["a", "an"].includes(word) && knownUnits[words[i + 1]]) {
-        numberGroups.push({ words: ["one"], indexes: [i] });
+      if (["a", "an"].includes(word) && unitKeys.some(unit => unit.split(" ").every((token, offset) => words[i + 1 + offset] === token))) {
+        if (!["half", "quarter"].includes(words[i - 1]))
+          numberGroups.push({ words: ["one"], indexes: [i] });
         removed.add(i);
         continue;
       }
@@ -421,6 +454,7 @@ export function parseInventoryLog(
       id: `log-${index + 1}`,
       source,
       itemId,
+      suggestedName: query,
       quantity,
       unit,
       issue: Array.from(new Set(issues)).join(". "),

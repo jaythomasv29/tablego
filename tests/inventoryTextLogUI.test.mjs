@@ -259,3 +259,22 @@ test("matched valid log rows start compact and expand only when editing", async 
   await act(async () => button(r, "Done editing").props.onClick());
   assert.equal(r.root.findAllByType("select").length, 0);
 });
+
+test('unknown item can be created in the reviewed log with its count and survives interrupted retry', async t => {
+ const {renderer: r, calls} = await mount(t, {failFirst: true});
+ await enter(r, 'Dragon fruit three cans');
+ await act(async () => r.root.findByType('select').props.onChange({target: {value: '__new__'}}));
+ assert.ok(JSON.stringify(r.toJSON()).includes('dragon fruit'));
+ assert.equal(calls.length, 0);
+ await act(async () => reviewCheck(r).props.onChange({target: {checked: true}}));
+ assert.equal(button(r, 'Confirm 1 stock counts').props.disabled, false);
+ await act(async () => button(r, 'Confirm 1 stock counts').props.onClick());
+ const payload = JSON.parse(calls[0].body);
+ assert.deepEqual(payload.lines[0].newGood, {name: 'dragon fruit', category: 'Unsorted goods', location: ''});
+ assert.equal(payload.lines[0].quantity, 3);
+ assert.equal(payload.lines[0].unit, 'can');
+ await act(async () => button(r, 'Keep draft & close').props.onClick());
+ await act(async () => button(r, 'Speak or type stock log').props.onClick());
+ await act(async () => button(r, 'Retry original log').props.onClick());
+ assert.equal(calls[0].body, calls[1].body);
+});

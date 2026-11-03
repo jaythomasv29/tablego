@@ -370,15 +370,26 @@ export async function mutateOperations(raw: unknown, actor: string) {
         ]);
         const stock = (saved.data()?.items || {}) as InventoryRecords;
         const today = restaurantClock(businessTimezone(general.data())).date;
+        const createsGoods = Array.isArray(v.lines) && v.lines.some(line => object(line).newGood !== undefined);
+        const currentGoods = new Map(catalogGoods().map(g => [g.id, g]));
+        if (createsGoods) {
+          const catalog = await tx.get(db.collection(path("goods")));
+          if (catalog.size >= 1000) throw new Error("Inventory catalog limit reached");
+          for (const good of catalog.docs) currentGoods.set(good.id, { ...good.data(), id: good.id } as CatalogGood);
+        }
         const result = confirmStockLog(
           v,
-          board.goods,
+          createsGoods ? Array.from(currentGoods.values()) : board.goods,
           stock,
           (saved.data()?.customUnits || []) as string[],
           today,
           at,
           by,
         );
+        if (createsGoods && currentGoods.size + result.createdGoods.length >= 1000)
+          throw new Error("Inventory catalog limit reached");
+        for (const good of result.createdGoods)
+          tx.create(db.doc(`${path("goods")}/${good.id}`), good);
         id = requestId;
         before = {
           lines: result.lines.map((line) => ({

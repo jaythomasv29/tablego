@@ -23,6 +23,8 @@ type Row = {
   issue: string;
   edited: boolean;
   unitConfirmed?: boolean;
+  suggestedName?: string;
+  newGood?: { name: string; category: string; location: string };
 };
 type Payload = {
   action: "confirmTextLog";
@@ -30,7 +32,7 @@ type Payload = {
   text: string;
   date: string;
   staffName: string;
-  lines: { itemId: string; quantity: number; unit: string; version: number }[];
+  lines: { itemId: string; quantity: number; unit: string; version: number; newGood?: Row["newGood"] }[];
 };
 function priorCount(item: OperationsBoard["stock"][string] | undefined) {
   return {
@@ -135,7 +137,7 @@ export default function InventoryTextLog({
             ...l,
             id: `restored-${index}`,
             source:
-              board.goods.find((g) => g.id === l.itemId)?.name || l.itemId,
+              board.goods.find((g) => g.id === l.itemId)?.name || l.newGood?.name || l.itemId,
             quantity: String(l.quantity),
             issue: "",
             edited: true,
@@ -173,6 +175,7 @@ export default function InventoryTextLog({
       board.goods,
       board.offers,
       board.stock,
+      board.customUnits,
     );
     setRows(
       parsed.map((row) => ({
@@ -194,7 +197,11 @@ export default function InventoryTextLog({
     );
   }
   function issue(row: Row) {
-    if (!board.goods.some((g) => g.id === row.itemId))
+    if (row.newGood && (!row.newGood.name.trim() || !row.newGood.category.trim()))
+      return "Enter a name and category for the new item.";
+    if (row.newGood && [...board.goods, ...rows.filter(r => r.id !== row.id && r.newGood).map(r => ({name: r.newGood!.name}))].some(g => g.name.trim().toLocaleLowerCase() === row.newGood!.name.trim().toLocaleLowerCase()))
+      return "This name already exists. Choose the existing item or use a distinct name.";
+    if (!row.newGood && !board.goods.some((g) => g.id === row.itemId))
       return "Choose the inventory item, or remove this entry.";
     if (rows.filter((r) => r.itemId === row.itemId).length > 1)
       return "This item appears more than once. Combine the counts into one entry and remove the duplicate.";
@@ -243,6 +250,7 @@ export default function InventoryTextLog({
         quantity: Number(row.quantity),
         unit: row.unit.trim(),
         version: row.version,
+        ...(row.newGood ? { newGood: row.newGood } : {}),
       })),
     };
     pending.current = payload;
@@ -356,7 +364,7 @@ export default function InventoryTextLog({
                 <p>
                   Your text draft stays on this device for this inventory day.
                   Separate items with a new line, a period, or a pause in
-                  dictation.
+                  dictation. You can create unmatched items during review.
                 </p>
                 <div className={styles.actions}>
                   <button type="button" onClick={close}>
@@ -413,7 +421,7 @@ export default function InventoryTextLog({
                           <div>
                             <strong>
                               {board.goods.find((g) => g.id === row.itemId)
-                                ?.name || "Unmatched item"}
+                                ?.name || row.newGood?.name || "Unmatched item"}
                             </strong>
                             <p>
                               {row.quantity || "—"} {row.unit}
@@ -455,9 +463,16 @@ export default function InventoryTextLog({
                               Inventory item
                               <select
                                 disabled={busy || uncertain}
-                                value={row.itemId}
-                                onChange={(e) =>
+                                value={row.newGood ? "__new__" : row.itemId}
+                                onChange={(e) => {
+                                  if (e.target.value === "__new__") {
+                                    edit(row.id, { itemId: crypto.randomUUID(), version: 0,
+                                      newGood: {name: row.suggestedName || "", category: "Unsorted goods", location: ""},
+                                      unitConfirmed: false });
+                                    return;
+                                  }
                                   edit(row.id, {
+                                    newGood: undefined,
                                     itemId: e.target.value,
                                     version:
                                       board.stock[e.target.value]?.version || 0,
@@ -469,10 +484,11 @@ export default function InventoryTextLog({
                                       )?.baseUnit ||
                                       row.unit,
                                     unitConfirmed: false,
-                                  })
-                                }
+                                  });
+                                }}
                               >
                                 <option value="">Choose matching item</option>
+                                <option value="__new__">Create new item…</option>
                                 {board.goods.map((g) => (
                                   <option key={g.id} value={g.id}>
                                     {g.name}
@@ -480,6 +496,14 @@ export default function InventoryTextLog({
                                 ))}
                               </select>
                             </label>
+                            {row.newGood && <>
+                              <p>This item and its on-hand count will be added when you confirm the log.</p>
+                              <label>New item name<input disabled={busy || uncertain} maxLength={160} value={row.newGood.name} onChange={e => edit(row.id, {newGood: {...row.newGood!, name: e.target.value}})} /></label>
+                              <div className={styles.pair}>
+                                <label>Category<input disabled={busy || uncertain} maxLength={80} value={row.newGood.category} onChange={e => edit(row.id, {newGood: {...row.newGood!, category: e.target.value}})} /></label>
+                                <label>Location (optional)<input disabled={busy || uncertain} maxLength={120} value={row.newGood.location} onChange={e => edit(row.id, {newGood: {...row.newGood!, location: e.target.value}})} /></label>
+                              </div>
+                            </>}
                             <div className={styles.pair}>
                               <label>
                                 On hand

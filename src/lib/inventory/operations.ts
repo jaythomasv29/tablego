@@ -651,10 +651,20 @@ export function confirmStockLog(
   const updates: InventoryRecords = {},
     seen = new Set<string>();
   let units = [...customUnits];
+  const createdGoods: CatalogGood[] = [];
   const lines = v.lines.map((raw) => {
     const line = object(raw),
       itemId = identifier(line.itemId);
-    if (!goods.some((g) => g.id === itemId))
+    if (line.newGood !== undefined) {
+      if (goods.some(g => g.id === itemId) || createdGoods.some(g => g.id === itemId))
+        throw new Error("This item already exists. Match the existing inventory item.");
+      const good = goodInput({ ...object(line.newGood), baseUnit: line.unit }, itemId);
+      const nameKey = (name: string) => name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase().replace(new RegExp("[^\\p{L}\\p{N}]+", "gu"), " ").trim();
+      if ([...goods, ...createdGoods].some(g => nameKey(g.name) === nameKey(good.name)))
+        throw new Error("An item with this name already exists. Match the existing inventory item.");
+      if (line.version !== 0 || stock[itemId]) throw new Error("New items must start with a fresh count");
+      createdGoods.push(good);
+    } else if (!goods.some((g) => g.id === itemId))
       throw new Error("Match every included row to a current inventory item");
     if (seen.has(itemId))
       throw new Error(
@@ -673,7 +683,7 @@ export function confirmStockLog(
     updates[itemId] = after;
     return { itemId, before: stock[itemId] || null, after };
   });
-  return { updates, customUnits: units, text, lines };
+  return { updates, customUnits: units, text, lines, createdGoods };
 }
 
 export function checkItemInput(

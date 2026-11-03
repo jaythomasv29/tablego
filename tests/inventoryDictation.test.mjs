@@ -188,3 +188,36 @@ test("explicit custom units from catalog, stock and supplier mappings support pl
   );
   assert.equal(parse("basil a mystery")[0].quantity, null);
 });
+
+test('abbreviated, attached and additional counting units work in typed and spoken logs', () => {
+ for (const [phrase, quantity, unit] of [['basil 2kg', 2, 'kg'], ['basil 500 g', 500, 'g'], ['basil 2 lbs.', 2, 'lb'], ['basil three qts', 3, 'quart'], ['basil 250ml', 250, 'ml'], ['basil 1 1/2 jars', 1.5, 'jar']]) {
+  const row = parse(phrase)[0];
+  assert.deepEqual([row.itemId, row.quantity, row.unit, row.issue], ['basil', quantity, unit, ''], phrase);
+ }
+});
+test('saved multiword custom units and unknown item names survive review parsing', () => {
+ const rows = parseInventoryLog('basil two small baskets; dragon fruit three sleeves', goods, [], {}, ['small basket']);
+ assert.equal(rows[0].unit, 'small basket');
+ assert.equal(rows[0].itemId, 'basil');
+ assert.equal(rows[0].issue, '');
+ assert.equal(rows[1].suggestedName, 'dragon fruit');
+ assert.equal(rows[1].quantity, 3);
+ assert.equal(rows[1].unit, 'sleeve');
+ assert.equal(rows[1].itemId, '');
+});
+
+test('attached quantities in continuous speech and half a container keep their counts', () => {
+ const rows = parse('2kg basil 3kg broccoli');
+ assert.deepEqual(rows.map(r => [r.itemId, r.quantity, r.unit]), [['basil', 2, 'kg'], ['broccoli', 3, 'kg']]);
+ assert.equal(parse('basil half a tub')[0].quantity, 0.5);
+ assert.equal(parse('basil 1½ jars')[0].quantity, 1.5);
+});
+
+test('unit abbreviation punctuation preserves the boundary before a new unknown item', () => {
+ const rows = parse('basil 2 lbs. Dragon fruit 3 cans.');
+ assert.equal(rows.length, 2);
+ assert.equal(rows[0].itemId, 'basil');
+ assert.equal(rows[1].suggestedName, 'dragon fruit');
+ assert.equal(rows[1].quantity, 3);
+ assert.equal(parse('2 lbs. basil')[0].itemId, 'basil');
+});

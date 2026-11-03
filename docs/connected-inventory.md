@@ -47,3 +47,9 @@ A floating completion banner reports all catalog goods reviewed today, actual ph
 Orders opens to To order, grouped by supplier, with quantity/unit editing, explicit request removal, and clean copy/share text containing buy amounts and supplier product names/SKUs. Unlinked products stay visible. Save edits before copying or preparing an order. Placed / arriving and History are separate views. Removing a shopping request never changes physical stock or cancels a placed supplier order.
 
 Verification: 365 full-suite tests, typecheck, lint and optimized production build passed. Actual staging transactions verified metadata retry protection, ordering without a count, no fabricated zero, count/order independence, preserved physical-count timestamps, and stale-version rejection. Browser checks at iPhone 393px and iPad 768px verified the inline controls, saved count, shopping list and persistent completion banner.
+
+## Flexible stock logs — November 2, 2026
+
+The existing stock-log review now offers Create new item alongside matching existing goods. It prefills the parsed name and keeps the stated quantity and unit. Staff can edit the name, category (initially Unsorted goods), and optional location before confirmation. New catalog goods and all reviewed counts save atomically, with duplicate-name validation against the current catalog and the same interrupted-save retry protection as existing counts.
+
+Unit parsing includes attached forms such as `2kg` and `250ml`, punctuated abbreviations such as `lbs.`, additional metric/volume/container units, mixed numeric fractions, and saved custom units including multiword names and plurals. Counts still require review; differing counting units require acknowledgement and no package conversion is inferred.

@@ -11,7 +11,7 @@ function fixture(){
  const records=new Map([['inventory/current',{customUnits:[],items:{}}],['settings/general',{}]]), writes=[];
  const snap=path=>({id:path.split('/').at(-1),exists:records.has(path),data:()=>records.has(path)?structuredClone(records.get(path)):undefined});
  function collection(path){const query={path,where:()=>query,orderBy:()=>query,limit:()=>query,get:async()=>{const docs=Array.from(records.keys()).filter(k=>k.startsWith(path+'/')&&!k.slice(path.length+1).includes('/')).map(snap);return {docs,size:docs.length};}};return query;}
- const db={doc:path=>({path}),collection,runTransaction:async fn=>{const staged=new Map();let wrote=false;const tx={get:async ref=>{assert.equal(wrote,false,'transaction reads must precede writes');return snap(ref.path);},set:(ref,value)=>{wrote=true;staged.set(ref.path,structuredClone(value));},create:(ref,value)=>{assert.equal(records.has(ref.path)||staged.has(ref.path),false);wrote=true;staged.set(ref.path,structuredClone(value));}};const result=await fn(tx);for(const [path,value] of staged){records.set(path,value);writes.push(path);}return result;}};
+ const db={doc:path=>({path}),collection,runTransaction:async fn=>{const staged=new Map();let wrote=false;const tx={get:async ref=>{assert.equal(wrote,false,'transaction reads must precede writes');return ref.get ? ref.get() : snap(ref.path);},set:(ref,value)=>{wrote=true;staged.set(ref.path,structuredClone(value));},create:(ref,value)=>{assert.equal(records.has(ref.path)||staged.has(ref.path),false);wrote=true;staged.set(ref.path,structuredClone(value));}};const result=await fn(tx);for(const [path,value] of staged){records.set(path,value);writes.push(path);}return result;}};
  class ReservationError extends Error{constructor(message,status=400){super(message);this.status=status;}}
  const file=new URL('../src/lib/inventory/operationsRepository.ts',import.meta.url),require=createRequire(file),module={exports:{}};
  const imports={'../serverFirebase':{getServerDatabase:()=>db},'./repository':{getInventory:async()=>({items:structuredClone(records.get('inventory/current').items),customUnits:records.get('inventory/current').customUnits,today:'2026-10-28',timezone:'America/Los_Angeles'})},'../reservations/policy':{businessTimezone:()=> 'America/Los_Angeles'},'../reservations/availability':{restaurantClock:()=>({date:'2026-10-28'})},'../reservations/http':{ReservationError},'./operations':operations,'./invoiceCatalog':invoiceCatalog,'./model':model};
@@ -114,4 +114,29 @@ test('metadata create honors stable request ID and lost-response retry cannot du
  await repository.mutateOperations(input,'staff-session');const saved=Array.from(records.entries()).filter(([key])=>key.startsWith('inventoryOperations/goods/records/'));assert.equal(saved.length,1);const before=JSON.stringify(Array.from(records.entries())),writeCount=writes.length;
  await repository.mutateOperations(input,'staff-session');assert.equal(JSON.stringify(Array.from(records.entries())),before);assert.equal(writes.length,writeCount);
  await assert.rejects(repository.mutateOperations({...input,good:{...input.good,name:'Changed after lost response'}},'staff-session'),error=>error.status===409&&/already used/.test(error.message));assert.equal(JSON.stringify(Array.from(records.entries())),before);assert.equal(writes.length,writeCount);
+});
+
+const newLog = {...log, requestId: 'new-log', lines: [{itemId: 'new-corn', quantity: 6, unit: 'can', version: 0, newGood: {name: 'Baby corn', category: 'Pantry', location: 'Shelf'}}]};
+test('stock log creates catalog item and count together and retries exactly once', async () => {
+ const {repository, records, writes} = fixture();
+ await repository.mutateOperations(newLog, 'staff');
+ assert.equal(records.get('inventoryOperations/goods/records/new-corn').name, 'Baby corn');
+ assert.equal(records.get('inventoryOperations/goods/records/new-corn').baseUnit, 'can');
+ assert.equal(records.get('inventory/current').items['new-corn'].quantity, 6);
+ const count = writes.length;
+ await repository.mutateOperations(newLog, 'staff');
+ assert.equal(writes.length, count);
+});
+test('duplicate catalog names and invalid new counts leave all records untouched', async () => {
+ for (const patch of [{newGood: {name: 'Basil', category: 'Produce'}}, {quantity: -1}, {version: 1}, {newGood: {name: '', category: 'Pantry'}}]) {
+  const {repository, records, writes} = fixture(), before = JSON.stringify([...records]);
+  await assert.rejects(repository.mutateOperations({...newLog, lines: [{...newLog.lines[0], ...patch}]}, 'staff'));
+  assert.equal(JSON.stringify([...records]), before);
+  assert.equal(writes.length, 0);
+ }
+});
+test('new catalog rows reject duplicate names inside one stock log', async () => {
+ const {repository, writes} = fixture();
+ await assert.rejects(repository.mutateOperations({...newLog, lines: [newLog.lines[0], {...newLog.lines[0], itemId: 'other-corn'}]}, 'staff'), /already exists/);
+ assert.equal(writes.length, 0);
 });
