@@ -59,6 +59,8 @@ body:has([data-admin-console]) [data-mobile='true'][data-slot='sidebar'] { width
 body:has([data-admin-console]) [data-slot='sheet-overlay'] { background:#0009; }
 .admin-console :is(button,a,input,select,summary):focus-visible { outline:2px solid var(--ring); outline-offset:3px; }
 .admin-quick-nav { display:none; }
+[data-direct-today] :is(button,summary,a[href^='tel:']) { min-height:44px; }
+[data-direct-today] input:not([type='checkbox']),[data-direct-today] select { min-height:44px; font-size:16px; }
 @media(max-width:1023px) {
   body:has([data-admin-console]) { --admin-bottom-space:calc(68px + env(safe-area-inset-bottom)); }
   .admin-topbar { min-height:64px; padding:8px 16px; gap:8px; }
