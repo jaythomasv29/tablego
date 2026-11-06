@@ -347,14 +347,14 @@ export default function InlineStockCheck({
         ? item.lastCountUnit || item.unit
         : item?.unit;
   return (
-    <section className={`${styles.check} ${card ? styles.cardCheck : ''}`} aria-label={`Check ${good.name}`}>
+    <section data-stock-entry className={`${styles.check} ${card ? styles.cardCheck : ''}`} aria-label={`Check ${good.name}`}>
       <p>
         {lastQuantity === null || lastQuantity === undefined
           ? "No physical count yet"
           : `Last counted ${lastQuantity} ${lastUnit}`}
         {counted ? ` · ${format(counted)}` : ""}
       </p>
-      <div className={styles.fields}>
+      <div data-stock-entry-fields className={styles.fields}>
         <label>
           {card ? 'Remaining (optional)' : 'On hand'}
           <input
@@ -461,7 +461,7 @@ export default function InlineStockCheck({
       )}
       {draft.ordering && (
         <div className={styles.order}>
-          <div className={styles.orderFields}>
+          <div data-stock-entry-fields className={styles.orderFields}>
             <label>
               Quantity to buy
               <input

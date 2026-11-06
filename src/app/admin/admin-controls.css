@@ -1,0 +1,62 @@
+/* Touch-first admin controls, including forms rendered in dialog portals.
+   Stock cards retain their gestures and status styling. */
+body:has([data-admin-console]) {
+  --control-surface:var(--card);
+  --control-hover:var(--muted);
+  --control-radius:12px;
+  --control-height:48px;
+  --control-focus:color-mix(in srgb,var(--ring) 18%,transparent);
+}
+body:has([data-admin-console]) :is(.admin-scroll,[data-slot='dialog-content'],[data-slot='sheet-content']) :where(input:not([type='checkbox'],[type='radio'],[type='range'],[type='file'],[type='color'],[type='hidden'],[type='submit'],[type='button']),select,textarea) {
+  min-height:var(--control-height);
+  min-width:0;
+  max-width:100%;
+  padding:11px 14px;
+  border:1px solid var(--input);
+  border-radius:var(--control-radius);
+  background:var(--control-surface);
+  color:var(--foreground);
+  font-family:inherit;
+  font-size:16px;
+  font-weight:400;
+  line-height:1.4;
+  box-shadow:0 1px 2px #0000000a;
+  transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;
+}
+body:has([data-admin-console]) :is(.admin-scroll,[data-slot='dialog-content']) textarea { min-height:112px; resize:vertical; }
+body:has([data-admin-console]) :is(.admin-scroll,[data-slot='dialog-content']) :is(input,textarea)::placeholder { color:var(--admin-quiet); opacity:1; }
+body:has([data-admin-console]) :is(.admin-scroll,[data-slot='dialog-content'],[data-slot='sheet-content']) :is(input,select,textarea):focus-visible {
+  outline:2px solid var(--ring);
+  outline-offset:2px;
+  border-color:var(--ring);
+  box-shadow:0 0 0 5px var(--control-focus);
+}
+body:has([data-admin-console]) :is(.admin-scroll,[data-slot='dialog-content']) :is(input,select,textarea)[aria-invalid='true'] { border-color:var(--destructive); }
+body:has([data-admin-console]) :is(.admin-scroll,[data-slot='dialog-content']) [role='alert'] { color:var(--destructive); }
+body:has([data-admin-console]) :is(.admin-scroll,[data-slot='dialog-content']) :is(input,select,textarea):disabled { background:var(--muted); color:var(--muted-foreground); cursor:not-allowed; box-shadow:none; }
+body:has([data-admin-console]) :is(.admin-scroll,[data-slot='dialog-content']) input:where([type='checkbox'],[type='radio']) { width:20px; height:20px; min-height:20px; flex-shrink:0; accent-color:var(--admin-violet); }
+body:has([data-admin-console]) :is(.admin-scroll,[data-slot='dialog-content']) label:has(input:where([type='checkbox'],[type='radio'])) { min-height:44px; gap:10px; }
+body:has([data-admin-console]) :is(.admin-scroll,[data-slot='dialog-content']) label:where([for],:has(>input),:has(>select),:has(>textarea)) { font-size:13px; font-weight:500; line-height:1.5; }
+body:has([data-admin-console]) :is(.admin-scroll,[data-slot='dialog-content']) label:has(>input,>select,>textarea) { gap:8px; }
+body:has([data-admin-console]) :is(.admin-scroll,[data-slot='dialog-content']) button { min-height:44px; border-radius:var(--control-radius); touch-action:manipulation; }
+body:has([data-admin-console]) :is(.admin-scroll,[data-slot='dialog-content']) [data-slot='button'] { padding:10px 14px; font-size:14px; line-height:1.4; font-weight:500; gap:8px; transition:background .15s ease,border-color .15s ease,box-shadow .15s ease; }
+body:has([data-admin-console]) :is(.admin-scroll,[data-slot='dialog-content']) [data-slot='button'][data-size^='icon'] { min-width:44px; padding:10px; }
+body:has([data-admin-console]) :is(.admin-scroll,[data-slot='dialog-content']) [data-slot='button'][data-variant='default'] { background:var(--primary); color:var(--primary-foreground); border:1px solid var(--primary); font-weight:600; }
+body:has([data-admin-console]) :is(.admin-scroll,[data-slot='dialog-content']) [data-slot='button'][data-variant='outline'] { background:var(--card); color:var(--foreground); border:1px solid var(--input); }
+body:has([data-admin-console]) :is(.admin-scroll,[data-slot='dialog-content']) [data-slot='button'][data-variant='secondary'] { background:var(--secondary); color:var(--secondary-foreground); border:1px solid var(--border); }
+body:has([data-admin-console]) :is(.admin-scroll,[data-slot='dialog-content']) button:focus-visible { outline:2px solid var(--ring); outline-offset:3px; box-shadow:0 0 0 5px var(--control-focus); }
+body:has([data-admin-console]) :is(.admin-scroll,[data-slot='dialog-content']) button:disabled { cursor:not-allowed; opacity:.55; }
+body:has([data-admin-console]) [data-stock-entry] input { padding:10px 8px; }
+body:has([data-admin-console]) [data-stock-card='compact'] [data-stock-entry-fields] { grid-template-columns:minmax(0,1fr); }
+body:has([data-admin-console]) :is([data-slot='card'],[data-admin-panel],[data-slot='dialog-content']) { border-radius:16px; }
+body:has([data-admin-console]) [data-slot='card'] { border:1px solid var(--border); box-shadow:0 1px 3px #00000014; }
+body:has([data-admin-console]) [data-slot='dialog-content'] { padding:24px; border:1px solid var(--border); background:var(--popover); color:var(--popover-foreground); box-shadow:0 24px 64px #0005; max-height:calc(100dvh - 32px); overflow-y:auto; }
+@media(hover:hover) {
+  body:has([data-admin-console]) :is(.admin-scroll,[data-slot='dialog-content']) [data-slot='button']:not(:disabled):where([data-variant='outline'],[data-variant='ghost'],[data-variant='secondary']):hover { background:var(--control-hover); border-color:var(--input); }
+}
+@media(max-width:480px) {
+  body:has([data-admin-console]) [data-slot='dialog-content'] { padding:20px 16px; width:calc(100vw - 24px); max-width:calc(100vw - 24px); }
+}
+@media(prefers-reduced-motion:reduce) {
+  body:has([data-admin-console]) :is(input,select,textarea,button) { transition:none!important; }
+}

@@ -57,7 +57,7 @@ export function SwipeStockCard({ good, board, onSaved, onDraftChange, onReviewed
     onReviewed?.(decision);
   }
   return (
-      <motion.article key={good.id} className={`${styles.card} ${compact ? styles.compact : ''}`}  style={{ x, rotate }} animate={animation}
+      <motion.article data-stock-card={compact ? 'compact' : 'single'} key={good.id} className={`${styles.card} ${compact ? styles.compact : ''}`} style={{ x, rotate }} animate={animation}
         drag={!locked && !leaving ? 'x' : false} dragControls={drag} dragListener={false} dragConstraints={{ left: 0, right: 0 }} dragElastic={.65}
         onDragEnd={(_, info) => { x.set(0); if (locked || transitioning.current) return; if (Math.abs(info.offset.x) < 85 || Math.abs(info.offset.x) < Math.abs(info.offset.y) * 1.5) return; if (info.offset.x > 0) form.current?.order(); else form.current?.recheck(); }}>
         <div className={styles.swipeSurface}
