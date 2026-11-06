@@ -312,11 +312,11 @@
 .itemMore summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: var(--muted-foreground); }
 .itemMore summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .filterNotice { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; font-size:13px; }
-.progressDock { position:fixed; bottom:max(12px,env(safe-area-inset-bottom)); left:calc(50% + 128px); transform:translateX(-50%); width:680px; max-width:calc(100vw - 288px); padding:10px 14px; border:1px solid var(--accent); border-radius:14px; background:var(--popover); color:var(--popover-foreground); box-shadow:0 4px 20px #0002; z-index:35; display:grid; gap:6px; }
+.progressDock { position:fixed; bottom:calc(var(--admin-bottom-space,0px) + max(12px,env(safe-area-inset-bottom))); left:calc(50% + 128px); transform:translateX(-50%); width:680px; max-width:calc(100vw - 288px); padding:10px 14px; border:1px solid var(--accent); border-radius:14px; background:var(--popover); color:var(--popover-foreground); box-shadow:0 4px 20px #0002; z-index:35; display:grid; gap:6px; }
 .progressHeading { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; font-size:13px; }
 .progressHeading strong {font-weight:700;} .progressHeading span {color:var(--muted-foreground);font-size:12px;}
 .progressDock progress { width:100%; height:4px; accent-color:var(--accent); }
 .progressActions { display:flex; gap:6px; }
 .progressActions button { min-height:44px; flex:1; padding:6px 8px; font-size:12px; white-space:nowrap; }
 .toast {bottom:150px;}
-@media(max-width:767px) { .progressDock { left:50%; width:calc(100vw - 24px); max-width:none; padding:8px 10px; } .page { padding-bottom:160px; } }
+@media(max-width:1023px) { .progressDock { left:50%; width:calc(100vw - 24px); max-width:none; padding:8px 10px; } .page { padding-bottom:160px; } }

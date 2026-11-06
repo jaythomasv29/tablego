@@ -1,3 +1,4 @@
+import './admin-console.css';
 import AdminAuthBoundary from '@/components/AdminAuthBoundary';
 
 export const dynamic = 'force-dynamic';

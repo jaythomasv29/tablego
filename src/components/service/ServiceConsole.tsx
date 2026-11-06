@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { ArrowUpRight, ClipboardCheck, Package, Users, TrendingUp, CalendarDays, Search } from 'lucide-react';
+import styles from './ServiceConsole.module.css';
 import AdminLayout from '@/components/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,7 +62,7 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
   function renderBooking(booking: ServiceReservation) {
     const profile = profiles.get(guestKey(booking))!;
     const timePassed = today && reservationTimePassed(booking, timezone, now);
-    return <article key={booking.id} className={`space-y-3 rounded-xl border p-4 sm:p-5 ${timePassed ? 'border-amber-400 bg-amber-50/70 dark:border-amber-600 dark:bg-amber-950/30' : 'bg-card'}`}>
+    return <article key={booking.id} data-booking-state={booking.status} className={`${styles.booking} space-y-3 rounded-xl border p-4 sm:p-5 ${timePassed ? 'border-amber-400 bg-amber-50/70 dark:border-amber-600 dark:bg-amber-950/30' : 'bg-card'}`}>
       <div className="flex flex-wrap items-start justify-between gap-3"><div className="space-y-1">
         {today && <p className="text-xl font-semibold tabular-nums">{booking.time || 'Time needs review'} <span className="text-sm font-normal text-muted-foreground">· {booking.guests} {booking.guests === 1 ? 'guest' : 'guests'}</span></p>}
         <h3 className={today ? 'text-base font-semibold' : 'text-lg font-semibold'}>{booking.name}</h3>
@@ -99,12 +101,16 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
   function reminderButtons(booking: ServiceReservation) {
     return <><Button size="sm" variant="outline" onClick={() => { setMessage({ booking, channel: 'email' }); setMessageError(''); }}>Email reminder</Button><Button size="sm" variant="outline" disabled={!smsCapability.available || !booking.smsOptIn || !booking.phoneVerified} title={smsCapability.available ? 'Requires guest consent and a verified phone' : smsCapability.reason} onClick={() => { setMessage({ booking, channel: 'sms' }); setMessageError(''); }}>SMS reminder</Button>{!smsCapability.available && <p className="w-full text-xs text-muted-foreground">{smsCapability.reason}</p>}</>;
   }
-  return <AdminLayout><div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-8">
-    <header className="space-y-2"><div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-3xl font-semibold">{today ? 'Today' : 'Reservations'}</h1><div className="flex items-center gap-3"><Link className="text-sm underline" href={today ? '/admin/reservation' : '/admin/home'}>{today ? 'All reservations' : 'Back to Today'}</Link>{today && <ReservationActivity bookings={bookings} timezone={timezone} synced={Boolean(synced)} />}</div></div>
-      <p className="text-sm text-muted-foreground">{loading || error ? 'Business clock is unavailable while settings load.' : `${formatBusinessTimestamp(now, timezone)} · ${timezone}`}</p>
+  return <AdminLayout><div className={styles.console}>
+    <header className={styles.header}><p className={styles.eyebrow}>{today ? 'SERVICE OVERVIEW' : 'GUEST OPERATIONS'}</p><div className={styles.headingRow}><h1>{today ? 'Today' : 'Reservations'}</h1><div className="flex items-center gap-3"><Link className={styles.primaryLink} href={today ? '/admin/reservation' : '/admin/home'}>{today ? 'All reservations' : 'Back to Today'}<ArrowUpRight size={16} aria-hidden="true" /></Link>{today && <ReservationActivity bookings={bookings} timezone={timezone} synced={Boolean(synced)} />}</div></div>
+      <p className={styles.clock}>{loading || error ? 'Business clock is unavailable while settings load.' : `${formatBusinessTimestamp(now, timezone)} · ${timezone}`}</p>
       {!today && <p className="text-sm text-muted-foreground">All dates, arrival times, timestamps and Today filters use the business timezone wherever you are viewing from.</p>}
+      {today && loading && <div className={styles.summaryLoading} role="status">Loading today’s service…</div>}
       {today && !loading && !error && <TodaySummary bookings={bookings} timezone={timezone} now={now} />}
     </header>
+    {today && <nav className={styles.quickLinks} aria-label="Daily tools">
+      {[{href:'/admin/work',label:'Shift checklist',detail:'Keep the team on track',icon:ClipboardCheck},{href:'/admin/inventory/manage',label:'Inventory',detail:'Check stock & orders',icon:Package},{href:'/admin/guests',label:'Guest directory',detail:'Notes & guest history',icon:Users},{href:'/admin/insights',label:'Insights',detail:'See the bigger picture',icon:TrendingUp}].map(({href,label,detail,icon:Icon}) => <Link href={href} key={href}><span className={styles.toolIcon}><Icon size={18} aria-hidden="true" /></span><span><strong>{label}</strong><small>{detail}</small></span><ArrowUpRight size={15} aria-hidden="true" /></Link>)}
+    </nav>}
     {error ? <p role="alert" className="rounded-xl border border-red-500 p-4">{error}</p> : loading ? <p role="status">Loading reservations…</p> : <>
       {!today && <DeliverySummary />}
       {notice && <p role="status" className="rounded-xl border p-3 text-sm">{notice}</p>}
@@ -116,24 +122,25 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
         </div>
         <div className="flex flex-wrap gap-5 text-sm"><label className="flex items-center gap-2"><input type="checkbox" checked={specialOnly} onChange={event => setSpecialOnly(event.target.checked)} />Special requests</label><label className="flex items-center gap-2"><input type="checkbox" checked={largeOnly} onChange={event => setLargeOnly(event.target.checked)} />Large parties (6+)</label></div>
       </section>}
-      {today ? <>
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-0 flex-1 space-y-1"><Label htmlFor="today-search">Find a guest or request</Label><Input id="today-search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search today’s service" /></div>
+      {today ? <section className={styles.workspace} aria-labelledby="service-timeline-title">
+        <div className={styles.workspaceHeading}><div><span className={styles.workspaceIcon}><CalendarDays size={18} aria-hidden="true" /></span><h2 id="service-timeline-title">Service timeline</h2></div><span className={styles.connection} data-connected={Boolean(synced)} role="status"><i aria-hidden="true" />{synced ? 'Connected' : 'Reconnecting'}</span></div>
+        <div className={styles.searchRow}>
+          <div className="min-w-0 flex-1 space-y-1"><Label htmlFor="today-search"><Search size={14} aria-hidden="true" />Find a guest or request</Label><Input id="today-search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search today’s service" /></div>
           {filtered && <Button variant="outline" onClick={() => { setSearch(''); setStatus('all'); setSpecialOnly(false); setLargeOnly(false); }}>Clear filters</Button>}
         </div>
-        <details className="rounded-xl border px-4 py-3"><summary className="cursor-pointer text-sm font-medium">Filter today’s service{filtered ? ' · filters active' : ''}</summary>
+        <details className={styles.filters}><summary className="cursor-pointer text-sm font-medium">Filter today’s service{filtered ? ' · filters active' : ''}</summary>
           <div className="mt-4 flex flex-wrap items-end gap-4"><div className="space-y-1"><Label htmlFor="today-status">Booking status</Label><select id="today-status" className="h-10 rounded-md border bg-background px-3 text-sm" value={status} onChange={event => setStatus(event.target.value)}><option value="all">All statuses</option>{Object.entries(statusLabels).map(([state, label]) => <option key={state} value={state}>{label}</option>)}</select></div>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={specialOnly} onChange={event => setSpecialOnly(event.target.checked)} />Special requests</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={largeOnly} onChange={event => setLargeOnly(event.target.checked)} />Large parties (6+)</label>
           </div>
         </details>
         {filtered && <p role="status" className="text-sm text-muted-foreground">Showing {visible.length} matching {visible.length === 1 ? 'booking' : 'bookings'}. Clear filters to see the whole service.</p>}
-        <section aria-label="Today's reservations" className="space-y-3">
+        <section aria-label="Today's reservations" className={styles.timeline}>
           {todayBookings.map(renderBooking)}
-          {!todayBookings.length && <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">{filtered ? 'No reservations match these filters.' : 'No reservations booked for today. Walk-ins are not included here.'}</p>}
+          {!todayBookings.length && <div className={styles.empty}><CalendarDays size={28} aria-hidden="true" /><strong>{filtered ? 'No matching reservations' : 'No bookings today'}</strong><p>{filtered ? 'No reservations match these filters.' : 'No reservations booked for today. Walk-ins are not included here.'}</p></div>}
         </section>
-        <details className="rounded-xl border p-4"><summary className="cursor-pointer text-sm font-medium">Message delivery tools</summary><div className="mt-4"><DeliverySummary /></div></details>
-      </> : <section aria-label="Reservation results" className="space-y-4"><h2 className="text-lg font-semibold">{visible.length} {visible.length === 1 ? 'booking' : 'bookings'}</h2>
+        <details className={styles.deliveryTools}><summary className="cursor-pointer text-sm font-medium">Message delivery tools</summary><div className="mt-4"><DeliverySummary /></div></details>
+      </section> : <section aria-label="Reservation results" className="space-y-4"><h2 className="text-lg font-semibold">{visible.length} {visible.length === 1 ? 'booking' : 'bookings'}</h2>
         {!visible.length && <p className="rounded-xl border p-6 text-muted-foreground">No reservations match these filters.</p>}
         {visible.map(renderBooking)}
       </section>}

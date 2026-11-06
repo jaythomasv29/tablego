@@ -53,6 +53,7 @@ function useSidebar() {
 
 function SidebarProvider({
   defaultOpen = true,
+  mobileBreakpoint = 768,
   open: openProp,
   onOpenChange: setOpenProp,
   className,
@@ -61,10 +62,11 @@ function SidebarProvider({
   ...props
 }: React.ComponentProps<"div"> & {
   defaultOpen?: boolean
+  mobileBreakpoint?: number
   open?: boolean
   onOpenChange?: (open: boolean) => void
 }) {
-  const isMobile = useIsMobile()
+  const isMobile = useIsMobile(mobileBreakpoint)
   const [openMobile, setOpenMobile] = React.useState(false)
   const [_open, _setOpen] = React.useState(defaultOpen)
   const open = openProp ?? _open

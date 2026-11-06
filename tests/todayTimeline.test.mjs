@@ -28,6 +28,7 @@ test('Today renders one chronological list and refreshes its passed-time cue wit
   const defaultExport = value => ({ __esModule: true, default: value });
   const imports = {
     'next/link': defaultExport(component('a')),
+    './ServiceConsole.module.css': defaultExport({}),
     '@/components/AdminLayout': defaultExport(component('main')),
     '@/components/ui/button': { Button: component('button') },
     '@/components/ui/input': { Input: component('input') },
@@ -48,7 +49,7 @@ test('Today renders one chronological list and refreshes its passed-time cue wit
   await act(async () => { renderer = create(React.createElement(module.exports.default, { today: true })); });
   t.after(async () => { await act(async () => renderer.unmount()); });
   assert.equal(renderer.root.findByType('h1').props.children, 'Today');
-  assert.equal(renderer.root.findAllByType('h2').length, 0, 'there are no separate arrival/later/status sections');
+  assert.deepEqual(renderer.root.findAllByType('h2').map(node=>node.props.children), ['Service timeline'], 'the workspace preserves one chronological list without arrival/status groups');
   const rows = () => renderer.root.findAllByType('article');
   assert.deepEqual(rows().map(row => row.findByType('h3').props.children), ['seated', 'cancelled', 'waiting', 'later']);
   const passed = () => renderer.root.findAllByType('span').filter(node => node.props.children === 'Time passed');

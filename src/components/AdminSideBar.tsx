@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Home, Calendar, Clock, CalendarDays, Utensils, BookText,
-  MessageSquare, Mail, Flag, Settings, Users, Package, Eye, EyeOff, Printer, TrendingUp, ClipboardCheck,
+  MessageSquare, Mail, Flag, Settings, Users, Package, Eye, EyeOff, Printer, TrendingUp, ClipboardCheck, Layers, X,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase';
 import {
+  useSidebar,
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -61,6 +62,7 @@ const NAV_GROUPS = [
 export default function AdminSidebar() {
   const { restaurant } = useTimezone();
   const pathname = usePathname();
+  const { isMobile, setOpenMobile } = useSidebar();
   const [unreadCount, setUnreadCount] = useState(0);
   const [emailCount, setEmailCount] = useState<number | null>(null);
   const [hiddenLinks, setHiddenLinks] = useState<string[]>(DEFAULT_HIDDEN);
@@ -108,8 +110,9 @@ export default function AdminSidebar() {
 
   return (
     <Sidebar>
-      <SidebarHeader className="px-4 py-4 border-b border-sidebar-border">
-        <p className="text-base font-bold text-sidebar-foreground">Admin Panel</p>
+      <SidebarHeader className="admin-sidebar-heading">
+        <Layers aria-hidden="true" size={22} /><div><strong>{restaurant.shortName}</strong><span>Operations console</span></div>
+        {isMobile && <button type="button" aria-label="Close navigation" onClick={() => setOpenMobile(false)}><X size={20} aria-hidden="true" /></button>}
       </SidebarHeader>
 
       <SidebarContent>
@@ -119,7 +122,7 @@ export default function AdminSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {group.items.map(({ id, href, label, icon: Icon }) => {
-                  const isActive = pathname === href;
+                  const isActive = pathname === href || id === 'inventory' && pathname.startsWith('/admin/inventory');
                   const isHideable = HIDEABLE.includes(id);
                   const isHidden = hiddenLinks.includes(id);
                   const badge = id === 'mailing' && emailCount !== null ? emailCount : id === 'messages' && unreadCount > 0 ? unreadCount : undefined;
@@ -141,8 +144,8 @@ export default function AdminSidebar() {
                           isActive={isActive}
                           tooltip={label}
                         >
-                          <Link href={href}>
-                            <Icon />
+                          <Link href={href} aria-current={isActive ? 'page' : undefined} onClick={() => { if (isMobile) setOpenMobile(false); }}>
+                            <Icon aria-hidden="true" />
                             <span>{label}</span>
                           </Link>
                         </SidebarMenuButton>
@@ -172,7 +175,7 @@ export default function AdminSidebar() {
 
       <SidebarFooter className="border-t border-sidebar-border">
         <div className="flex items-center gap-3 px-2 py-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#A3B18A] text-white font-semibold text-sm select-none">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground font-semibold text-sm select-none">
             T
           </div>
           <div className="flex flex-col min-w-0">

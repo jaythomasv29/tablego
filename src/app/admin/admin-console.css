@@ -1,0 +1,76 @@
+/* Admin-only palette. Portals inherit these tokens from body while the console
+   is mounted; the public site keeps its own theme and styles. */
+body:has([data-admin-console]), .admin-console[data-admin-console] {
+  --background:#050608; --foreground:#ffffff;
+  --card:#0f1219; --card-foreground:#dee1ea;
+  --popover:#151822; --popover-foreground:#dee1ea;
+  --primary:#f5f5f7; --primary-foreground:#0f1219;
+  --secondary:#151822; --secondary-foreground:#dee1ea;
+  --muted:#151822; --muted-foreground:#b2b8cd;
+  --accent:#24203c; --accent-foreground:#ffffff;
+  --border:#252735; --input:#62677e; --ring:#a99fff;
+  --destructive:#ff9b9b; --destructive-foreground:#0f1219;
+  --sidebar:#0a0b0f; --sidebar-foreground:#dee1ea;
+  --sidebar-primary:#ffffff; --sidebar-primary-foreground:#0f1219;
+  --sidebar-accent:#1d1a30; --sidebar-accent-foreground:#ffffff;
+  --sidebar-border:#1f1e2a; --sidebar-ring:#a99fff;
+  --admin-violet:#a99fff; --admin-canvas:#050608; --admin-quiet:#8f94a6;
+  --admin-bottom-space:0px;
+  color-scheme:dark;
+}
+body:has([data-admin-appearance='light']), .admin-console[data-admin-appearance='light'] {
+  --background:#f5f6fa; --foreground:#171923;
+  --card:#ffffff; --card-foreground:#252735;
+  --popover:#ffffff; --popover-foreground:#252735;
+  --primary:#171923; --primary-foreground:#ffffff;
+  --secondary:#ececf5; --secondary-foreground:#252735;
+  --muted:#ececf5; --muted-foreground:#5f6376;
+  --accent:#e9e6ff; --accent-foreground:#292443;
+  --border:#d9dce7; --input:#858b9e; --ring:#5a49c9;
+  --destructive:#ac2424; --destructive-foreground:#ffffff;
+  --sidebar:#fbfbfd; --sidebar-foreground:#252735;
+  --sidebar-primary:#171923; --sidebar-primary-foreground:#ffffff;
+  --sidebar-accent:#e9e6ff; --sidebar-accent-foreground:#292443;
+  --sidebar-border:#d9dce7; --sidebar-ring:#5a49c9;
+  --admin-violet:#5a49c9; --admin-canvas:#f5f6fa; --admin-quiet:#5f6376;
+  color-scheme:light;
+}
+.admin-console { color:var(--foreground); background:var(--background); font-family:Inter,Arial,sans-serif; min-height:100dvh!important; }
+.admin-inset { min-width:0; background:var(--background); }
+.admin-topbar { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-shrink:0; min-height:72px; padding:12px 24px; border-bottom:1px solid var(--border); background:var(--sidebar); }
+.admin-topbar-brand { display:flex; align-items:center; gap:12px; min-width:0; }
+.admin-topbar-brand > svg { color:var(--admin-violet); }
+.admin-topbar-brand > a { font-size:15px; font-weight:600; letter-spacing:-.03em; }
+.admin-topbar-brand > a span { display:block; font-size:11px; font-weight:400; letter-spacing:0; color:var(--muted-foreground); margin-top:2px; }
+.admin-topbar [data-slot='button'] { min-height:44px; border-radius:12px; padding:8px 12px; }
+.admin-topbar [data-slot='sidebar-trigger'] { min-width:44px; padding:10px; }
+.admin-scroll { min-height:0; overscroll-behavior:contain; scrollbar-color:var(--input) transparent; }
+.admin-sidebar-heading { display:flex; flex-direction:row; align-items:center; gap:12px; padding:24px 16px; min-height:88px; border-bottom:1px solid var(--sidebar-border); }
+.admin-sidebar-heading > svg { color:var(--admin-violet); }
+.admin-sidebar-heading > div { flex:1; min-width:0; }.admin-sidebar-heading strong { display:block; font-size:15px; font-weight:600; }.admin-sidebar-heading span { font-size:11px; color:var(--muted-foreground); }
+.admin-sidebar-heading button { width:44px; height:44px; display:grid; place-items:center; border-radius:12px; border:1px solid var(--border); }
+body:has([data-admin-console]) [data-slot='sidebar-menu-button'] { min-height:44px; padding:10px 12px; border-radius:12px; font-size:13px; gap:12px; }
+body:has([data-admin-console]) [data-slot='sidebar-menu-button'][data-active='true'] { background:var(--sidebar-accent); color:var(--sidebar-accent-foreground); box-shadow:inset 2px 0 var(--admin-violet); }
+body:has([data-admin-console]) [data-slot='sidebar-menu-button'][data-active='true'] svg { color:var(--admin-violet); }
+body:has([data-admin-console]) [data-slot='sidebar-group-label'] { margin:12px 0 4px; color:var(--admin-quiet); font-size:10px; letter-spacing:.09em; text-transform:uppercase; }
+body:has([data-admin-console]) [data-slot='sidebar-menu-action'] { width:44px; height:44px; top:0; right:0; }
+body:has([data-admin-console]) [data-slot='sidebar-menu-badge'] { top:12px; }
+body:has([data-admin-console]) [data-mobile='true'][data-slot='sidebar'] { width:min(340px,calc(100vw - 32px)); max-width:none; }
+body:has([data-admin-console]) [data-slot='sheet-overlay'] { background:#0009; }
+.admin-console :is(button,a,input,select,summary):focus-visible { outline:2px solid var(--ring); outline-offset:3px; }
+.admin-quick-nav { display:none; }
+@media(max-width:1023px) {
+  body:has([data-admin-console]) { --admin-bottom-space:calc(68px + env(safe-area-inset-bottom)); }
+  .admin-topbar { min-height:64px; padding:8px 16px; gap:8px; }
+  .admin-topbar-brand > svg,.admin-topbar-brand > a span,.admin-refresh { display:none!important; }
+  .admin-topbar-brand { gap:4px; }
+  .admin-topbar [data-slot='button'] { padding:8px 10px; }
+  .admin-scroll { padding-bottom:var(--admin-bottom-space); }
+  .admin-quick-nav { position:fixed; bottom:0; left:0; right:0; z-index:40; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); min-height:68px; padding:6px 8px calc(6px + env(safe-area-inset-bottom)); border-top:1px solid var(--border); background:var(--sidebar); }
+  .admin-quick-nav :is(a,button) { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; min-width:0; min-height:48px; font-size:10px; color:var(--muted-foreground); border-radius:12px; }
+  .admin-quick-nav [aria-current='page'] { color:var(--admin-violet); background:var(--sidebar-accent); }
+  .admin-quick-nav :is(a,button):active { background:var(--muted); }
+}
+@media(prefers-reduced-motion:reduce) {
+  .admin-console *,body:has([data-admin-console]) [data-slot='sheet-content'] { animation-duration:.01ms!important; transition-duration:.01ms!important; }
+}
