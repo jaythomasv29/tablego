@@ -44,11 +44,11 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
   const visible = bookings.filter(booking => {
     const inRange = today ? booking.date === clock.date || (!booking.date && booking.status === 'needs-review') : range === 'all' || (range === 'today' && booking.date === clock.date) || (range === 'tomorrow' && booking.date === tomorrowKey) ||
       (range === 'future' && booking.date > clock.date) || (range === 'past' && booking.date && booking.date < clock.date) || (range === 'date' && booking.date === date);
-    const matches = `${booking.name} ${booking.email} ${booking.phone} ${booking.comments} ${booking.internalNotes} ${booking.dietaryPreferences} ${booking.seatingPreference}`.toLowerCase().includes(search.toLowerCase().trim());
+    const matches = today || `${booking.name} ${booking.email} ${booking.phone} ${booking.comments} ${booking.internalNotes} ${booking.dietaryPreferences} ${booking.seatingPreference}`.toLowerCase().includes(search.toLowerCase().trim());
     return inRange && matches && (status === 'all' || booking.status === status) && (!specialOnly || Boolean(`${booking.comments}${booking.dietaryPreferences}${booking.seatingPreference}`.trim())) && (!largeOnly || booking.guests >= 6);
   }).sort((a, b) => a.date.localeCompare(b.date) || (timeMinutes(a.time) ?? 1440) - (timeMinutes(b.time) ?? 1440) || a.name.localeCompare(b.name));
   const todayBookings = todayReservations(visible, timezone, now);
-  const filtered = Boolean(search.trim() || status !== 'all' || specialOnly || largeOnly);
+  const filtered = Boolean(!today && search.trim() || status !== 'all' || specialOnly || largeOnly);
   async function sendReminder() {
     if (!message || messageBusy) return;
     setMessageBusy(true); setMessageError('');
@@ -119,14 +119,11 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
         <div className="flex flex-wrap gap-5 text-sm"><label className="flex items-center gap-2"><input type="checkbox" checked={specialOnly} onChange={event => setSpecialOnly(event.target.checked)} />Special requests</label><label className="flex items-center gap-2"><input type="checkbox" checked={largeOnly} onChange={event => setLargeOnly(event.target.checked)} />Large parties (6+)</label></div>
       </section>}
       {today ? <>
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-0 flex-1 space-y-1"><Label htmlFor="today-search">Find a guest or request</Label><Input id="today-search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search today’s service" /></div>
-          {filtered && <Button variant="outline" onClick={() => { setSearch(''); setStatus('all'); setSpecialOnly(false); setLargeOnly(false); }}>Clear filters</Button>}
-        </div>
         <details className="rounded-xl border px-4 py-3"><summary className="cursor-pointer text-sm font-medium">Filter today’s service{filtered ? ' · filters active' : ''}</summary>
           <div className="mt-4 flex flex-wrap items-end gap-4"><div className="space-y-1"><Label htmlFor="today-status">Booking status</Label><select id="today-status" className="h-10 rounded-md border bg-background px-3 text-sm" value={status} onChange={event => setStatus(event.target.value)}><option value="all">All statuses</option>{Object.entries(statusLabels).map(([state, label]) => <option key={state} value={state}>{label}</option>)}</select></div>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={specialOnly} onChange={event => setSpecialOnly(event.target.checked)} />Special requests</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={largeOnly} onChange={event => setLargeOnly(event.target.checked)} />Large parties (6+)</label>
+            {filtered && <Button variant="outline" onClick={() => { setStatus('all'); setSpecialOnly(false); setLargeOnly(false); }}>Clear filters</Button>}
           </div>
         </details>
         {filtered && <p role="status" className="text-sm text-muted-foreground">Showing {visible.length} matching {visible.length === 1 ? 'booking' : 'bookings'}. Clear filters to see the whole service.</p>}

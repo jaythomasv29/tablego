@@ -51,6 +51,7 @@ test('Today renders one chronological list and refreshes its passed-time cue wit
   assert.equal(renderer.root.findByType('h1').props.children, 'Today');
   assert.equal(renderer.root.findAllByType('h2').length, 0, 'Today stays a direct list without dashboard sections');
   assert.equal(renderer.root.findAllByProps({'aria-label':'Daily tools'}).length, 0, 'extra dashboard navigation does not push bookings below the fold');
+  assert.equal(renderer.root.findAllByType('input').filter(input=>input.props.id==='today-search').length,0,'Today has no search field');
   const rows = () => renderer.root.findAllByType('article');
   assert.deepEqual(rows().map(row => row.findByType('h3').props.children), ['seated', 'cancelled', 'waiting', 'later']);
   const passed = () => renderer.root.findAllByType('span').filter(node => node.props.children === 'Time passed');
@@ -64,4 +65,10 @@ test('Today renders one chronological list and refreshes its passed-time cue wit
   assert.equal(passed()[0].parent.parent.findByType('h3').props.children, 'waiting');
   assert.match(rows()[2].props.className, /border-amber/);
   assert.deepEqual(bookings, snapshot, 'time passing must not mark guests seated or no-show');
+  await act(async()=>renderer.update(React.createElement(module.exports.default,{today:false})));
+  const search=renderer.root.findByProps({id:'service-search'});
+  await act(async()=>search.props.onChange({target:{value:'later'}}));
+  assert.equal(rows().length,1,'All Reservations keeps search');
+  await act(async()=>renderer.update(React.createElement(module.exports.default,{today:true})));
+  assert.equal(rows().length,4,'a previous search cannot silently filter Today');
 });
