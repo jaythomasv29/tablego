@@ -62,7 +62,7 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
   function renderBooking(booking: ServiceReservation) {
     const profile = profiles.get(guestKey(booking))!;
     const timePassed = today && reservationTimePassed(booking, timezone, now);
-    return <article key={booking.id} data-booking-state={booking.status} className={`${today ? '' : styles.booking} space-y-3 rounded-xl border p-4 sm:p-5 ${timePassed ? 'border-amber-400 bg-amber-50/70 dark:border-amber-600 dark:bg-amber-950/30' : 'bg-card'}`}>
+    return <article key={booking.id} data-booking-state={booking.status} data-time-passed={timePassed || undefined} className={`${today ? '' : styles.booking} space-y-3 rounded-xl border p-4 sm:p-5 ${timePassed ? 'border-amber-400 bg-amber-50/70 dark:border-amber-600 dark:bg-amber-950/30' : 'bg-card'}`}>
       <div className="flex flex-wrap items-start justify-between gap-3"><div className="space-y-1">
         {today && <p className="text-xl font-semibold tabular-nums">{booking.time || 'Time needs review'} <span className="text-sm font-normal text-muted-foreground">· {booking.guests} {booking.guests === 1 ? 'guest' : 'guests'}</span></p>}
         <h3 className={today ? 'text-base font-semibold' : 'text-lg font-semibold'}>{booking.name}</h3>
