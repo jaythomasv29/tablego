@@ -53,13 +53,14 @@ export function SwipeStockCard({ good, board, onSaved, onDraftChange, onReviewed
     } else {
       await animation.start({ x: reduced ? 0 : direction * 8, transition: { duration: reduced ? 0 : .1 } });
     }
+    if (!onReviewed) await animation.start({ x: 0, transition: { duration: reduced ? 0 : .18, ease: 'easeOut' } });
     animation.set({ x: 0, opacity: 1 }); x.set(0); setLeaving(false); transitioning.current = false;
     onReviewed?.(decision);
   }
   return (
       <motion.article data-stock-card={compact ? 'compact' : 'single'} key={good.id} className={`${styles.card} ${compact ? styles.compact : ''}`} style={{ x, rotate }} animate={animation}
-        drag={!locked && !leaving ? 'x' : false} dragControls={drag} dragListener={false} dragConstraints={{ left: 0, right: 0 }} dragElastic={.65}
-        onDragEnd={(_, info) => { x.set(0); if (locked || transitioning.current) return; if (Math.abs(info.offset.x) < 85 || Math.abs(info.offset.x) < Math.abs(info.offset.y) * 1.5) return; if (info.offset.x > 0) form.current?.order(); else form.current?.recheck(); }}>
+        drag={!locked && !leaving ? 'x' : false} dragControls={drag} dragListener={false} dragConstraints={{ left: 0, right: 0 }} dragElastic={.45} dragTransition={{ bounceStiffness: 420, bounceDamping: 32 }}
+        onDragEnd={(_, info) => { if (locked || transitioning.current) return; if (Math.abs(info.offset.x) < 85 || Math.abs(info.offset.x) < Math.abs(info.offset.y) * 1.5) return; if (info.offset.x > 0) form.current?.order(); else form.current?.recheck(); }}>
         <div className={styles.swipeSurface}
           onPointerDown={event => { if (locked || leaving || event.button !== 0) return; drag.start(event); }}>
           <span className={styles.grip} aria-hidden="true" />

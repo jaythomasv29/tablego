@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import AdminSideBar from './AdminSideBar';
 import { RefreshCw, Sun, Moon, Home, CalendarDays, ClipboardCheck, Package, Menu, Layers } from 'lucide-react';
 import Link from 'next/link';
@@ -16,7 +17,48 @@ interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
+const AdminShellContext = createContext(false);
+
 export default function AdminLayout({ children }: AdminLayoutProps) {
+  const insideShell = useContext(AdminShellContext);
+  return insideShell ? <>{children}</> : <AdminShell>{children}</AdminShell>;
+}
+
+function AdminShell({ children }: AdminLayoutProps) {
+  const pathname = usePathname();
+  const reduced = useReducedMotion();
+  const content = useRef<HTMLDivElement>(null);
+  const scrollPositions = useRef(new Map<string, number>());
+  const restoringScroll = useRef(false);
+  useEffect(() => {
+    const region = content.current;
+    const target = scrollPositions.current.get(pathname) ?? 0;
+    let observer: ResizeObserver | undefined;
+    const stopRestoring = () => { restoringScroll.current = false; observer?.disconnect(); };
+    const restore = () => {
+      if (!region) return;
+      region.scrollTop = target;
+      if (Math.abs(region.scrollTop - target) < 1) stopRestoring();
+    };
+    restoringScroll.current = true;
+    restore();
+    // A returning page can still be loading. Restore once its content has room,
+    // but let any deliberate user interaction take priority.
+    if (restoringScroll.current && region?.firstElementChild && typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(restore);
+      observer.observe(region.firstElementChild);
+    } else stopRestoring();
+    region?.addEventListener('pointerdown', stopRestoring, { passive: true });
+    region?.addEventListener('wheel', stopRestoring, { passive: true });
+    region?.addEventListener('keydown', stopRestoring);
+    const animation = reduced ? undefined : region?.animate?.([{ opacity: .7 }, { opacity: 1 }], { duration: 180, easing: 'ease-out' });
+    return () => {
+      stopRestoring(); animation?.cancel();
+      region?.removeEventListener('pointerdown', stopRestoring);
+      region?.removeEventListener('wheel', stopRestoring);
+      region?.removeEventListener('keydown', stopRestoring);
+    };
+  }, [pathname, reduced]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -63,7 +105,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   return (
-    <SidebarProvider mobileBreakpoint={1024} data-admin-console data-admin-appearance={appearance} className={`admin-console ${appearance === 'dark' ? 'dark' : ''} h-dvh overflow-hidden`}>
+    <AdminShellContext.Provider value={true}><SidebarProvider mobileBreakpoint={1024} data-admin-console data-admin-appearance={appearance} className={`admin-console ${appearance === 'dark' ? 'dark' : ''} h-dvh overflow-hidden`}>
       <AdminSideBar />
       <SidebarInset className="admin-inset overflow-hidden flex flex-col">
         {/* Top bar */}
@@ -99,17 +141,18 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </div>
         </header>
 
-        <div id="admin-content" className="admin-scroll flex-1 overflow-y-auto">
-          {children}
+        <div ref={content} onScroll={event => { if (!restoringScroll.current) scrollPositions.current.set(pathname, event.currentTarget.scrollTop); }} id="admin-content" className="admin-scroll flex-1 overflow-y-auto">
+          <div className="admin-page-surface">{children}</div>
         </div>
         <AdminQuickNav />
       </SidebarInset>
-    </SidebarProvider>
+    </SidebarProvider></AdminShellContext.Provider>
   );
 }
 
 function AdminQuickNav() {
   const pathname = usePathname(), { toggleSidebar, openMobile } = useSidebar();
+  const reduced = useReducedMotion();
   const links = [
     { href: '/admin/home', label: 'Today', icon: Home },
     { href: '/admin/reservation', label: 'Bookings', icon: CalendarDays },
@@ -117,7 +160,18 @@ function AdminQuickNav() {
     { href: '/admin/inventory/manage', label: 'Stock', icon: Package },
   ];
   return <nav className="admin-quick-nav" aria-label="Quick navigation">
-    {links.map(({href,label,icon:Icon}) => { const active = href.includes('/inventory/') ? pathname.startsWith('/admin/inventory') : pathname === href; return <Link key={href} href={href} aria-current={active ? 'page' : undefined}><Icon size={20} aria-hidden="true" /><span>{label}</span></Link>; })}
+    {links.map(({ href, label, icon: Icon }) => {
+      const active = href.includes('/inventory/') ? pathname.startsWith('/admin/inventory') : pathname === href;
+      return <Link key={href} href={href} aria-current={active ? 'page' : undefined}>
+        {active && <motion.span
+          className="admin-nav-highlight"
+          layoutId="admin-nav-highlight"
+          transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 36 }}
+          aria-hidden="true"
+        />}
+        <Icon size={20} aria-hidden="true" /><span>{label}</span>
+      </Link>;
+    })}
     <button type="button" aria-label="More admin pages" aria-expanded={openMobile} onClick={toggleSidebar}><Menu size={20} aria-hidden="true" /><span>More</span></button>
   </nav>;
 }

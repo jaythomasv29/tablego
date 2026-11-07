@@ -27,20 +27,28 @@ test('compact Today summary distinguishes booked guests, pending requests and se
 });
 test('admin navigation exposes frequent touch destinations and refresh retains inventory drafts',async t=>{
   const store=new Map([['tablego-inline-stock:2026-11-06:basil','unsaved-count']]),themes=[],keys=[];
-  let toggles=0,reloads=0;
+  let toggles=0,reloads=0,pathname='/admin/inventory/check';
+  const scrollNode={scrollTop:0,addEventListener(){},removeEventListener(){}};
   const setTheme=value=>themes.push(value);
   const Layout=load('components/AdminLayout.tsx',{
-    './AdminSideBar':exported(()=>null),'next/link':exported(host('a')),'next/navigation':{usePathname:()=>'/admin/inventory/check'},
+    './AdminSideBar':exported(()=>null),'next/link':exported(host('a')),'next/navigation':{usePathname:()=>pathname},
     'next-themes':{useTheme:()=>({setTheme})},'@/components/ui/button':{Button:host('button')},
     '@/components/ui/sidebar':{SidebarProvider:host('provider'),SidebarInset:host('inset'),SidebarTrigger:host('trigger'),useSidebar:()=>({toggleSidebar:()=>toggles++,openMobile:false})},
     'firebase/auth':{signOut:async()=>{}},'@/firebase':{auth:{}},'@/utils/soundUtils':{unlockAudio(){}},
   },{window:{addEventListener:(type,callback)=>{if(type==='keydown')keys.push(callback);},removeEventListener(){},location:{reload:()=>reloads++}},localStorage:{getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v),clear:()=>{throw new Error('Must retain drafts');}}}).default;
-  let r;await act(async()=>{r=create(React.createElement(Layout,null,'Dashboard'));});t.after(()=>act(()=>r.unmount()));
+  let r;await act(async()=>{r=create(React.createElement(Layout,null,React.createElement(Layout,null,'Dashboard')),{createNodeMock:element=>element.props.id==='admin-content'?scrollNode:null});});t.after(()=>act(()=>r.unmount()));
   assert.equal(r.root.findByType('provider').props.mobileBreakpoint,1024);
   const nav=r.root.findByProps({'aria-label':'Quick navigation'});
   assert.equal(nav.findAllByType('a').length,4);
   assert.equal(nav.findAllByProps({'aria-current':'page'})[0].props.href,'/admin/inventory/manage');
   await act(async()=>nav.findByType('button').props.onClick());assert.equal(toggles,1);
+  r.root.findByProps({id:'admin-content'}).props.onScroll({currentTarget:{scrollTop:240}});
+  pathname='/admin/home';
+  await act(async()=>r.update(React.createElement(Layout,null,React.createElement(Layout,null,'Today'))));
+  assert.equal(scrollNode.scrollTop,0);
+  pathname='/admin/inventory/check';
+  await act(async()=>r.update(React.createElement(Layout,null,React.createElement(Layout,null,'Stock'))));
+  assert.equal(scrollNode.scrollTop,240);
   const button=text=>r.root.findAllByType('button').find(b=>b.children.some(c=>c===text));
   await act(async()=>button('Light').props.onClick());
   assert.equal(r.root.findByType('provider').props['data-admin-appearance'],'light');
