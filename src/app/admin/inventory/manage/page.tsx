@@ -1528,7 +1528,7 @@ export default function InventoryManagePage() {
           </DialogContent>
         </Dialog>
         {board && progress && <aside className={styles.progressDock} aria-label="Inventory completion">
-          <div className={styles.progressHeading}><strong>{progress.reviewed} / {progress.total} checked today</strong><span>{progress.counted} counted · {progress.toOrder} to order{progress.unsaved ? ` · ${progress.unsaved} unsaved` : ''}</span></div>
+          <div className={styles.progressHeading}><strong>{progress.reviewed} / {progress.total} checked today</strong><span>{progress.toOrder} to order{progress.unsaved ? ` · ${progress.unsaved} unsaved` : ''}</span></div>
           <progress aria-label="Inventory checked today" max={progress.total || 1} value={progress.reviewed} />
           <div className={styles.progressActions}><button aria-pressed={view === 'Overview' && stockFilter === 'pending'} onClick={() => { setView('Overview'); setStockFilter(stockFilter === 'pending' ? 'all' : 'pending'); setCategory('All categories'); setQuery(''); }}>{stockFilter === 'pending' && view === 'Overview' ? 'Show all' : `Needs check (${progress.remaining})`}</button>{progress.unsaved > 0 && <button onClick={() => { setView(orderDraftIds.length ? 'Orders & receiving' : 'Overview'); setStockFilter('drafts'); setCategory('All categories'); setQuery(''); }}>Unsaved ({progress.unsaved})</button>}<button onClick={() => setView('Orders & receiving')}>To order ({progress.toOrder})</button></div>
         </aside>}
