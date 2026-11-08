@@ -140,3 +140,12 @@ test('new catalog rows reject duplicate names inside one stock log', async () =>
  await assert.rejects(repository.mutateOperations({...newLog, lines: [newLog.lines[0], {...newLog.lines[0], itemId: 'other-corn'}]}, 'staff'), /already exists/);
  assert.equal(writes.length, 0);
 });
+
+test('one-tap order flag persists without a quantity and retries exactly once',async()=>{
+ const {repository,records,writes}=fixture();
+ const payload={action:'checkItem',requestId:'flag-order',itemId:'basil',date:'2026-10-28',version:0,decision:'order',flagOnly:true};
+ await repository.mutateOperations(payload,'staff-session');
+ const item=records.get('inventory/current').items.basil;
+ assert.equal(item.orderOpen,true); assert.equal(item.quantity,null); assert.equal(item.orderQuantity,undefined);
+ const before=writes.length; await repository.mutateOperations(payload,'staff-session'); assert.equal(writes.length,before);
+});

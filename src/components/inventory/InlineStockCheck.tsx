@@ -25,6 +25,7 @@ type Payload = {
   decision: Decision;
   quantity?: number;
   unit?: string;
+  flagOnly?: boolean;
   orderQuantity?: number;
   orderUnit?: string;
 };
@@ -180,7 +181,8 @@ export default function InlineStockCheck({
       );
     }
   }
-  function order() {
+  function order() { void save("order", true); }
+  function editOrder() {
     change({
       ordering: true,
       orderQuantity: draft.orderQuantity || String(item?.orderQuantity ?? ""),
@@ -199,7 +201,7 @@ export default function InlineStockCheck({
       minute: "2-digit",
     });
   }
-  async function save(decision: Decision) {
+  async function save(decision: Decision, flagOnly = false) {
     if (lock.current) return;
     setError("");
     setConflict(false);
@@ -207,7 +209,7 @@ export default function InlineStockCheck({
     if (!payload) {
       const withCount =
         decision === "count" ||
-        (decision === "order" && draft.includeCount && Boolean(draft.quantity.trim()));
+        (decision === "order" && !flagOnly && draft.includeCount && Boolean(draft.quantity.trim()));
       if (decision === "count" && !draft.quantity.trim()) {
         setError("Enter the amount on hand before saving a count.");
         return;
@@ -222,7 +224,7 @@ export default function InlineStockCheck({
         return;
       }
       if (
-        decision === "order" &&
+        decision === "order" && !flagOnly &&
         (!validAmount(draft.orderQuantity, true) || !validUnit(draft.orderUnit))
       ) {
         setError(
@@ -240,7 +242,8 @@ export default function InlineStockCheck({
         ...(withCount
           ? { quantity: Number(draft.quantity), unit: validUnit(draft.unit) }
           : {}),
-        ...(decision === "order"
+        ...(decision === "order" && flagOnly ? { flagOnly: true } : {}),
+        ...(decision === "order" && !flagOnly
           ? {
               orderQuantity: Number(draft.orderQuantity),
               orderUnit: validUnit(draft.orderUnit),
@@ -373,14 +376,13 @@ export default function InlineStockCheck({
           disabled={!ready || busy || uncertain}
           onClick={order}
         >
-          {item?.orderOpen ? "Edit order" : card ? "Order →" : "Order"}
+          {card ? "Order →" : "Order"}
         </button>
       </div>
       {item?.orderOpen && (
         <div className={styles.status}>
           <strong>
-            To order: {item.orderQuantity ?? "Quantity needed"}{" "}
-            {item.orderUnit || ""}
+            On order list
           </strong>
           <button
             type="button"
@@ -481,6 +483,7 @@ export default function InlineStockCheck({
       )}
       <details className={styles.countDetails}>
         <summary>Count details{draft.quantity.trim() ? ' · unsaved draft' : ''}</summary>
+        <button type="button" disabled={!ready || busy || uncertain} onClick={editOrder}>Set order amount (optional)</button>
       <p>
         {lastQuantity === null || lastQuantity === undefined
           ? "No physical count yet"

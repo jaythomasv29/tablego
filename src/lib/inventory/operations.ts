@@ -737,7 +737,7 @@ export function checkItemInput(
     units = result.customUnits;
     input = { ...input, unit: result.unit };
   }
-  if (decision === "order") {
+  if (decision === "order" && v.flagOnly !== true) {
     amount(v.orderQuantity, true);
     const result = registerInventoryUnit(v.orderUnit, units);
     units = result.customUnits;

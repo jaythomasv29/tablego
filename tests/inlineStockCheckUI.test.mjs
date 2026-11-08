@@ -149,7 +149,7 @@ test("inline count is blank initially and saves only an explicit count with vers
 test("ordering without an on-hand count preserves unsaved counts unless explicitly included", async (t) => {
   const { renderer: r, calls, drafts } = await mount(t);
   await fill(r, "On hand for Basil", "7");
-  await act(async () => button(r, "Order").props.onClick());
+  await act(async () => button(r, "Set order amount (optional)").props.onClick());
   await fill(r, "Quantity to buy for Basil", "2");
   await fill(r, "Ordering unit for Basil", "case");
   await act(async () => button(r, "Save order request").props.onClick());
@@ -225,7 +225,7 @@ test("synchronous double taps are locked before the save finishes", async (t) =>
 test("including an on-hand count in an order is explicit and clears only the count that was saved", async (t) => {
   const { renderer: r, calls, drafts } = await mount(t);
   await fill(r, "On hand for Basil", "3.5");
-  await act(async () => button(r, "Order").props.onClick());
+  await act(async () => button(r, "Set order amount (optional)").props.onClick());
   await fill(r, "Quantity to buy for Basil", "2");
   const checkbox = r.root
     .findAllByType("input")
@@ -243,7 +243,7 @@ test("unsaved count and order fields restore when a filtered tile mounts again",
   const storage = new Map();
   const first = await mount(t, { storage });
   await fill(first.renderer, "On hand for Basil", "3");
-  await act(async () => button(first.renderer, "Order").props.onClick());
+  await act(async () => button(first.renderer, "Set order amount (optional)").props.onClick());
   await fill(first.renderer, "Quantity to buy for Basil", "2");
   await fill(first.renderer, "Ordering unit for Basil", "case");
   const second = await mount(t, { storage });
@@ -263,11 +263,20 @@ test("card gestures use the existing confirmed-save flow and never advance on va
   const controls = React.createRef(), committed=[];
   const {renderer:r,calls} = await mount(t, {failFirst:true, extraProps:{card:true,controls,onCommitted:d=>committed.push(d)}});
   await act(async()=>controls.current.order());
-  assert.equal(calls.length,0);
-  await fill(r,'Quantity to buy for Basil','2');
-  await act(async()=>button(r,'Save order request').props.onClick());
+  assert.equal(calls.length,1);
+  assert.equal(JSON.parse(calls[0].body).flagOnly,true);
+  assert.equal('orderQuantity' in JSON.parse(calls[0].body),false);
   assert.equal(committed.length,0);
   await act(async()=>button(r,'Retry original save').props.onClick());
   assert.deepEqual(committed,['order']);
   assert.equal(calls[0].body,calls[1].body);
+});
+
+test("Order flags an item with one tap, without quantity fields or stock changes", async t => {
+ const {renderer:r,calls}=await mount(t);
+ await act(async()=>button(r,"Order").props.onClick());
+ const payload=JSON.parse(calls[0].body);
+ assert.equal(payload.flagOnly,true); assert.equal(payload.decision,"order");
+ assert.equal("quantity" in payload,false); assert.equal("orderQuantity" in payload,false);
+ assert.equal(input(r,"Quantity to buy for Basil"),undefined);
 });

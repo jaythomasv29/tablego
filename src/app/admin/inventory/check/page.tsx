@@ -76,7 +76,7 @@ export default function InventoryPage() {
     if (!data || saving.current.has(id)) throw new Error('This item is already saving');
     if (!navigator.onLine) throw new Error('You are offline. Your count is kept on this phone; reconnect and save again.');
     ++generation.current; saving.current.add(id);
-    try { const result = await request('/api/staff/inventory', { itemId: id, quantity, unit, action, ...order, version: data.items[id]?.version || 0, date: data.today }); setData(previous => previous ? { ...previous, items: { ...previous.items, [id]: result.item } } : previous); const remaining = { ...draftsRef.current }; if (quantity !== undefined || !remaining[id]?.quantity.trim()) delete remaining[id]; persistDrafts(remaining); setFeedback(action === 'order' ? 'Added to order list · No supplier order sent' : action === 'received' ? 'Stock received · Order request closed' : quantity !== undefined ? 'Count saved' : 'Enough for now'); }
+    try { const result = await request('/api/staff/inventory', { itemId: id, quantity, unit, action, ...order, ...(action === 'order' && !order ? { flagOnly: true } : {}), version: data.items[id]?.version || 0, date: data.today }); setData(previous => previous ? { ...previous, items: { ...previous.items, [id]: result.item } } : previous); const remaining = { ...draftsRef.current }; if (quantity !== undefined || !remaining[id]?.quantity.trim()) delete remaining[id]; persistDrafts(remaining); setFeedback(action === 'order' ? 'Added to order list · No supplier order sent' : action === 'received' ? 'Stock received · Order request closed' : quantity !== undefined ? 'Count saved' : 'Enough for now'); }
     finally { saving.current.delete(id); }
   }
   async function addUnit(unit: string): Promise<string> {
@@ -137,15 +137,16 @@ function Item({ good, item, units, addUnit, draft, changeDraft, date, timezone, 
   const checked = inventoryChecked(item, date), stockState = inventoryTileState(item, date);
   const name = `${good.name}${good.detail ? ` ${good.detail}` : ''}`;
   const edit = (value: string, nextUnit = unit) => changeDraft(good.id, { quantity: value, unit: nextUnit });
-  function order() {
+  function editOrder() {
     setError('');
     setIncludeCount(false);
     setOrderQuantity(String(item?.orderQuantity || 1)); setOrderUnit(item?.orderUnit || unit); setOrdering(true);
   }
+  function order() { void commit('flagOrder'); }
   async function commit(action: string) {
     if (busy) return; setError('');
     setBusy(true);
-    try { await save(good.id, quantity.trim() && (action === 'count' || (action === 'order' && includeCount)) ? Number(quantity) : undefined, unit, action === 'count' ? 'sufficient' : action, action === 'order' ? { orderQuantity: Number(orderQuantity), orderUnit } : undefined); setOrdering(false); }
+    try { await save(good.id, quantity.trim() && (action === 'count' || (action === 'order' && includeCount)) ? Number(quantity) : undefined, unit, action === 'count' ? 'sufficient' : action === 'flagOrder' ? 'order' : action, action === 'order' ? { orderQuantity: Number(orderQuantity), orderUnit } : undefined); setOrdering(false); }
     catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   }
@@ -156,18 +157,19 @@ function Item({ good, item, units, addUnit, draft, changeDraft, date, timezone, 
   }
   return <article className={styles.item} data-checked={checked} data-stock={stockState} data-draft={Boolean(draft)}>
     <div className={styles.itemTitle}><div><h3>{good.name}</h3><p>{good.detail || good.category}</p></div><span>{draft ? 'Not saved' : inventoryTileLabels[stockState]}</span></div>
-    {item?.orderOpen && <p className={styles.orderAmount}><ShoppingCart aria-hidden="true" size={16} />{item.orderQuantity !== undefined ? `To order: ${item.orderQuantity} ${item.orderUnit || item.unit}` : 'Set quantity to order'}</p>}
+    {item?.orderOpen && <p className={styles.orderAmount}><ShoppingCart aria-hidden="true" size={16} />On order list</p>}
     {item ? <p className={styles.receipt}>Updated <time dateTime={item.updatedAt || item.checkedAt} title={timezone}>{new Date(item.updatedAt || item.checkedAt).toLocaleString('en-US', { timeZone: timezone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time> · {item.checkedBy}{item.orderOpen ? ' · Order request open' : ` · Next check ${item.nextCheck}`}</p> : <p className={styles.receipt}>Updated: Not checked yet</p>}
     <fieldset disabled={busy || readOnly}>
       <legend className="sr-only">Count {good.name}</legend>
 
-      <div className={styles.actions}><button disabled={disabled} className={styles.sufficient} onClick={() => void commit('sufficient')}>{busy ? 'Saving…' : 'Enough'}</button><button disabled={disabled} onClick={order}>{item?.orderOpen ? 'Edit order' : 'Order'}</button></div>
+      <div className={styles.actions}><button disabled={disabled} className={styles.sufficient} onClick={() => void commit('sufficient')}>{busy ? 'Saving…' : 'Enough'}</button><button disabled={disabled} onClick={order}>Order</button></div>
       {orderView && item?.orderOpen && <button disabled={disabled} className={styles.received} onClick={() => void commit('received')}>Stock received · Close request</button>}
     </fieldset>
     <details><summary className="min-h-11 cursor-pointer text-sm text-muted-foreground">Count details{quantity.trim() ? ' · unsaved draft' : ''}</summary>
       <div className={styles.lastCount}><span>{item?.quantity !== null && item?.quantity !== undefined && countedAt ? <>Last counted: <strong>{item.lastCountQuantity ?? item.quantity} {item.lastCountUnit || item.unit}</strong> · {new Date(countedAt).toLocaleString('en-US', { timeZone: timezone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</> : 'No count recorded yet'}</span><button type="button" onClick={() => void showHistory()}>History</button></div>
     {item?.stockSource === 'receipt' && <p className={styles.receipt}>An earlier delivery estimate is not a physical count. Recount to confirm current stock.</p>}
     <fieldset disabled={busy || readOnly}>
+      <button type="button" onClick={editOrder}>Set order amount (optional)</button>
       <div className={styles.count}>
         <label><span className={styles.quantityHeading}>On hand (optional)<span key={`${quantity}-${unit}`} className={styles.quantityLive} aria-hidden="true">{quantity || '—'} {unit}</span></span><input aria-label={`Quantity for ${name}`} inputMode="decimal" type="number" min="0" max="999999" step="0.01" placeholder={countedToday ? "Enter amount" : "New count"} value={quantity} onFocus={e => e.target.select()} onChange={e => edit(e.target.value)} /></label>
         <UnitSelect label="Unit" ariaLabel={`Unit for ${name}`} value={unit} onChange={value => edit(quantity, value)} units={units} addUnit={addUnit} />

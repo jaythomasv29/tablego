@@ -24,7 +24,7 @@ export default function InventorySwipeDeck({ board, goods, onSaved, onDraftChang
   return <section className={styles.deck} aria-label="Swipe inventory cards">
     <div className={styles.progress}><span><Layers size={16} aria-hidden="true" />{good?.category || 'Review complete'}</span><strong>{checked}/{selection.current.length} checked</strong></div>
     <progress aria-label="Items checked in this selection" value={checked} max={selection.current.length || 1} />
-    <p className={styles.hint}>Swipe left for Enough. Swipe right to Order.</p>
+    <p className={styles.hint}>Swipe left for Enough. Swipe right to add to your order list.</p>
     <div role="status" className={styles.announcement}>{message}</div>
     {good ? <div className={styles.stage}>
       {next && <div aria-hidden="true" className={styles.backCard}><span>Up next · {next.category}</span><strong>{next.name}</strong></div>}

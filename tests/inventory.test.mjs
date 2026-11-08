@@ -38,10 +38,10 @@ test('order amounts are independent of on-hand amounts and require a positive qu
   assert.throws(() => inventoryChange({ ...input, action: 'order', orderUnit: 'unknown' }, undefined, date, at, 'BOH-Team'), /ordering unit/);
 });
 
-test('shared list includes every open request and its buy quantity, not sufficient stock', () => {
+test('shared list includes flagged item names without quantities', () => {
   const item = inventoryChange({ ...input, quantity: 0, action: 'order', orderQuantity: 3, orderUnit: 'case' }, undefined, date, at, 'BOH-Team');
   const text = inventoryOrderText({ [workGoods[0].id]: item });
-  assert.match(text, /3 case/); assert.doesNotMatch(text, /on hand|4 lbs|to order/);
+  assert.ok(text.includes(workGoods[0].name)); assert.doesNotMatch(text, /3 case|quantity needed/); assert.doesNotMatch(text, /on hand|4 lbs|to order/);
   assert.equal(inventoryOrderText({ [workGoods[0].id]: { ...item, orderOpen: false } }), 'Restaurant order list');
   assert.equal(inventoryDefaultUnit('5 lb bag'), 'bag'); assert.equal(inventoryDefaultUnit('4 lbs'), 'lb'); assert.equal(inventoryDefaultUnit('Bunch'), 'bunch');
 });
@@ -104,7 +104,7 @@ test('custom goods participate in checks and copied requests without changing st
   assert.equal(counted.quantity, null);
   assert.equal(inventoryReady({ 'custom-rice': counted }, '2026-10-28', goods), true);
   assert.equal(inventoryReady({}, '2026-10-28', goods), false);
-  assert.match(inventoryOrderText({ 'custom-rice': counted }, goods), /House rice — 2 bag/);
+  assert.match(inventoryOrderText({ 'custom-rice': counted }, goods), /House rice/);
 });
 
 test('review without recount preserves receipt estimate and physical count snapshot', () => {
