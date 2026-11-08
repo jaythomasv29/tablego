@@ -130,6 +130,11 @@ const fill = (r, label, value) =>
 test("inline count is blank initially and saves only an explicit count with version and date", async (t) => {
   const { renderer: r, calls, saved } = await mount(t);
   assert.equal(input(r, "On hand for Basil").props.value, "");
+  const details = r.root.findByType("details");
+  assert.equal(details.props.open, undefined);
+  assert.equal(details.findAllByType("input").includes(input(r, "On hand for Basil")), true);
+  assert.ok(button(r, "Enough"));
+  assert.ok(button(r, "Order"));
   assert.equal(button(r, "Save count").props.disabled, true);
   await fill(r, "On hand for Basil", "5");
   await act(async () => button(r, "Save count").props.onClick());
@@ -156,13 +161,14 @@ test("ordering without an on-hand count preserves unsaved counts unless explicit
   assert.equal(input(r, "On hand for Basil").props.value, "7");
   assert.equal(drafts.at(-1).dirty, true);
 });
-test("recheck without a count does not synthesize zero; typed zero is an explicit count", async (t) => {
+test("Enough never changes stock counts, including a preserved zero draft", async (t) => {
   const { renderer: r, calls } = await mount(t);
-  await act(async () => button(r, "Recheck tomorrow").props.onClick());
+  await act(async () => button(r, "Enough").props.onClick());
   assert.equal("quantity" in JSON.parse(calls[0].body), false);
   await fill(r, "On hand for Basil", "0");
-  await act(async () => button(r, "Recheck tomorrow").props.onClick());
-  assert.equal(JSON.parse(calls[1].body).quantity, 0);
+  await act(async () => button(r, "Enough").props.onClick());
+  assert.equal("quantity" in JSON.parse(calls[1].body), false);
+  assert.equal(input(r, "On hand for Basil").props.value, "0");
 });
 test("cancel order requires confirmation and never sends a typed on-hand draft", async (t) => {
   const { renderer: r, calls } = await mount(t, {

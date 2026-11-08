@@ -24,12 +24,12 @@ export default function InventorySwipeDeck({ board, goods, onSaved, onDraftChang
   return <section className={styles.deck} aria-label="Swipe inventory cards">
     <div className={styles.progress}><span><Layers size={16} aria-hidden="true" />{good?.category || 'Review complete'}</span><strong>{checked}/{selection.current.length} checked</strong></div>
     <progress aria-label="Items checked in this selection" value={checked} max={selection.current.length || 1} />
-    <p className={styles.hint}>Swipe left to check tomorrow. Swipe right to choose an order amount.</p>
+    <p className={styles.hint}>Swipe left for Enough. Swipe right to Order.</p>
     <div role="status" className={styles.announcement}>{message}</div>
     {good ? <div className={styles.stage}>
       {next && <div aria-hidden="true" className={styles.backCard}><span>Up next · {next.category}</span><strong>{next.name}</strong></div>}
       <SwipeStockCard key={good.id} focusOnMount={finished > 0} good={good} board={board} onSaved={onSaved} onDraftChange={onDraftChange} onReviewed={decision => {
-        setMessage(`${good.name}: ${decision === 'order' ? 'order request saved' : decision === 'count' ? 'count saved' : 'checked · recheck tomorrow'}`);
+        setMessage(`${good.name}: ${decision === 'order' ? 'order request saved' : decision === 'count' ? 'count saved' : 'enough for now'}`);
         setQueue(previous => previous.filter(id => id !== good.id)); setFinished(previous => previous + 1);
       }} />
     </div> : <div className={styles.complete}><CheckCircle2 aria-hidden="true" size={36} /><h3>{selection.current.length ? 'Selection reviewed' : 'No items in this selection'}</h3><p>{finished} cards completed. Choose another category or switch to Multi-card to revisit items. Any unfinished counts remain in Unsaved.</p></div>}
@@ -67,9 +67,9 @@ export function SwipeStockCard({ good, board, onSaved, onDraftChange, onReviewed
           <p>{good.category}{good.location ? ` · ${good.location}` : ''}</p>
           <h3 tabIndex={-1} ref={heading}>{good.name}</h3>
           {good.detail && <p>{good.detail}</p>}
-          <div className={styles.directions}><span><ArrowLeft size={15} aria-hidden="true" />Check tomorrow</span><span>Order<ArrowRight size={15} aria-hidden="true" /></span></div>
+          <div className={styles.directions}><span><ArrowLeft size={15} aria-hidden="true" />Enough</span><span>Order<ArrowRight size={15} aria-hidden="true" /></span></div>
         </div>
-        <motion.span aria-hidden="true" className={`${styles.stamp} ${styles.left}`} style={{ opacity: leftOpacity }}>CHECK TOMORROW</motion.span>
+        <motion.span aria-hidden="true" className={`${styles.stamp} ${styles.left}`} style={{ opacity: leftOpacity }}>ENOUGH</motion.span>
         <motion.span aria-hidden="true" className={`${styles.stamp} ${styles.right}`} style={{ opacity: rightOpacity }}>ORDER</motion.span>
         <fieldset disabled={leaving} style={{ minWidth: 0 }}><InlineStockCheck good={good} item={board.stock[good.id]} units={inventoryUnitOptions([...board.customUnits, good.baseUnit])} date={board.today} timezone={board.timezone} onSaved={onSaved} onDraftChange={onDraftChange} card controls={form} onInteractionChange={setLocked} onCommitted={decision => void committed(decision)} /></fieldset>
       </motion.article>

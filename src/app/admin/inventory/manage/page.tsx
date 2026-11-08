@@ -459,7 +459,7 @@ export default function InventoryManagePage() {
           <div>
             <Link href="/admin/inventory/check">← Daily stock check</Link>
             <h1>Inventory</h1>
-            <p>Stock, orders & invoices.</p>
+            <p>Choose Order or Enough for each item.</p>
           </div>
           <div className={styles.row}>
           <InventoryDailyStock />
@@ -519,7 +519,7 @@ export default function InventoryManagePage() {
                   <h2>
                     {board.goods.length} goods{" "}
                     <span>
-                      {progress?.reviewed} checked today · {progress?.counted} counted
+                      {progress?.reviewed} reviewed today
                     </span>
                   </h2>
                   <button
@@ -529,10 +529,10 @@ export default function InventoryManagePage() {
                     Add item
                   </button>
                   <details className={styles.stockHelp}>
-                    <summary>How stock works</summary>
+                    <summary>How to review</summary>
                     <p>
-                      Counts show the last known amount. Reviewed today can mean
-                      stock was sufficient without a new count. Receiving and invoices record purchase history and arrivals only. Only a confirmed physical count updates on-hand stock.
+                      Choose Enough when there is no need to buy more, or Order to
+                      add an amount to your order list. Counts are optional and available under Count details.
                     </p>
                     <Link href="/admin/inventory">
                       Previous supplier tools & history ↗

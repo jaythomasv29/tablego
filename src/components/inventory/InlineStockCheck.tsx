@@ -207,9 +207,7 @@ export default function InlineStockCheck({
     if (!payload) {
       const withCount =
         decision === "count" ||
-        ((decision === "sufficient" ||
-          (decision === "order" && draft.includeCount)) &&
-          Boolean(draft.quantity.trim()));
+        (decision === "order" && draft.includeCount && Boolean(draft.quantity.trim()));
       if (decision === "count" && !draft.quantity.trim()) {
         setError("Enter the amount on hand before saving a count.");
         return;
@@ -291,7 +289,7 @@ export default function InlineStockCheck({
       const at =
         board.stock?.[good.id]?.updatedAt || board.stock?.[good.id]?.checkedAt;
       setSaved(
-        `${payload.decision === "order" ? "Order request saved" : payload.decision === "cancelOrder" ? "Order request cancelled" : payload.decision === "count" ? "Count saved" : "Stock reviewed"}${at ? ` · ${format(at)}` : ""}`,
+        `${payload.decision === "order" ? "Order request saved" : payload.decision === "cancelOrder" ? "Order request cancelled" : payload.decision === "count" ? "Count saved" : "Enough for now"}${at ? ` · ${format(at)}` : ""}`,
       );
       onSaved(board);
       onCommitted?.(payload.decision);
@@ -348,48 +346,6 @@ export default function InlineStockCheck({
         : item?.unit;
   return (
     <section data-stock-entry className={`${styles.check} ${card ? styles.cardCheck : ''}`} aria-label={`Check ${good.name}`}>
-      <p>
-        {lastQuantity === null || lastQuantity === undefined
-          ? "No physical count yet"
-          : `Last counted ${lastQuantity} ${lastUnit}`}
-        {counted ? ` · ${format(counted)}` : ""}
-      </p>
-      <div data-stock-entry-fields className={styles.fields}>
-        <label>
-          {card ? 'Remaining (optional)' : 'On hand'}
-          <input
-            aria-label={`On hand for ${good.name}`}
-            disabled={!ready || busy || uncertain}
-            type="number"
-            min={0}
-            max={999999}
-            step=".01"
-            inputMode="decimal"
-            placeholder="New count"
-            value={draft.quantity}
-            onChange={(e) => change({ quantity: e.target.value })}
-          />
-        </label>
-        <label>
-          Unit
-          <input
-            aria-label={`Counting unit for ${good.name}`}
-            disabled={!ready || busy || uncertain}
-            list={listId}
-            maxLength={24}
-            value={draft.unit}
-            onChange={(e) => change({ unit: e.target.value })}
-          />
-        </label>
-        <button
-          type="button"
-          className={styles.primary}
-          disabled={!ready || busy || uncertain || !draft.quantity.trim()}
-          onClick={() => void save("count")}
-        >
-          Save count
-        </button>
-      </div>
       <datalist id={listId}>
         {Array.from(
           new Set(
@@ -404,23 +360,20 @@ export default function InlineStockCheck({
           <option key={unit} value={unit} />
         ))}
       </datalist>
-      {draft.quantity.trim() && (
-        <p className={styles.dirty}>Count not saved yet</p>
-      )}
       <div className={styles.actions}>
         <button
           type="button"
           disabled={!ready || busy || uncertain}
           onClick={() => void save("sufficient")}
         >
-          {card ? '← Check tomorrow' : 'Recheck tomorrow'}
+          {busy ? 'Saving…' : card ? '← Enough' : 'Enough'}
         </button>
         <button
           type="button"
           disabled={!ready || busy || uncertain}
           onClick={order}
         >
-          {item?.orderOpen ? "Edit order request" : card ? "Order →" : "Order"}
+          {item?.orderOpen ? "Edit order" : card ? "Order →" : "Order"}
         </button>
       </div>
       {item?.orderOpen && (
@@ -500,7 +453,7 @@ export default function InlineStockCheck({
               Also save on hand: {draft.quantity} {draft.unit}
             </label>
           )}
-          <p>An on-hand count is optional. Nothing is sent to a supplier.</p>
+          <p>Add to your order list. Nothing is sent to a supplier.</p>
           <div className={styles.secondary}>
             <button
               type="button"
@@ -526,8 +479,54 @@ export default function InlineStockCheck({
           </div>
         </div>
       )}
+      <details className={styles.countDetails}>
+        <summary>Count details{draft.quantity.trim() ? ' · unsaved draft' : ''}</summary>
+      <p>
+        {lastQuantity === null || lastQuantity === undefined
+          ? "No physical count yet"
+          : `Last counted ${lastQuantity} ${lastUnit}`}
+        {counted ? ` · ${format(counted)}` : ""}
+      </p>
+      <div data-stock-entry-fields className={styles.fields}>
+        <label>
+          On hand (optional)
+          <input
+            aria-label={`On hand for ${good.name}`}
+            disabled={!ready || busy || uncertain}
+            type="number"
+            min={0}
+            max={999999}
+            step=".01"
+            inputMode="decimal"
+            placeholder="New count"
+            value={draft.quantity}
+            onChange={(e) => change({ quantity: e.target.value })}
+          />
+        </label>
+        <label>
+          Unit
+          <input
+            aria-label={`Counting unit for ${good.name}`}
+            disabled={!ready || busy || uncertain}
+            list={listId}
+            maxLength={24}
+            value={draft.unit}
+            onChange={(e) => change({ unit: e.target.value })}
+          />
+        </label>
+        <button
+          type="button"
+          className={styles.primary}
+          disabled={!ready || busy || uncertain || !draft.quantity.trim()}
+          onClick={() => void save("count")}
+        >
+          Save count
+        </button>
+      </div>
+      {draft.quantity.trim() && <button type="button" disabled={busy || uncertain} onClick={() => change({ quantity: "", includeCount: false })}>Discard count draft</button>}
+      </details>
       {item?.checkedOn === date && !draft.quantity.trim() && !saved && (
-        <p className={styles.saved}>Reviewed · {format(item.checkedAt)}</p>
+        <p className={styles.saved}>{item.orderOpen ? "Order requested" : "Enough for now"} · {format(item.checkedAt)}</p>
       )}
       {saved && (
         <p className={styles.saved} role="status">
