@@ -31,7 +31,7 @@ test('admin navigation exposes frequent touch destinations and refresh retains i
   const scrollNode={scrollTop:0,addEventListener(){},removeEventListener(){}};
   const setTheme=value=>themes.push(value);
   const Layout=load('components/AdminLayout.tsx',{
-    './AdminSideBar':exported(()=>null),'next/link':exported(host('a')),'next/navigation':{usePathname:()=>pathname},
+    './inventory/InventoryQuickReviewProvider':{InventoryQuickStatus:()=>null},'./AdminSideBar':exported(()=>null),'next/link':exported(host('a')),'next/navigation':{usePathname:()=>pathname},
     'next-themes':{useTheme:()=>({setTheme})},'@/components/ui/button':{Button:host('button')},
     '@/components/ui/sidebar':{SidebarProvider:host('provider'),SidebarInset:host('inset'),SidebarTrigger:host('trigger'),useSidebar:()=>({toggleSidebar:()=>toggles++,openMobile:false})},
     'firebase/auth':{signOut:async()=>{}},'@/firebase':{auth:{}},'@/utils/soundUtils':{unlockAudio(){}},

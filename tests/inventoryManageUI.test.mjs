@@ -106,6 +106,8 @@ async function mount(
         };
       },
       require: (name) => {
+ if(name==='@/components/inventory/InventoryQuickReviewProvider')return {useInventoryQuickReview:()=>null};
+ if(name==='@/lib/inventory/quickReviewQueue')return {overlayQuickReviews:stock=>stock};
         if (name === "@/components/AdminLayout" || name === "next/link")
           return {
             __esModule: true,

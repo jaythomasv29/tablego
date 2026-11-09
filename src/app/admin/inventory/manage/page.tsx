@@ -8,6 +8,8 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {useInventoryQuickReview} from '@/components/inventory/InventoryQuickReviewProvider';
+import {overlayQuickReviews} from '@/lib/inventory/quickReviewQueue';
 import InlineStockCheck from "@/components/inventory/InlineStockCheck";
 import InventorySwipeDeck, { SwipeStockCard } from "@/components/inventory/InventorySwipeDeck";
 import InventoryOrderList from "@/components/inventory/InventoryOrderList";
@@ -90,7 +92,7 @@ export default function InventoryManagePage() {
     [captureBusy, setCaptureBusy] = useState(false),
     [capturePending, setCapturePending] = useState(false),
     [olderEnd, setOlderEnd] = useState<Record<string, boolean>>({});
-  const [board, setBoard] = useState<OperationsBoard | null>(null),
+  const [serverBoard, setBoard] = useState<OperationsBoard | null>(null),
     [view, setView] = useState("Overview"),
     [category, setCategory] = useState("All categories"),
     [query, setQuery] = useState(""),
@@ -110,6 +112,8 @@ export default function InventoryManagePage() {
     setBoard(previous => mergeInventoryBoard(previous, next));
     setOlderEnd({}); historyCursors.current = {}; setError('');
   }, []);
+  const quick = useInventoryQuickReview(acceptBoard);
+  const board = serverBoard ? {...serverBoard,stock:overlayQuickReviews(serverBoard.stock,serverBoard.today,quick?.entries||[])} : null;
   const trackStockDraft = useCallback((id: string, dirty: boolean) => setStockDraftIds(previous => {
     if (previous.includes(id) === dirty) return previous;
     return dirty ? [...previous, id] : previous.filter(value => value !== id);

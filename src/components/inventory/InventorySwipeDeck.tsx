@@ -29,7 +29,7 @@ export default function InventorySwipeDeck({ board, goods, onSaved, onDraftChang
     {good ? <div className={styles.stage}>
       {next && <div aria-hidden="true" className={styles.backCard}><span>Up next · {next.category}</span><strong>{next.name}</strong></div>}
       <SwipeStockCard key={good.id} focusOnMount={finished > 0} good={good} board={board} onSaved={onSaved} onDraftChange={onDraftChange} onReviewed={decision => {
-        setMessage(`${good.name}: ${decision === 'order' ? 'order request saved' : decision === 'count' ? 'count saved' : 'enough for now'}`);
+        setMessage(`${good.name}: ${decision === 'order' ? 'order marked' : decision === 'count' ? 'count saved' : 'enough for now'}`);
         setQueue(previous => previous.filter(id => id !== good.id)); setFinished(previous => previous + 1);
       }} />
     </div> : <div className={styles.complete}><CheckCircle2 aria-hidden="true" size={36} /><h3>{selection.current.length ? 'Selection reviewed' : 'No items in this selection'}</h3><p>{finished} cards completed. Choose another category or switch to Multi-card to revisit items. Any unfinished counts remain in Unsaved.</p></div>}

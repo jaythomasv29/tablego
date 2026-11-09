@@ -6,6 +6,7 @@ import {
   type InventoryItem,
 } from "@/lib/inventory/model";
 import type { CatalogGood, OperationsBoard } from "@/lib/inventory/operations";
+import { useInventoryQuickReview } from './InventoryQuickReviewProvider';
 import styles from "./InlineStockCheck.module.css";
 type Draft = {
   quantity: string;
@@ -68,6 +69,8 @@ export default function InlineStockCheck({
   onCommitted,
   onInteractionChange,
 }: Props) {
+  const quick = useInventoryQuickReview();
+  const queued = quick?.entries.slice().reverse().find(e => e.payload.itemId === good.id && e.payload.date === date);
   const initial = (): Draft => ({
     quantity: "",
     unit: item?.unit || good.baseUnit,
@@ -203,6 +206,15 @@ export default function InlineStockCheck({
   }
   async function save(decision: Decision, flagOnly = false) {
     if (lock.current) return;
+    if (quick && !pending.current && (decision === "sufficient" || decision === "order" && flagOnly)) {
+      try {
+        quick.enqueue({ action:"checkItem", requestId:crypto.randomUUID(), itemId:good.id, version:item?.version||0, date, decision, ...(decision === "order" ? {flagOnly:true} : {}) },good.name);
+        setSaved("");
+        onCommitted?.(decision);
+      } catch(e) { setError((e as Error).message); }
+      return;
+    }
+    if (queued) { setError("Wait for this item's background choice to sync before editing details."); return; }
     setError("");
     setConflict(false);
     let payload = pending.current;
@@ -386,7 +398,7 @@ export default function InlineStockCheck({
           </strong>
           <button
             type="button"
-            disabled={busy || uncertain}
+            disabled={busy || uncertain || Boolean(queued)}
             onClick={() => setCancel(true)}
           >
             Cancel request
@@ -531,7 +543,8 @@ export default function InlineStockCheck({
       {item?.checkedOn === date && !draft.quantity.trim() && !saved && (
         <p className={styles.saved}>{item.orderOpen ? "Order requested" : "Enough for now"} · {format(item.checkedAt)}</p>
       )}
-      {saved && (
+      {queued && <p role="status">{queued.payload.decision === 'order' ? 'Order' : 'Enough'} · {queued.state === 'failed' ? 'Not synced — review the sync notice above' : 'Kept on this device · Syncing…'}</p>}
+      {saved && !queued && (
         <p className={styles.saved} role="status">
           {saved}
         </p>

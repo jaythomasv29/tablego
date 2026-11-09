@@ -39,6 +39,7 @@ async function mount(
     conflict = false,
     defer = false,
     extraProps = {},
+    quick = null,
   } = {},
 ) {
   const module = { exports: {} },
@@ -94,6 +95,7 @@ async function mount(
         };
       },
       require: (name) => {
+        if (name === "./InventoryQuickReviewProvider") return {useInventoryQuickReview:()=>quick};
         if (name === "@/lib/inventory/model")
           return { inventoryCountedAt, validateInventoryUnit };
         if (name.endsWith(".module.css"))
@@ -279,4 +281,17 @@ test("Order flags an item with one tap, without quantity fields or stock changes
  assert.equal(payload.flagOnly,true); assert.equal(payload.decision,"order");
  assert.equal("quantity" in payload,false); assert.equal("orderQuantity" in payload,false);
  assert.equal(input(r,"Quantity to buy for Basil"),undefined);
+});
+
+test("quick memory advances after durable local enqueue, before any network response",async t=>{
+ const queued=[],committed=[];
+ const {renderer:r,calls}=await mount(t,{quick:{entries:[],enqueue:(p,name)=>queued.push({p,name})},extraProps:{onCommitted:d=>committed.push(d)}});
+ await act(async()=>button(r,"Order").props.onClick());
+ assert.equal(calls.length,0);assert.equal(queued[0].p.flagOnly,true);assert.deepEqual(committed,["order"]);
+});
+test("quick memory never advances when device persistence fails",async t=>{
+ const committed=[];
+ const {renderer:r,calls}=await mount(t,{quick:{entries:[],enqueue:()=>{throw new Error("Device storage full")}},extraProps:{onCommitted:d=>committed.push(d)}});
+ await act(async()=>button(r,"Enough").props.onClick());
+ assert.equal(calls.length,0);assert.equal(committed.length,0);assert.match(r.root.findByProps({role:'alert'}).children.join(''),/storage full/);
 });

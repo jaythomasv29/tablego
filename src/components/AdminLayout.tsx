@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
+import { InventoryQuickStatus } from './inventory/InventoryQuickReviewProvider';
 import AdminSideBar from './AdminSideBar';
 import { RefreshCw, Sun, Moon, Home, CalendarDays, ClipboardCheck, Package, Menu, Layers } from 'lucide-react';
 import Link from 'next/link';
@@ -141,6 +142,7 @@ function AdminShell({ children }: AdminLayoutProps) {
           </div>
         </header>
 
+        <InventoryQuickStatus />
         <div ref={content} onScroll={event => { if (!restoringScroll.current) scrollPositions.current.set(pathname, event.currentTarget.scrollTop); }} id="admin-content" className="admin-scroll flex-1 overflow-y-auto">
           <div className="admin-page-surface">{children}</div>
         </div>
