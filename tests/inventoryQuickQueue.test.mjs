@@ -68,3 +68,25 @@ test('optional Enough counts are durable, appear immediately, and distinct count
  f.queue.enqueue({...payload('two','basil','sufficient'),quantity:2,unit:'bag'},'Basil');
  assert.equal(f.entries.length,2);assert.equal(overlayQuickReviews({},day,f.entries).basil.quantity,2);
 });
+
+test('queued removal hides an order immediately without changing review or physical counts, and survives refresh',()=>{
+ const f=fixture();
+ const original={version:3,quantity:4,unit:'bag',checkedOn:day,checkedAt:day+'T10:00:00Z',checkedBy:'Team',decision:'sufficient',orderOpen:true,orderRequestedAt:day+'T09:00:00Z',countedAt:day+'T10:00:00Z'};
+ f.queue.enqueue({...payload('remove','basil','cancelOrder'),version:3},'Basil');
+ const item=overlayQuickReviews({basil:original},day,f.entries).basil;
+ assert.equal(item.orderOpen,false);assert.equal(item.orderRequestedAt,null);
+ for(const key of ['quantity','unit','checkedOn','checkedAt','checkedBy','countedAt','decision'])assert.equal(item[key],original[key]);
+ f.queue.stop();const resumed=fixture(f.existing);assert.equal(resumed.calls[0].payload.decision,'cancelOrder');assert.equal(resumed.calls[0].payload.requestId,'remove');
+});
+test('clearing a just-added order serializes removal after unsent adds instead of losing the add',async()=>{
+ const f=fixture();for(let i=0;i<3;i++)f.queue.enqueue(payload('busy'+i,'busy'+i),'Other');
+ f.queue.enqueue(payload('add'),'Basil');f.queue.enqueue(payload('remove','basil','cancelOrder'),'Basil');
+ assert.equal(f.entries.filter(e=>e.payload.itemId==='basil').length,2);
+ success(f.calls[0]);await turn();const add=f.calls.find(c=>c.payload.requestId==='add');assert.ok(add);success(add,1);await turn();
+ const removal=f.calls.find(c=>c.payload.requestId==='remove');assert.ok(removal);assert.equal(removal.payload.version,1);
+});
+test('optional purchasing amounts overlay immediately and a different amount is not deduplicated',()=>{
+ const f=fixture();f.queue.enqueue({...payload('one'),flagOnly:undefined,orderQuantity:2,orderUnit:'case'},'Basil');
+ f.queue.enqueue({...payload('two'),flagOnly:undefined,orderQuantity:3,orderUnit:'case'},'Basil');
+ assert.equal(f.entries.length,2);const item=overlayQuickReviews({},day,f.entries).basil;assert.equal(item.orderQuantity,3);assert.equal(item.orderUnit,'case');assert.equal(item.quantity,null);
+});

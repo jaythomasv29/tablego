@@ -1,6 +1,6 @@
 import type { OperationsBoard } from './operations';
 import type { InventoryRecords } from './model';
-export type QuickPayload = { action:'checkItem'; requestId:string; itemId:string; version:number; date:string; decision:'order'|'sufficient'; flagOnly?:true; quantity?:number; unit?:string };
+export type QuickPayload = { action:'checkItem'; requestId:string; itemId:string; version:number; date:string; decision:'order'|'sufficient'|'cancelOrder'; flagOnly?:true; quantity?:number; unit?:string; orderQuantity?:number; orderUnit?:string };
 export type QuickEntry = { payload:QuickPayload; name:string; at:string; state:'queued'|'saving'|'failed'; error?:string; conflict?:boolean; attempted?:boolean };
 export const quickReviewKey='tablego-quick-reviews:v1';
 type Response = {ok:boolean;status:number;json:()=>Promise<OperationsBoard & {error?:string}>};
@@ -38,16 +38,16 @@ export function createQuickReviewQueue(deps:Dependencies) {
  }
  return {
   start(){
-   try{const raw=[];for(let i=0;i<deps.storage.length;i++){const key=deps.storage.key(i);if(key?.startsWith(`${quickReviewKey}:`)){raw.push(JSON.parse(deps.storage.getItem(key)||'null'));}}entries=raw.filter(e=>e?.payload?.action==='checkItem'&&typeof e.name==='string'&&typeof e.at==='string'&&typeof e.payload.requestId==='string'&&typeof e.payload.itemId==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(e.payload.date)&&Number.isInteger(e.payload.version)&&['order','sufficient'].includes(e.payload.decision)).map(e=>({...e,state:e.state==='failed'?'failed':'queued'})).sort((a,b)=>a.at.localeCompare(b.at));for(const e of entries)storedIds.add(e.payload.requestId);}catch{throw new Error('Device storage is unavailable. Keep this page open and try again.');}
+   try{const raw=[];for(let i=0;i<deps.storage.length;i++){const key=deps.storage.key(i);if(key?.startsWith(`${quickReviewKey}:`)){raw.push(JSON.parse(deps.storage.getItem(key)||'null'));}}entries=raw.filter(e=>e?.payload?.action==='checkItem'&&typeof e.name==='string'&&typeof e.at==='string'&&typeof e.payload.requestId==='string'&&typeof e.payload.itemId==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(e.payload.date)&&Number.isInteger(e.payload.version)&&['order','sufficient','cancelOrder'].includes(e.payload.decision)).map(e=>({...e,state:e.state==='failed'?'failed':'queued'})).sort((a,b)=>a.at.localeCompare(b.at));for(const e of entries)storedIds.add(e.payload.requestId);}catch{throw new Error('Device storage is unavailable. Keep this page open and try again.');}
    started=true;publish();pump();
   },
   stop(){started=false;},
   enqueue(payload:QuickPayload,name:string){
    if(!started)throw new Error('Device storage is not ready. Reload and try again.');
    const last=[...entries].reverse().find(e=>key(e.payload)===key(payload));
-   if(last&&last.payload.decision===payload.decision&&last.payload.quantity===payload.quantity&&last.payload.unit===payload.unit&&last.state!=='failed')return;
+   if(last&&last.payload.decision===payload.decision&&last.payload.quantity===payload.quantity&&last.payload.unit===payload.unit&&last.payload.orderQuantity===payload.orderQuantity&&last.payload.orderUnit===payload.orderUnit&&last.payload.flagOnly===payload.flagOnly&&last.state!=='failed')return;
    const entry:QuickEntry={payload,name,at:deps.now(),state:'queued'};
-   const next=entries.filter(e=>!(key(e.payload)===key(payload)&&e.state==='queued'&&!e.attempted));
+   const next=entries.filter(e=>!(key(e.payload)===key(payload)&&e.payload.decision===payload.decision&&e.state==='queued'&&!e.attempted));
    next.push(entry);persist(next);entries=next;deps.onChange([...entries]);pump();
   },
   async retry(includeConflicts=true){
@@ -72,7 +72,11 @@ export function overlayQuickReviews(stock:InventoryRecords,date:string,entries:Q
  const next={...stock};
  for(const e of entries){const p=e.payload;if(p.date!==date)continue;
   const previous=next[p.itemId];
-  next[p.itemId]={...previous,version:previous?.version||0,quantity:p.quantity??previous?.quantity??null,unit:p.unit||previous?.unit||'each',...(p.quantity!==undefined?{stockSource:'count' as const,countedAt:e.at,stockUpdatedAt:e.at,lastCountQuantity:p.quantity,lastCountUnit:p.unit}:{}),checkedOn:date,checkedAt:e.at,updatedAt:e.at,checkedBy:'This device · syncing',decision:p.decision,nextCheck:date,orderOpen:p.decision==='order'||Boolean(previous?.orderOpen),orderRequestedAt:p.decision==='order'?previous?.orderRequestedAt||e.at:previous?.orderRequestedAt||null};
+  if(p.decision==='cancelOrder'){
+   if(previous)next[p.itemId]={...previous,orderOpen:false,orderRequestedAt:null,updatedAt:e.at};
+   continue;
+  }
+  next[p.itemId]={...previous,version:previous?.version||0,quantity:p.quantity??previous?.quantity??null,unit:p.unit||previous?.unit||'each',...(p.quantity!==undefined?{stockSource:'count' as const,countedAt:e.at,stockUpdatedAt:e.at,lastCountQuantity:p.quantity,lastCountUnit:p.unit}:{}),...(p.orderQuantity!==undefined?{orderQuantity:p.orderQuantity,orderUnit:p.orderUnit}:{}),checkedOn:date,checkedAt:e.at,updatedAt:e.at,checkedBy:'This device · syncing',decision:p.decision,nextCheck:date,orderOpen:p.decision==='order'||Boolean(previous?.orderOpen),orderRequestedAt:p.decision==='order'?previous?.orderRequestedAt||e.at:previous?.orderRequestedAt||null};
  }
  return next;
 }

@@ -554,7 +554,7 @@ function InlineStockCheck({
       {item?.checkedOn === date && !draft.quantity.trim() && !saved && (
         <p className={styles.saved}>{item.orderOpen ? "Order requested" : "Enough for now"} · {format(item.checkedAt)}</p>
       )}
-      {queued && <p role="status">{queued.payload.decision === 'order' ? 'Order' : 'Enough'} · {queued.state === 'failed' ? 'Not synced — review the sync notice above' : 'Kept on this device · Syncing…'}</p>}
+      {queued && <p role="status">{queued.payload.decision === 'cancelOrder' ? 'Order removed' : queued.payload.decision === 'order' ? 'Order' : 'Enough'} · {queued.state === 'failed' ? 'Not synced — review the sync notice above' : 'Kept on this device · Syncing…'}</p>}
       {saved && !queued && (
         <p className={styles.saved} role="status">
           {saved}
