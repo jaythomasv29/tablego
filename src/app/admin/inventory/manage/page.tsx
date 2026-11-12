@@ -14,6 +14,7 @@ import InlineStockCheck from "@/components/inventory/InlineStockCheck";
 import InventorySwipeDeck, { SwipeStockCard } from "@/components/inventory/InventorySwipeDeck";
 import InventoryOrderList from "@/components/inventory/InventoryOrderList";
 import { inventoryProgress, mergeInventoryBoard, storedInventoryDrafts } from "@/lib/inventory/progress";
+import InventoryResetReview from "@/components/inventory/InventoryResetReview";
 import InventoryDailyStock from "@/components/inventory/InventoryDailyStock";
 import InventoryTextLog from "@/components/inventory/InventoryTextLog";
 import { invoiceCatalogSuggestions } from "@/lib/inventory/invoiceCatalog";
@@ -97,6 +98,7 @@ export default function InventoryManagePage() {
     [category, setCategory] = useState("All categories"),
     [query, setQuery] = useState(""),
     [month, setMonth] = useState("");
+  const [reviewRun,setReviewRun]=useState(0);
   const [stockFilter, setStockFilter] = useState<'all' | 'pending' | 'drafts'>('all');
   const [mobile, setMobile] = useState(false), [cardView, setCardView] = useState<'single' | 'multi'>('single');
   useEffect(() => {
@@ -467,6 +469,7 @@ export default function InventoryManagePage() {
           </div>
           <div className={styles.row}>
           <InventoryDailyStock />
+          {board && <InventoryResetReview stock={board.stock} date={board.today} disabled={loading||busy||!!modal} onReset={next=>{acceptBoard(next);setReviewRun(n=>n+1);setStockFilter('all');}} />}
           <button
             disabled={loading || busy || !!modal}
             onClick={() => void load()}
@@ -587,7 +590,7 @@ export default function InventoryManagePage() {
                 </div>
                 {view === 'Overview' && stockFilter !== 'all' && <div className={styles.filterNotice}><span>{stockFilter === 'pending' ? 'Showing items that still need checking today' : 'Showing unsaved stock entries'}</span><button onClick={() => setStockFilter('all')}>Show all</button></div>}
                 {view === 'Overview' && mobile && <div className={styles.cardViewSwitch} role="group" aria-label="Inventory card view"><button aria-pressed={cardView === 'single'} onClick={() => setCardView('single')}>Single card</button><button aria-pressed={cardView === 'multi'} onClick={() => setCardView('multi')}>Multi-card</button></div>}
-                {view === 'Overview' && mobile && cardView === 'single' ? <InventorySwipeDeck key={`${board.today}:${category}:${query}:${stockFilter}`} board={board} goods={goods} onSaved={acceptBoard} onDraftChange={trackStockDraft} /> : <div className={`${styles.cards} ${view === 'Overview' && mobile ? styles.multiCards : ''}`}>
+                {view === 'Overview' && mobile && cardView === 'single' ? <InventorySwipeDeck key={`${reviewRun}:${board.today}:${category}:${query}:${stockFilter}`} board={board} goods={goods} onSaved={acceptBoard} onDraftChange={trackStockDraft} /> : <div className={`${styles.cards} ${view === 'Overview' && mobile ? styles.multiCards : ''}`}>
                   {(view === 'Overview' && mobile ? categories.flatMap(c => goods.filter(g => g.category === c)) : goods).map((g, index, displayed) => {
                     const s = board.stock[g.id],
                       offers = board.offers.filter((o) => o.itemId === g.id);

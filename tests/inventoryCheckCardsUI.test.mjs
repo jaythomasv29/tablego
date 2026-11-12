@@ -14,6 +14,7 @@ test('Daily Inventory Check shares mobile cards and prevents checklist completio
   const items={basil:{version:1,quantity:null,unit:'lb',checkedOn:today,checkedAt:today+'T12:00:00Z',decision:'sufficient',orderOpen:false}};
   const work={day:{tasks:[{id:'inventory',station:'Back of house'}]},settings:{},crew:[]};
   runInNewContext(ts.transpileModule(readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,{module,exports:module.exports,URLSearchParams,Date,setTimeout,clearTimeout,setInterval:()=>0,clearInterval(){},window:{location:{search:''},matchMedia:()=>({matches:true,addEventListener(){},removeEventListener(){}}),addEventListener(){},removeEventListener(){}},document:{hidden:false},navigator:{onLine:true},localStorage:{getItem:()=>null,setItem(){},length:0},fetch:async url=>({ok:true,json:async()=>url.includes('/work')?work:{goods,items,customUnits:[],today,timezone:'America/Los_Angeles'}}),require:name=>{
+ if(name==='@/components/inventory/InventoryResetReview')return {__esModule:true,default:()=>null};
  if(name==='@/components/inventory/InventoryQuickReviewProvider')return {useInventoryQuickReview:()=>null};
  if(name==='@/lib/inventory/quickReviewQueue')return {overlayQuickReviews:stock=>stock};
     if(name==='@/components/inventory/InventorySwipeDeck')return {__esModule:true,default:props=>React.createElement('swipe-deck',props),SwipeStockCard:props=>React.createElement('swipe-card',props)};

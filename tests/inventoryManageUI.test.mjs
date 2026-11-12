@@ -106,6 +106,7 @@ async function mount(
         };
       },
       require: (name) => {
+ if(name==='@/components/inventory/InventoryResetReview')return {__esModule:true,default:()=>null};
  if(name==='@/components/inventory/InventoryQuickReviewProvider')return {useInventoryQuickReview:()=>null};
  if(name==='@/lib/inventory/quickReviewQueue')return {overlayQuickReviews:stock=>stock};
         if (name === "@/components/AdminLayout" || name === "next/link")
@@ -126,6 +127,7 @@ async function mount(
         if (name === '@/components/inventory/InlineStockCheck') return { __esModule: true, default: props => React.createElement('inline-check', props) };
         if (name === '@/components/inventory/InventoryOrderList') return { __esModule: true, default: props => React.createElement('order-list', props, props.hasOlder && React.createElement('button', { onClick: props.onLoadOlder }, 'Load older orders')) };
         if (name === '@/lib/inventory/progress') return progress;
+        if (name === "@/components/inventory/InventoryResetReview") return { __esModule:true, default:()=>null };
         if (name === "@/components/inventory/InventoryDailyStock") return { __esModule: true, default: () => React.createElement("button", {}, "Daily stock") };
         if (name === "@/components/inventory/InventoryTextLog") return { __esModule: true, default: () => null };
         if (name === "@/lib/inventory/invoiceCatalog") return { invoiceCatalogSuggestions: lines => lines.map((_, lineIndex) => ({ lineIndex, ambiguous: false })) };

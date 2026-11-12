@@ -21,6 +21,7 @@ import {
   invoiceInput,
   countInput,
   checkItemInput,
+  resetInventoryReview,
   confirmStockLog,
   type CatalogGood,
   type Supplier,
@@ -145,6 +146,7 @@ export async function mutateOperations(raw: unknown, actor: string) {
       "saveInvoice",
       "count",
       "checkItem",
+      "resetReview",
       "confirmTextLog",
     ];
     if (!allowed.includes(action))
@@ -156,6 +158,7 @@ export async function mutateOperations(raw: unknown, actor: string) {
       "count",
       "confirmTextLog",
       "checkItem",
+      "resetReview",
     ].includes(action)
       ? identifier(v.requestId)
       : randomUUID();
@@ -424,6 +427,16 @@ export async function mutateOperations(raw: unknown, actor: string) {
           });
       }
 
+      if (action === "resetReview") {
+        const [saved,general] = await Promise.all([tx.get(stockRef),tx.get(db.doc("settings/general"))]);
+        const stock = (saved.data()?.items || {}) as InventoryRecords;
+        const today = restaurantClock(businessTimezone(general.data())).date;
+        const items = resetInventoryReview(v,stock,today,at);
+        id = today;
+        before = { reviewed: Object.values(stock).filter(item=>item.checkedOn===today).length };
+        after = { reviewed: 0 };
+        tx.set(stockRef,{...saved.data(),items});
+      }
       if (action === "checkItem") {
         id = identifier(v.itemId);
         const [saved, general] = await Promise.all([

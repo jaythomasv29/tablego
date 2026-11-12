@@ -13,6 +13,7 @@ import {
   receiveInput,
   countInput,
   checkItemInput,
+  resetInventoryReview,
   invoiceInput,
   identifier,
   amount,
@@ -481,4 +482,17 @@ test("quick count preserves request; stale dates, duplicate saves and invalid un
     /50/,
   );
   assert.equal(JSON.stringify(ordered), before);
+});
+
+
+test('resetting review preserves counts, receipts and order requests while invalidating old versions',()=>{
+ const day='2026-11-11',at=day+'T20:00:00Z';
+ const item={version:4,quantity:2,unit:'bag',checkedOn:day,checkedAt:day+'T18:00:00Z',checkedBy:'Team',decision:'order',nextCheck:'2026-11-12',orderOpen:true,orderRequestedAt:day+'T18:00:00Z',orderQuantity:3,orderUnit:'case',countedAt:day+'T18:00:00Z',stockSource:'count'};
+ const result=resetInventoryReview({date:day,versions:{basil:4}},{basil:item},day,at);
+ assert.equal(result.basil.checkedOn,'');assert.equal(result.basil.version,5);assert.equal(result.basil.nextCheck,day);
+ for(const key of ['quantity','unit','checkedAt','countedAt','checkedBy','orderOpen','orderRequestedAt','orderQuantity','orderUnit','stockSource'])assert.equal(result.basil[key],item[key]);
+ assert.equal(item.checkedOn,day);
+ assert.throws(()=>checkItemInput({itemId:'basil',version:4,date:day,decision:'sufficient'},result.basil,goods,[],day,at,'Team'),/another device/);
+ assert.throws(()=>resetInventoryReview({date:day,versions:{basil:3}},{basil:item},day,at),/another device/);
+ assert.throws(()=>resetInventoryReview({date:'2026-11-10',versions:{basil:4}},{basil:item},day,at),/date changed/);
 });

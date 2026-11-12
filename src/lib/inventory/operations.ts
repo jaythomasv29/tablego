@@ -757,3 +757,15 @@ export function checkItemInput(
         );
   return { item, customUnits: units };
 }
+
+// Restart the review without changing physical stock, purchasing, or count history.
+export function resetInventoryReview(input: Record<string, unknown>, stock: InventoryRecords, today: string, at: string): InventoryRecords {
+  if (input.date !== today) throw new Error('The restaurant date changed. Refresh before resetting inventory.');
+  const expected = object(input.versions);
+  for (const [id,item] of Object.entries(stock)) {
+    if (expected[id] !== item.version) throw new Error('Inventory changed on another device. Refresh before resetting.');
+  }
+  return Object.fromEntries(Object.entries(stock).map(([id,item])=>[id,{
+    ...item, version:item.version+1, checkedOn:'', nextCheck:today, updatedAt:at,
+  }]));
+}
