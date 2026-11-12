@@ -95,7 +95,7 @@ async function mount(
         };
       },
       require: (name) => {
-        if (name === "./InventoryQuickReviewProvider") return {useInventoryQuickReview:()=>quick};
+        if (name === "./InventoryQuickReviewProvider") return {useInventoryQuickItem:()=>quick};
         if (name === "@/lib/inventory/model")
           return { inventoryCountedAt, validateInventoryUnit };
         if (name.endsWith(".module.css"))
@@ -132,7 +132,7 @@ const fill = (r, label, value) =>
 test("inline count is blank initially and saves only an explicit count with version and date", async (t) => {
   const { renderer: r, calls, saved } = await mount(t);
   assert.equal(input(r, "On hand for Basil").props.value, "");
-  const details = r.root.findByType("details");
+  const details = r.root.findAllByType("details")[0];
   assert.equal(details.props.open, undefined);
   assert.equal(details.findAllByType("input").includes(input(r, "On hand for Basil")), true);
   assert.ok(button(r, "Enough"));
@@ -294,4 +294,15 @@ test("quick memory never advances when device persistence fails",async t=>{
  const {renderer:r,calls}=await mount(t,{quick:{entries:[],enqueue:()=>{throw new Error("Device storage full")}},extraProps:{onCommitted:d=>committed.push(d)}});
  await act(async()=>button(r,"Enough").props.onClick());
  assert.equal(calls.length,0);assert.equal(committed.length,0);assert.match(r.root.findByProps({role:'alert'}).children.join(''),/storage full/);
+});
+
+test('Enough can save an explicitly opened optional count through quick memory without waiting',async t=>{
+ const queued=[],committed=[];
+ const {renderer:r,calls}=await mount(t,{quick:{entries:[],enqueue:p=>queued.push(p)},extraProps:{onCommitted:d=>committed.push(d)}});
+ const optional=r.root.findAllByType('details').find(d=>d.findAllByType('summary').some(s=>s.children.join('')==='Add stock (optional)'));
+ await act(async()=>optional.props.onToggle({currentTarget:{open:true}}));
+ await act(async()=>input(r,'On hand for Basil').props.onChange({target:{value:'0'}}));
+ await act(async()=>button(r,'Enough').props.onClick());
+ assert.equal(calls.length,0);assert.equal(queued[0].quantity,0);assert.equal(queued[0].unit,'lb');assert.deepEqual(committed,['sufficient']);
+ assert.equal(input(r,'On hand for Basil').props.value,'');
 });

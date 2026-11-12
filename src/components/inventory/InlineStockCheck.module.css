@@ -150,3 +150,10 @@
 .countDetails { border-top:1px solid var(--border); padding-top:8px; }
 .countDetails summary { cursor:pointer; min-height:44px; display:flex; align-items:center; font-size:12px; color:var(--muted-foreground); }
 .countDetails[open] { display:grid; gap:10px; }
+
+.quickCount { border:1px solid var(--border); border-radius:12px; padding:0 10px; }
+.quickCount summary { cursor:pointer; min-height:44px; display:flex; align-items:center; font-size:14px; font-weight:600; }
+.quickCount[open] { padding-bottom:10px; }
+.quickCount .fields { margin-top:8px; grid-template-columns:minmax(0,1fr) minmax(0,.8fr); }
+.quickCount .fields > button { grid-column:1/-1; }
+.actions button:active { background:color-mix(in srgb,var(--accent) 24%,var(--card)); }

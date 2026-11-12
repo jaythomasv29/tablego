@@ -4,6 +4,15 @@ export interface WorkGood { id: string; name: string; category: string; detail?:
 // describe the supplied list, not required stock levels or reorder thresholds.
 const groups: Record<string, [string, string, string?][]> = {
   Produce: [
+    // Additional products from the owner’s historical buy lists.
+    ["limes", "Limes"],
+    ["potatoes", "Potatoes"],
+    ["round-tomatoes", "Round tomatoes"],
+    ["mango", "Mango"],
+    ["watercress", "Watercress"],
+    ["napa-cabbage", "Napa cabbage"],
+    ["shiitake-mushrooms", "Shiitake mushrooms"],
+
     ['basil', 'Basil', '4 lbs'], ['bean-sprouts', 'Bean sprouts', '5 lb bag'], ['broccoli', 'Broccoli', 'Case'], ['carrots', 'Carrots', '25 lb bag'],
     ['celery', 'Celery', 'Bunch'], ['cherry-tomatoes', 'Cherry tomatoes', '3 small packs'], ['chinese-eggplant', 'Chinese eggplant', '½ case'], ['cilantro', 'Cilantro', 'Bunch'],
     ['green-beans', 'Green beans', '10 lbs'], ['green-bell-peppers', 'Green bell peppers', '5 lbs'], ['bok-choy', 'Shanghai bok choy', '5 lbs'], ['green-cabbage', 'Green cabbage', '4 pieces'],
@@ -12,6 +21,13 @@ const groups: Record<string, [string, string, string?][]> = {
     ['red-bell-peppers', 'Red bell peppers'], ['red-onions', 'Red onions', '25 lbs'], ['yellow-onions', 'Yellow onions', '50 lbs'], ['spring-mix', 'Spring mix'], ['spinach', 'Cleaned spinach', '1 bag listed'],
   ],
   'Meat & seafood': [
+    // Additional products from the owner’s historical buy lists.
+    ["ribeye", "Ribeye"],
+    ["trout", "Trout"],
+    ["frozen-chicken-wing-mid-joints-size-10-11", "Frozen chicken wing mid-joints, size 10–11"],
+    ["calamari-tentacles-size-5-8", "Calamari tentacles, size 5–8"],
+    ["cuttlefish", "Cuttlefish", "Sizes 13–20 / 21–30 listed; confirm size when ordering"],
+
     ['basa-fillets', 'Basa fish fillets'], ['beef-tritip', 'Beef tri-tip', 'Peeled / sliced'], ['calamari', 'Calamari / squid tubes', 'U5'],
     ['chicken-breast-fresh', 'Fresh chicken breast', 'Skinless breast also listed'], ['chicken-breast-frozen', 'Frozen chicken breast'], ['chicken-thighs', 'Chicken thighs', 'Boneless / skinless; BBQ'],
     ['crab-meat', 'Crab meat', '5 lbs; 2 boxes listed'], ['lamb', 'Boneless lamb leg'], ['mussels', 'Large mussels', 'Case'], ['pork-loin', 'Boneless pork loin'],
@@ -21,12 +37,21 @@ const groups: Record<string, [string, string, string?][]> = {
     ['sole-mekong-basa', 'Sole / Mekong basa fillets', 'Size #8–10; verify supplier label'],
   ],
   'Rice, noodles & frozen': [
+    // Additional products from the owner’s historical buy lists.
+    ["fish-cake", "Fish cake"],
+    ["frozen-spinach", "Frozen spinach"],
+    ["frozen-peas-and-carrots", "Frozen peas and carrots"],
+
     ['chow-fun', 'Chow fun noodles', 'For pad see ew'], ['chow-mein', 'Yellow chow mein noodles', 'Box'], ['brown-rice', 'Brown rice'],
     ['bun-thap-chua', 'Bun Thap Chua dry noodles', 'For egg-roll filling'], ['rice-paper', 'Round rice paper'], ['roti', 'Frozen roti'], ['sticky-rice', 'Sweet sticky rice', '50 lbs'],
     ['white-rice', 'White rice', '50 lbs'], ['woonsen', 'Woonsen / glass noodles'], ['pho-noodles', 'Fresh pho / pad Thai noodles', '4 bags listed'],
     ['eggroll-wrappers', 'Egg-roll wrappers', 'Wei Chuen brand'], ['eggroll-veggie', 'Vegetable egg rolls'], ['eggroll-pork', 'Pork egg rolls'], ['potstickers', 'Pork pot stickers', 'Wei Chuen brand'],
   ],
   'Sauces & pantry': [
+    // Additional products from the owner’s historical buy lists.
+    ["lemon-juice", "Lemon juice"],
+    ["tom-yum-paste-thai-boy", "Tom yum paste — Thai Boy"],
+
     ['bamboo', 'Bamboo strips'], ['black-soy', 'Black soy sauce', 'DSB brand'], ['cashews', 'Cashews', '5 lb bag'], ['coconut-milk', 'Coconut milk', 'Mae Ploy'],
     ['curry-powder', 'Curry powder', 'For satay'], ['fish-sauce', 'Fish sauce', 'Lucky brand'], ['galangal', 'Frozen galangal'], ['green-curry', 'Green curry paste', 'Mae Sri'],
     ['seasoning-sauce', 'Seasoning sauce', 'Maggie / GMT as listed'], ['panang-curry', 'Panang curry paste', 'Mae; full brand not shown'], ['peanuts', 'Peanuts'], ['paprika', 'Paprika powder'],
@@ -36,10 +61,31 @@ const groups: Record<string, [string, string, string?][]> = {
     ['soy-kikkoman', 'Soy sauce', 'Kikkoman; 5 gallons'], ['sugar', 'Sugar', '50 lbs'], ['lime-juice', 'Lime juice'], ['sambal', 'Red chili sambal oelek'], ['bread-crumbs', 'Bread crumbs', '20 lb bag'],
   ],
   'Drinks, eggs & dairy': [
+    // Additional products from the owner’s historical buy lists.
+    ["extra-firm-tofu", "Extra-firm tofu"],
+    ["condensed-milk", "Condensed milk"],
+    ["sake", "Sake"],
+    ["kj-sauvignon", "KJ Sauvignon", "KJ as listed; confirm exact label when ordering"],
+
     ['eggs-medium', 'Eggs — medium', 'Large if medium unavailable'], ['eggs-xl', 'Eggs — extra large', 'Loose'], ['young-coconut', 'Fresh young coconuts', '9 pieces / case'],
     ['singha-large', 'Singha — large bottles'], ['singha-small', 'Singha — small bottles'], ['half-and-half', 'Half & half'], ['heavy-cream', 'Heavy cream'],
   ],
   'Packaging & supplies': [
+    // Additional products from the owner’s historical buy lists.
+    ["portion-cups-0-75-oz", "Portion cups, 0.75 oz"],
+    ["black-round-containers-32-oz", "Black round containers, 32 oz"],
+    ["black-round-containers-48-oz", "Black round containers, 48 oz"],
+    ["straws", "Straws"],
+    ["three-compartment-containers-9-2", "Three-compartment containers, 9×2"],
+    ["gloves-large", "Gloves — Large"],
+    ["gloves-small", "Gloves — Small"],
+    ["plastic-spoons", "Plastic spoons"],
+    ["paper-plates", "Paper plates"],
+    ["fork-and-spoon-sets", "Fork-and-spoon sets"],
+    ["disposable-plastic-t-shirt-bags", "Disposable plastic T-shirt bags"],
+    ["paper-bags-25", "Paper bags #25"],
+    ["thermal-receipt-paper", "Thermal receipt paper"],
+
     ['plastic-6x6', 'One-compartment plastic containers', '6×6, small'], ['plastic-8x2', 'One-compartment plastic containers', '8×2, for satay'],
     ['togo-16', 'To-go boxes #16', 'Small rice box'], ['togo-32', 'To-go boxes #32', 'Large rice box'], ['black-7in', 'Black round containers', '7 inch'],
     ['soup-8oz', 'Plastic soup cups', '8 oz'], ['soup-16oz', 'Plastic soup cups', '16 oz'], ['soup-32oz', 'Plastic soup cups', '32 oz'],

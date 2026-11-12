@@ -1,6 +1,6 @@
 # BOH goods-check catalog
 
-117 individual stock checks transcribed from the four supplier-list screenshots supplied on October 25, 2026. Each is an opening check for both open lunch and dinner shifts. Quantity and pack descriptions are references from those lists, not required minimum stock, order quantities, or reorder thresholds.
+151 catalog products: 117 transcribed from the four supplier-list screenshots supplied on October 25, 2026, plus 34 missing products cross-checked against the owner’s historical buy notes. Each is an opening check for both open lunch and dinner shifts. Quantity and pack descriptions are references from those lists, not required minimum stock, order quantities, or reorder thresholds.
 
 ## Consolidation
 

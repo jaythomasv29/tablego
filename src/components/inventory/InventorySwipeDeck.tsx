@@ -46,16 +46,14 @@ export function SwipeStockCard({ good, board, onSaved, onDraftChange, onReviewed
   const leftOpacity = useTransform(x, [-100,-20,0], [1,0,0]), rightOpacity = useTransform(x, [0,20,100], [0,0,1]);
   async function committed(decision: string) {
     if (transitioning.current || !['sufficient','order','count'].includes(decision)) return;
-    transitioning.current = true; setLeaving(true);
+    transitioning.current = true;
+    // Advance on the local acknowledgment, without waiting for an exit animation.
+    if (onReviewed) { onReviewed(decision); return; }
+    setLeaving(true);
     const direction = decision === 'order' ? 1 : -1;
-    if (onReviewed) {
-      await animation.start({ x: reduced ? 0 : direction * 360, opacity: 0, transition: { duration: reduced ? 0 : .24, ease: 'easeIn' } });
-    } else {
-      await animation.start({ x: reduced ? 0 : direction * 8, transition: { duration: reduced ? 0 : .1 } });
-    }
-    if (!onReviewed) await animation.start({ x: 0, transition: { duration: reduced ? 0 : .18, ease: 'easeOut' } });
+    await animation.start({ x: reduced ? 0 : direction * 8, transition: { duration: reduced ? 0 : .05 } });
+    await animation.start({ x: 0, transition: { duration: reduced ? 0 : .06, ease: 'easeOut' } });
     animation.set({ x: 0, opacity: 1 }); x.set(0); setLeaving(false); transitioning.current = false;
-    onReviewed?.(decision);
   }
   return (
       <motion.article data-stock-card={compact ? 'compact' : 'single'} key={good.id} className={`${styles.card} ${compact ? styles.compact : ''}`} style={{ x, rotate }} animate={animation}

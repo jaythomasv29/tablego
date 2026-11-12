@@ -1,12 +1,12 @@
 "use client";
-import { useEffect, useId, useImperativeHandle, useRef, useState, type Ref } from "react";
+import { memo, useEffect, useId, useImperativeHandle, useRef, useState, type Ref } from "react";
 import {
   inventoryCountedAt,
   validateInventoryUnit,
   type InventoryItem,
 } from "@/lib/inventory/model";
 import type { CatalogGood, OperationsBoard } from "@/lib/inventory/operations";
-import { useInventoryQuickReview } from './InventoryQuickReviewProvider';
+import { useInventoryQuickItem } from './InventoryQuickReviewProvider';
 import styles from "./InlineStockCheck.module.css";
 type Draft = {
   quantity: string;
@@ -56,7 +56,7 @@ function validUnit(value: unknown) {
     return "";
   }
 }
-export default function InlineStockCheck({
+function InlineStockCheck({
   good,
   item,
   units,
@@ -69,7 +69,7 @@ export default function InlineStockCheck({
   onCommitted,
   onInteractionChange,
 }: Props) {
-  const quick = useInventoryQuickReview();
+  const quick = useInventoryQuickItem(good.id,date);
   const queued = quick?.entries.slice().reverse().find(e => e.payload.itemId === good.id && e.payload.date === date);
   const initial = (): Draft => ({
     quantity: "",
@@ -81,6 +81,7 @@ export default function InlineStockCheck({
   });
   const [draft, setDraft] = useState<Draft>(initial),
     [ready, setReady] = useState(false),
+    [addStock, setAddStock] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [saved, setSaved] = useState(""),
@@ -206,9 +207,15 @@ export default function InlineStockCheck({
   }
   async function save(decision: Decision, flagOnly = false) {
     if (lock.current) return;
+    const enoughCount = decision === "sufficient" && addStock && Boolean(draft.quantity.trim());
+    if (enoughCount && (!validAmount(draft.quantity) || !validUnit(draft.unit))) {
+      setError("Enter a count from 0 to 999999, with up to two decimals and a valid unit.");
+      return;
+    }
     if (quick && !pending.current && (decision === "sufficient" || decision === "order" && flagOnly)) {
       try {
-        quick.enqueue({ action:"checkItem", requestId:crypto.randomUUID(), itemId:good.id, version:item?.version||0, date, decision, ...(decision === "order" ? {flagOnly:true} : {}) },good.name);
+        quick.enqueue({ action:"checkItem", requestId:crypto.randomUUID(), itemId:good.id, version:item?.version||0, date, decision, ...(decision === "order" ? {flagOnly:true} : {}), ...(enoughCount ? {quantity:Number(draft.quantity),unit:validUnit(draft.unit)} : {}) },good.name);
+        if (enoughCount) change({quantity:"",includeCount:false});
         setSaved("");
         onCommitted?.(decision);
       } catch(e) { setError((e as Error).message); }
@@ -220,7 +227,7 @@ export default function InlineStockCheck({
     let payload = pending.current;
     if (!payload) {
       const withCount =
-        decision === "count" ||
+        decision === "count" || enoughCount ||
         (decision === "order" && !flagOnly && draft.includeCount && Boolean(draft.quantity.trim()));
       if (decision === "count" && !draft.quantity.trim()) {
         setError("Enter the amount on hand before saving a count.");
@@ -375,6 +382,46 @@ export default function InlineStockCheck({
           <option key={unit} value={unit} />
         ))}
       </datalist>
+      <details className={styles.quickCount} onToggle={event => setAddStock(event.currentTarget.open)}>
+        <summary>Add stock (optional)</summary>
+        <p>Enter what remains, then tap Enough. Leave blank to skip.</p>
+      <div data-stock-entry-fields className={styles.fields}>
+        <label>
+          On hand (optional)
+          <input
+            aria-label={`On hand for ${good.name}`}
+            disabled={!ready || busy || uncertain}
+            type="number"
+            min={0}
+            max={999999}
+            step=".01"
+            inputMode="decimal"
+            placeholder="New count"
+            value={draft.quantity}
+            onChange={(e) => change({ quantity: e.target.value })}
+          />
+        </label>
+        <label>
+          Unit
+          <input
+            aria-label={`Counting unit for ${good.name}`}
+            disabled={!ready || busy || uncertain}
+            list={listId}
+            maxLength={24}
+            value={draft.unit}
+            onChange={(e) => change({ unit: e.target.value })}
+          />
+        </label>
+        <button
+          type="button"
+          className={styles.primary}
+          disabled={!ready || busy || uncertain || !draft.quantity.trim()}
+          onClick={() => void save("count")}
+        >
+          Save count
+        </button>
+      </div>
+      </details>
       <div className={styles.actions}>
         <button
           type="button"
@@ -502,42 +549,6 @@ export default function InlineStockCheck({
           : `Last counted ${lastQuantity} ${lastUnit}`}
         {counted ? ` · ${format(counted)}` : ""}
       </p>
-      <div data-stock-entry-fields className={styles.fields}>
-        <label>
-          On hand (optional)
-          <input
-            aria-label={`On hand for ${good.name}`}
-            disabled={!ready || busy || uncertain}
-            type="number"
-            min={0}
-            max={999999}
-            step=".01"
-            inputMode="decimal"
-            placeholder="New count"
-            value={draft.quantity}
-            onChange={(e) => change({ quantity: e.target.value })}
-          />
-        </label>
-        <label>
-          Unit
-          <input
-            aria-label={`Counting unit for ${good.name}`}
-            disabled={!ready || busy || uncertain}
-            list={listId}
-            maxLength={24}
-            value={draft.unit}
-            onChange={(e) => change({ unit: e.target.value })}
-          />
-        </label>
-        <button
-          type="button"
-          className={styles.primary}
-          disabled={!ready || busy || uncertain || !draft.quantity.trim()}
-          onClick={() => void save("count")}
-        >
-          Save count
-        </button>
-      </div>
       {draft.quantity.trim() && <button type="button" disabled={busy || uncertain} onClick={() => change({ quantity: "", includeCount: false })}>Discard count draft</button>}
       </details>
       {item?.checkedOn === date && !draft.quantity.trim() && !saved && (
@@ -573,3 +584,5 @@ export default function InlineStockCheck({
     </section>
   );
 }
+
+export default memo(InlineStockCheck, (a,b) => a.good === b.good && a.item === b.item && a.date === b.date && a.timezone === b.timezone && a.units.join('|') === b.units.join('|') && a.onSaved === b.onSaved && a.onDraftChange === b.onDraftChange && a.card === b.card && a.controls === b.controls && a.onCommitted === b.onCommitted && a.onInteractionChange === b.onInteractionChange);

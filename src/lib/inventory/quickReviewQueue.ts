@@ -1,6 +1,6 @@
 import type { OperationsBoard } from './operations';
 import type { InventoryRecords } from './model';
-export type QuickPayload = { action:'checkItem'; requestId:string; itemId:string; version:number; date:string; decision:'order'|'sufficient'; flagOnly?:true };
+export type QuickPayload = { action:'checkItem'; requestId:string; itemId:string; version:number; date:string; decision:'order'|'sufficient'; flagOnly?:true; quantity?:number; unit?:string };
 export type QuickEntry = { payload:QuickPayload; name:string; at:string; state:'queued'|'saving'|'failed'; error?:string; conflict?:boolean; attempted?:boolean };
 export const quickReviewKey='tablego-quick-reviews:v1';
 type Response = {ok:boolean;status:number;json:()=>Promise<OperationsBoard & {error?:string}>};
@@ -45,7 +45,7 @@ export function createQuickReviewQueue(deps:Dependencies) {
   enqueue(payload:QuickPayload,name:string){
    if(!started)throw new Error('Device storage is not ready. Reload and try again.');
    const last=[...entries].reverse().find(e=>key(e.payload)===key(payload));
-   if(last&&last.payload.decision===payload.decision&&last.state!=='failed')return;
+   if(last&&last.payload.decision===payload.decision&&last.payload.quantity===payload.quantity&&last.payload.unit===payload.unit&&last.state!=='failed')return;
    const entry:QuickEntry={payload,name,at:deps.now(),state:'queued'};
    const next=entries.filter(e=>!(key(e.payload)===key(payload)&&e.state==='queued'&&!e.attempted));
    next.push(entry);persist(next);entries=next;deps.onChange([...entries]);pump();
@@ -72,7 +72,7 @@ export function overlayQuickReviews(stock:InventoryRecords,date:string,entries:Q
  const next={...stock};
  for(const e of entries){const p=e.payload;if(p.date!==date)continue;
   const previous=next[p.itemId];
-  next[p.itemId]={...previous,version:previous?.version||0,quantity:previous?.quantity??null,unit:previous?.unit||'each',checkedOn:date,checkedAt:e.at,updatedAt:e.at,checkedBy:'This device · syncing',decision:p.decision,nextCheck:date,orderOpen:p.decision==='order'||Boolean(previous?.orderOpen),orderRequestedAt:p.decision==='order'?previous?.orderRequestedAt||e.at:previous?.orderRequestedAt||null};
+  next[p.itemId]={...previous,version:previous?.version||0,quantity:p.quantity??previous?.quantity??null,unit:p.unit||previous?.unit||'each',...(p.quantity!==undefined?{stockSource:'count' as const,countedAt:e.at,stockUpdatedAt:e.at,lastCountQuantity:p.quantity,lastCountUnit:p.unit}:{}),checkedOn:date,checkedAt:e.at,updatedAt:e.at,checkedBy:'This device · syncing',decision:p.decision,nextCheck:date,orderOpen:p.decision==='order'||Boolean(previous?.orderOpen),orderRequestedAt:p.decision==='order'?previous?.orderRequestedAt||e.at:previous?.orderRequestedAt||null};
  }
  return next;
 }

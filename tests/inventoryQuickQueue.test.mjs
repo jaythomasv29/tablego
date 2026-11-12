@@ -58,3 +58,13 @@ test('rapid retry taps cannot rebase the same in-flight choice twice',async()=>{
  f.queue.enqueue(payload('one'),'Basil');f.calls[0].resolve({ok:false,status:409,json:async()=>({error:'changed'})});await turn();
  await Promise.all([f.queue.retry(),f.queue.retry()]);assert.equal(reads,1);assert.equal(f.calls.length,2);
 });
+
+test('optional Enough counts are durable, appear immediately, and distinct counts are not deduplicated',()=>{
+ const f=fixture();
+ f.queue.enqueue({...payload('one','basil','sufficient'),quantity:0,unit:'bag'},'Basil');
+ const stock=overlayQuickReviews({},day,f.entries).basil;
+ assert.equal(stock.quantity,0);assert.equal(stock.unit,'bag');assert.equal(stock.stockSource,'count');assert.equal(stock.lastCountQuantity,0);
+ assert.equal(JSON.parse(f.existing.get(quickReviewKey+':one')).payload.quantity,0);
+ f.queue.enqueue({...payload('two','basil','sufficient'),quantity:2,unit:'bag'},'Basil');
+ assert.equal(f.entries.length,2);assert.equal(overlayQuickReviews({},day,f.entries).basil.quantity,2);
+});

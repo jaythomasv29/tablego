@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { restaurantClock } from '@/lib/reservations/availability';
 import { workGoods, type WorkGood } from '@/lib/work/goods';
-import { inventoryCountedAt, inventoryTileState, inventoryTileLabels, inventoryChecked, inventoryReady, inventoryUnitOptions, inventoryDefaultUnit, inventoryOrderText, type InventoryDraft, type InventoryItem, type InventoryRecords } from '@/lib/inventory/model';
+import { validateInventoryUnit, inventoryCountedAt, inventoryTileState, inventoryTileLabels, inventoryChecked, inventoryReady, inventoryUnitOptions, inventoryDefaultUnit, inventoryOrderText, type InventoryDraft, type InventoryItem, type InventoryRecords } from '@/lib/inventory/model';
 import { eligibleCrew, teamForStation, isInventoryTask, type WorkBoard } from '@/lib/work/model';
 import styles from './inventory.module.css';
 type CheckGood = WorkGood & { baseUnit?: string; location?: string };
@@ -79,7 +79,7 @@ export default function InventoryPage() {
   async function save(id: string, quantity: number | undefined, unit: string, action: string, order?: { orderQuantity: number; orderUnit: string }) {
     if (!data || saving.current.has(id)) throw new Error('This item is already saving');
     if (!navigator.onLine && !quick) throw new Error('You are offline. Your count is kept on this phone; reconnect and save again.');
-    if(quick && quantity === undefined && (action === 'sufficient' || action === 'order' && !order)){quick.enqueue({action:'checkItem',requestId:crypto.randomUUID(),itemId:id,version:data.items[id]?.version||0,date:data.today,decision:action,...(action==='order'?{flagOnly:true}:{})},data.goods.find(g=>g.id===id)?.name||id);return;}
+    if(quick && (action === 'sufficient' || action === 'order' && !order)){if(quantity!==undefined){if(!Number.isFinite(quantity)||quantity<0||quantity>999999||Math.round(quantity*100)/100!==quantity)throw new Error('Enter a valid stock amount with up to two decimals.');validateInventoryUnit(unit);}quick.enqueue({action:'checkItem',requestId:crypto.randomUUID(),itemId:id,version:data.items[id]?.version||0,date:data.today,decision:action,...(action==='order'?{flagOnly:true}:{}),...(quantity!==undefined?{quantity,unit}:{})},data.goods.find(g=>g.id===id)?.name||id);if(quantity!==undefined){const remaining={...draftsRef.current};delete remaining[id];persistDrafts(remaining);}return;}
     ++generation.current; saving.current.add(id);
     try { const result = await request('/api/staff/inventory', { itemId: id, quantity, unit, action, ...order, ...(action === 'order' && !order ? { flagOnly: true } : {}), version: data.items[id]?.version || 0, date: data.today }); setData(previous => previous ? { ...previous, items: { ...previous.items, [id]: result.item } } : previous); const remaining = { ...draftsRef.current }; if (quantity !== undefined || !remaining[id]?.quantity.trim()) delete remaining[id]; persistDrafts(remaining); setFeedback(action === 'order' ? 'Added to order list · No supplier order sent' : action === 'received' ? 'Stock received · Order request closed' : quantity !== undefined ? 'Count saved' : 'Enough for now'); }
     finally { saving.current.delete(id); }
@@ -107,7 +107,7 @@ export default function InventoryPage() {
     {draftWarning && <p role="alert" className={styles.notice}>{draftWarning}</p>}
     {cardDrafts.length > 0 && <p className={styles.notice}>{cardDrafts.length} unfinished card entries kept on this device. Finish or clear them before completing the check.</p>}
     {!online && <p role="status" className={styles.notice}>Offline · Keep counting. Reconnect to save checks and order requests.</p>}
-    {Object.keys(drafts).length > 0 && <p className={styles.notice}>{Object.keys(drafts).length} unsaved count{Object.keys(drafts).length === 1 ? '' : 's'} kept on this phone. Save it in Count details, or explicitly include it when ordering. {mobile && <button className="min-h-11 underline" onClick={() => setClassicView(true)}>Review older list drafts</button>}</p>}
+    {Object.keys(drafts).length > 0 && <p className={styles.notice}>{Object.keys(drafts).length} unsaved count{Object.keys(drafts).length === 1 ? '' : 's'} kept on this phone. Open Add stock (optional) and tap Enough to save it, or save the count separately. {mobile && <button className="min-h-11 underline" onClick={() => setClassicView(true)}>Review older list drafts</button>}</p>}
     {!data ? <p>Loading inventory…</p> : <>
       <section className={styles.summary} aria-label="Inventory progress"><Package aria-hidden="true" /><div><strong>{checked} / {goods.length} reviewed today</strong><p>{data.today} · Saved across devices · {openOrders} open order requests</p><progress aria-label="Goods checked today" max={goods.length} value={checked} /></div><span>{ready ? 'Ready to finish' : `${goods.length - checked} to go`}</span></section>
       {readOnly && <p role="alert" className={styles.error}>This shift is for {date}. Inventory checks record today’s stock only. Open today’s Work board to check in.</p>}
@@ -136,7 +136,7 @@ function Item({ good, item, units, addUnit, draft, changeDraft, date, timezone, 
   const countedToday = countedAt ? restaurantClock(timezone, new Date(countedAt)).date === date : false;
   const quantity = draft?.quantity ?? (item && item.stockSource !== 'receipt' && countedToday && item.quantity !== null ? String(item.quantity) : ''), unit = draft?.unit || item?.unit || good.baseUnit || inventoryDefaultUnit(good.detail);
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [ordering, setOrdering] = useState(false);
-  const [includeCount, setIncludeCount] = useState(false);
+  const [includeCount, setIncludeCount] = useState(false), [addStock,setAddStock]=useState(false);
   const [historyOpen, setHistoryOpen] = useState(false), [history, setHistory] = useState<{ id: string; action: string; at: string; before: InventoryItem | null; after: InventoryItem | null; arrival?: { quantity: number; unit: string; damagedQuantity: number; supplierName: string } }[] | null>(null), [historyError, setHistoryError] = useState('');
   const [orderQuantity, setOrderQuantity] = useState('1'), [orderUnit, setOrderUnit] = useState(unit);
   const checked = inventoryChecked(item, date), stockState = inventoryTileState(item, date);
@@ -151,7 +151,7 @@ function Item({ good, item, units, addUnit, draft, changeDraft, date, timezone, 
   async function commit(action: string) {
     if (busy) return; setError('');
     setBusy(true);
-    try { await save(good.id, quantity.trim() && (action === 'count' || (action === 'order' && includeCount)) ? Number(quantity) : undefined, unit, action === 'count' ? 'sufficient' : action === 'flagOrder' ? 'order' : action, action === 'order' ? { orderQuantity: Number(orderQuantity), orderUnit } : undefined); setOrdering(false); }
+    try { await save(good.id, quantity.trim() && (action === 'count' || action === 'sufficient' && addStock || (action === 'order' && includeCount)) ? Number(quantity) : undefined, unit, action === 'count' ? 'sufficient' : action === 'flagOrder' ? 'order' : action, action === 'order' ? { orderQuantity: Number(orderQuantity), orderUnit } : undefined); setOrdering(false); }
     catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   }
@@ -170,7 +170,7 @@ function Item({ good, item, units, addUnit, draft, changeDraft, date, timezone, 
       <div className={styles.actions}><button disabled={disabled} className={styles.sufficient} onClick={() => void commit('sufficient')}>{busy ? 'Saving…' : 'Enough'}</button><button disabled={disabled} onClick={order}>Order</button></div>
       {orderView && item?.orderOpen && <button disabled={disabled} className={styles.received} onClick={() => void commit('received')}>Stock received · Close request</button>}
     </fieldset>
-    <details><summary className="min-h-11 cursor-pointer text-sm text-muted-foreground">Count details{quantity.trim() ? ' · unsaved draft' : ''}</summary>
+    <details onToggle={event=>setAddStock(event.currentTarget.open)}><summary className="min-h-11 cursor-pointer text-sm text-muted-foreground">Add stock (optional){quantity.trim() ? ' · unsaved draft' : ''}</summary>
       <div className={styles.lastCount}><span>{item?.quantity !== null && item?.quantity !== undefined && countedAt ? <>Last counted: <strong>{item.lastCountQuantity ?? item.quantity} {item.lastCountUnit || item.unit}</strong> · {new Date(countedAt).toLocaleString('en-US', { timeZone: timezone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</> : 'No count recorded yet'}</span><button type="button" onClick={() => void showHistory()}>History</button></div>
     {item?.stockSource === 'receipt' && <p className={styles.receipt}>An earlier delivery estimate is not a physical count. Recount to confirm current stock.</p>}
     <fieldset disabled={busy || readOnly}>
