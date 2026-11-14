@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inventoryCountedAt, validateInventoryUnit, registerInventoryUnit, inventoryUnitOptions, inventoryTileState, inventoryChange, inventoryChecked, inventoryReady, inventoryOrderText, inventoryDefaultUnit, nextInventoryDate } from '../src/lib/inventory/model.ts';
+import { inventoryCountedAt, validateInventoryUnit, registerInventoryUnit, inventoryUnitOptions, inventoryTileState, inventoryChange, inventoryChecked, inventoryReady, inventoryOrderText, groupInventoryOrder, inventoryOrderSectionsText, inventoryDefaultUnit, nextInventoryDate } from '../src/lib/inventory/model.ts';
 import { workGoods } from '../src/lib/work/goods.ts';
 const date = '2026-10-25', at = '2026-10-25T22:00:00Z';
 const input = { itemId: workGoods[0].id, quantity: 2.5, unit: 'lb', action: 'sufficient', version: 0, orderQuantity: 2, orderUnit: 'case' };
@@ -113,4 +113,18 @@ test('review without recount preserves receipt estimate and physical count snaps
   assert.equal(reviewed.quantity, 14); assert.equal(reviewed.lastCountQuantity, 4); assert.equal(reviewed.stockSource, 'receipt');
   const recounted = inventoryChange({ itemId: 'basil', version: 3, action: 'sufficient', quantity: 12, unit: 'lb' }, reviewed, '2026-10-28', '2026-10-28T20:00:00Z', 'Team');
   assert.equal(recounted.quantity, 12); assert.equal(recounted.lastCountQuantity, 12); assert.equal(recounted.stockSource, 'count');
+});
+
+test('order list keeps veggies with pho and chow fun, then other categories in catalog order', () => {
+  const ids = ['white-rice', 'pho-noodles', 'sriracha', 'basil', 'chow-fun', 'cilantro', 'soup-8oz', 'soup-16oz', 'ribeye'];
+  const goods = ids.map(id => workGoods.find(g => g.id === id));
+  const sections = groupInventoryOrder(goods, g => g, workGoods);
+  assert.deepEqual(sections.map(s => s.name), ['Produce & fresh noodles', 'Meat & seafood', 'Rice, noodles & frozen', 'Sauces & pantry', 'Packaging & supplies']);
+  assert.deepEqual(sections[0].items.map(g => g.id), ['basil', 'cilantro', 'pho-noodles', 'chow-fun']);
+  assert.deepEqual(sections[2].items.map(g => g.id), ['white-rice']);
+  const text = inventoryOrderSectionsText(sections);
+  assert.match(text, /^Produce & fresh noodles\n• Basil\n• Cilantro\n• Pho \(Fresh Pho \/ Pad Thai Noodles\)\n• Rice Noodle \(Chow Fun\)\n/);
+  assert.match(text, /Plastic Soup Cup \+ Lid \(8 oz\)\n• Plastic Soup Cup \+ Lid \(16 oz\)/);
+  const items = Object.fromEntries(ids.map(id => [id, { orderOpen: true }]));
+  assert.match(inventoryOrderText(items), /^Restaurant order list\n\nProduce & fresh noodles\n/);
 });

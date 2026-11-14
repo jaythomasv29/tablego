@@ -19,7 +19,7 @@ async function mount(t,{compact=false,reduced=false}={}) {
   runInNewContext(ts.transpileModule(readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,{module,exports:module.exports,require:name=>{
     if(name==='./InlineStockCheck')return {__esModule:true,default:Inline};
     if(name==='framer-motion')return {motion:{article:'motion-card',span:'motion-span'},useAnimationControls:()=>React.useMemo(()=>({start:async value=>animations.push(value),set(){}}),[]),useMotionValue:()=>React.useMemo(()=>({set(){}}),[]),useReducedMotion:()=>reduced,useTransform:()=>0,useDragControls:()=>({start(){}})};
-    if(name==='lucide-react')return Object.fromEntries(['ArrowLeft','ArrowRight','CheckCircle2','Layers'].map(n=>[n,()=>null]));
+    if(name==='lucide-react')return Object.fromEntries(['ArrowLeft','ArrowRight','Check','CheckCircle2','Layers','ShoppingCart'].map(n=>[n,()=>null]));
     if(name==='@/lib/inventory/model')return {inventoryChecked:(s,d)=>s?.checkedOn===d,inventoryUnitOptions:u=>u};
     if(name.endsWith('.css'))return {__esModule:true,default:{}};
     return normalRequire(name);

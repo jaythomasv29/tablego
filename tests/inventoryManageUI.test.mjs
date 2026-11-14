@@ -227,7 +227,9 @@ test("pending capture blocks invoice save and captured details require review wi
 });
 test("item history tolerates older events without an after snapshot", async (t) => {
   const { renderer: r } = await mount(t);
-  await act(async () => button(r, "History & sources").props.onClick());
+  // Desktop stock cards open history through their own stable callback.
+  const card = r.root.findAllByType("swipe-card")[0];
+  await act(async () => card.props.onHistory(card.props.good));
   assert.ok(JSON.stringify(r.toJSON()).includes("Recent activity"));
 });
 

@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { motion, useAnimationControls, useDragControls, useMotionValue, useReducedMotion, useTransform } from 'framer-motion';
-import { ArrowLeft, ArrowRight, CheckCircle2, Layers } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Layers, ShoppingCart } from 'lucide-react';
 import InlineStockCheck from './InlineStockCheck';
 import { inventoryChecked, inventoryUnitOptions } from '@/lib/inventory/model';
 import type { CatalogGood, OperationsBoard } from '@/lib/inventory/operations';
@@ -36,13 +36,23 @@ export default function InventorySwipeDeck({ board, goods, onSaved, onDraftChang
   </section>;
 }
 
-export function SwipeStockCard({ good, board, onSaved, onDraftChange, onReviewed, compact = false, focusOnMount = false }: Omit<Props, 'goods'> & { good: CatalogGood; onReviewed?: (decision: string) => void; compact?: boolean; focusOnMount?: boolean }) {
+type CardProps = Omit<Props, 'goods'> & { good: CatalogGood; onReviewed?: (decision: string) => void; compact?: boolean; focusOnMount?: boolean; onEdit?: (good: CatalogGood) => void; onHistory?: (good: CatalogGood) => void };
+function shallowSame(a: object | undefined, b: object | undefined) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const left = a as Record<string, unknown>, right = b as Record<string, unknown>, keys = Object.keys(left);
+  return keys.length === Object.keys(right).length && keys.every(key => left[key] === right[key]);
+}
+// A full stock walk renders every card; a tap must repaint only the card it changed.
+export const SwipeStockCard = memo(SwipeStockCardView, (a, b) => shallowSame(a.good, b.good) && shallowSame(a.board.stock[a.good.id], b.board.stock[b.good.id]) && a.board.today === b.board.today && a.board.timezone === b.board.timezone && a.board.customUnits.join('|') === b.board.customUnits.join('|') && a.onSaved === b.onSaved && a.onDraftChange === b.onDraftChange && a.onReviewed === b.onReviewed && a.compact === b.compact && a.focusOnMount === b.focusOnMount && a.onEdit === b.onEdit && a.onHistory === b.onHistory);
+function SwipeStockCardView({ good, board, onSaved, onDraftChange, onReviewed, compact = false, focusOnMount = false, onEdit, onHistory }: CardProps) {
   const [locked, setLocked] = useState(true), [leaving, setLeaving] = useState(false);
   const form = useRef<{ recheck: () => void; order: () => void }>(null);
   const transitioning = useRef(false), heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => { if (focusOnMount) heading.current?.focus({ preventScroll: true }); }, [focusOnMount]);
   const animation = useAnimationControls(), reduced = useReducedMotion(), x = useMotionValue(0), drag = useDragControls();
   const rotate = useTransform(x, [-180,180], reduced ? [0,0] : [-9,9]);
+  const item = board.stock[good.id], state = item?.orderOpen ? 'order' : inventoryChecked(item, board.today) ? 'enough' : 'open';
   const leftOpacity = useTransform(x, [-100,-20,0], [1,0,0]), rightOpacity = useTransform(x, [0,20,100], [0,0,1]);
   async function committed(decision: string) {
     if (transitioning.current || !['sufficient','order','count'].includes(decision)) return;
@@ -56,13 +66,13 @@ export function SwipeStockCard({ good, board, onSaved, onDraftChange, onReviewed
     animation.set({ x: 0, opacity: 1 }); x.set(0); setLeaving(false); transitioning.current = false;
   }
   return (
-      <motion.article data-stock-card={compact ? 'compact' : 'single'} key={good.id} className={`${styles.card} ${compact ? styles.compact : ''}`} style={{ x, rotate }} animate={animation}
+      <motion.article data-stock-card={compact ? 'compact' : 'single'} data-state={state} key={good.id} className={`${styles.card} ${compact ? styles.compact : ''}`} style={{ x, rotate }} animate={animation}
         drag={!locked && !leaving ? 'x' : false} dragControls={drag} dragListener={false} dragConstraints={{ left: 0, right: 0 }} dragElastic={.45} dragTransition={{ bounceStiffness: 420, bounceDamping: 32 }}
-        onDragEnd={(_, info) => { if (locked || transitioning.current) return; if (Math.abs(info.offset.x) < 85 || Math.abs(info.offset.x) < Math.abs(info.offset.y) * 1.5) return; if (info.offset.x > 0) form.current?.order(); else form.current?.recheck(); }}>
+        onDragEnd={(_, info) => { if (locked || transitioning.current) return; if (Math.abs(info.offset.x) < (compact ? 60 : 85) || Math.abs(info.offset.x) < Math.abs(info.offset.y) * 1.5) return; if (info.offset.x > 0) form.current?.order(); else form.current?.recheck(); }}>
         <div className={styles.swipeSurface}
           onPointerDown={event => { if (locked || leaving || event.button !== 0) return; drag.start(event); }}>
           <span className={styles.grip} aria-hidden="true" />
-          <p>{good.category}{good.location ? ` · ${good.location}` : ''}</p>
+          <div className={styles.head}><p>{good.category}{good.location ? ` · ${good.location}` : ''}</p><span className={styles.badge} aria-live="polite">{state === 'order' ? <><ShoppingCart size={13} aria-hidden="true" />To order</> : state === 'enough' ? <><Check size={13} aria-hidden="true" />Enough</> : null}</span></div>
           <h3 tabIndex={-1} ref={heading}>{good.name}</h3>
           {good.detail && <p>{good.detail}</p>}
           <div className={styles.directions}><span><ArrowLeft size={15} aria-hidden="true" />Enough</span><span>Order<ArrowRight size={15} aria-hidden="true" /></span></div>
@@ -70,6 +80,7 @@ export function SwipeStockCard({ good, board, onSaved, onDraftChange, onReviewed
         <motion.span aria-hidden="true" className={`${styles.stamp} ${styles.left}`} style={{ opacity: leftOpacity }}>ENOUGH</motion.span>
         <motion.span aria-hidden="true" className={`${styles.stamp} ${styles.right}`} style={{ opacity: rightOpacity }}>ORDER</motion.span>
         <fieldset disabled={leaving} style={{ minWidth: 0 }}><InlineStockCheck good={good} item={board.stock[good.id]} units={inventoryUnitOptions([...board.customUnits, good.baseUnit])} date={board.today} timezone={board.timezone} onSaved={onSaved} onDraftChange={onDraftChange} card controls={form} onInteractionChange={setLocked} onCommitted={decision => void committed(decision)} /></fieldset>
+        {(onEdit || onHistory) && <div className={styles.tools}>{onEdit && <button type="button" onClick={() => onEdit(good)}>Edit item</button>}{onHistory && <button type="button" onClick={() => onHistory(good)}>History & sources</button>}</div>}
       </motion.article>
   );
 }

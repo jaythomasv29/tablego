@@ -28,7 +28,7 @@
 .notice { border: 1px solid var(--border); border-left: 3px solid var(--inventory-accent); border-radius: 10px; padding: 12px 16px; font-size: 14px; background: var(--card); }
 .mobileSection { display: none; }
 .cardViewSwitch { display:flex; gap:8px; }.cardViewSwitch button { flex:1; min-height:44px; border:1px solid var(--border); border-radius:12px; }.cardViewSwitch button[aria-pressed='true'] { border-color:var(--inventory-accent); background:color-mix(in srgb,var(--inventory-accent) 12%,var(--card)); font-weight:700; }
-.multiCards { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; overflow:hidden; }
+.multiCards { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 10px; overflow:hidden; padding:2px 2px 8px; }
 @media(max-width:359px) { .multiCards { grid-template-columns:1fr; } }
 .shareActions { display: flex; gap: 10px; }
 .orderAmount { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 15px; font-weight: 650; color: var(--inventory-accent); }
@@ -68,3 +68,4 @@
 .lastCount strong { color: var(--foreground); }.nextDayHint { font-size: 13px; color: var(--muted-foreground); }
 .orderForm .includeCount { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 500; }.orderForm .includeCount input { width: 20px; min-height: 20px; height: 20px; padding: 0; flex-shrink: 0; }
 .historyList { display: grid; gap: 12px; }.historyList li { padding: 12px; border: 1px solid var(--border); border-radius: 10px; }.historyList time { display: block; margin: 5px 0; font-size: 12px; color: var(--muted-foreground); }.historyList p { font-size: 14px; }
+@media(min-width:768px) { .multiCards { grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:16px 14px; } }

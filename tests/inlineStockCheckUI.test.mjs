@@ -306,3 +306,22 @@ test('Enough can save an explicitly opened optional count through quick memory w
  assert.equal(calls.length,0);assert.equal(queued[0].quantity,0);assert.equal(queued[0].unit,'lb');assert.deepEqual(committed,['sufficient']);
  assert.equal(input(r,'On hand for Basil').props.value,'');
 });
+
+test('card Order is a toggle with no status rows that grow the card',async t=>{
+ const queued=[];
+ const flagged={...item,checkedOn:'2026-11-01',checkedAt:'2026-11-01T18:00:00Z',orderOpen:true,orderRequestedAt:'2026-11-01T18:00:00Z',decision:'order'};
+ const {renderer:r,calls}=await mount(t,{record:flagged,quick:{entries:[],enqueue:p=>queued.push(p)},extraProps:{card:true}});
+ const text=JSON.stringify(r.toJSON());
+ assert.doesNotMatch(text,/On order list|Order requested|Cancel request|Count details/);
+ const toggle=button(r,'✓ To order');
+ assert.equal(toggle.props['aria-pressed'],true);
+ await act(async()=>toggle.props.onClick());
+ assert.equal(calls.length,0);assert.equal(queued[0].decision,'cancelOrder');assert.equal('quantity' in queued[0],false);
+});
+test('card Order on an unflagged item flags it in one tap',async t=>{
+ const queued=[];
+ const {renderer:r}=await mount(t,{quick:{entries:[],enqueue:p=>queued.push(p)},extraProps:{card:true}});
+ assert.equal(button(r,'Order →').props['aria-pressed'],false);
+ await act(async()=>button(r,'Order →').props.onClick());
+ assert.equal(queued[0].decision,'order');assert.equal(queued[0].flagOnly,true);
+});

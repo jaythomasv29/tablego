@@ -5,7 +5,22 @@
 .announcement { font-size:13px; color:var(--accent); }
 .announcement:empty { display:none; }
 .stage { position:relative; padding:8px 6px 20px; min-width:0; overflow:hidden; }
-.card { position:relative; z-index:1; padding:20px; border:1px solid var(--border); border-radius:24px; background:var(--card); box-shadow:0 12px 30px #00000012; animation:enter .28s cubic-bezier(.22,1,.36,1); }
+.card {
+  --tint:var(--card); --edge:#d5cfc1; --ink:var(--muted-foreground); --shine:rgb(255 255 255 / .7);
+  position:relative; z-index:1; padding:20px; border:1px solid color-mix(in srgb,var(--edge) 75%,var(--border)); border-radius:24px;
+  background-color:var(--tint); background-image:linear-gradient(180deg,var(--shine),transparent 42%);
+  box-shadow:inset 0 1px 0 var(--shine),0 5px 0 var(--edge),0 16px 24px -14px rgb(0 0 0 / .35);
+  margin-bottom:5px; animation:enter .28s cubic-bezier(.22,1,.36,1);
+  transition:background-color .22s ease,border-color .22s ease,box-shadow .22s ease;
+}
+.card[data-state=enough] { --tint:#e5f1e8; --edge:#94bca4; --ink:#2b6448; }
+.card[data-state=order] { --tint:#fcefd9; --edge:#dfa857; --ink:#8d520a; }
+:global(.dark) .card { --edge:#090c0b; --shine:rgb(255 255 255 / .06); }
+:global(.dark) .card[data-state=enough] { --tint:#1b3126; --edge:#0b1a12; --ink:#a9d7bb; }
+:global(.dark) .card[data-state=order] { --tint:#382814; --edge:#1c1206; --ink:#f3c27e; }
+.head { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:24px; }
+.badge { display:inline-flex; align-items:center; gap:4px; flex:none; height:22px; padding:0 8px; border-radius:999px; font-size:11px; font-weight:750; letter-spacing:.02em; color:var(--ink); background:color-mix(in srgb,var(--ink) 13%,transparent); }
+.badge:empty { visibility:hidden; }
 .backCard { position:absolute; inset:14px 14px 48px; transform:rotate(2deg); border:1px solid var(--border); border-radius:24px; background:var(--muted); padding:20px; display:grid; align-content:end; gap:4px; }
 .backCard span { font-size:12px; color:var(--muted-foreground); }
 .swipeSurface { touch-action:pan-y; cursor:grab; padding-bottom:20px; user-select:none; }
@@ -17,7 +32,8 @@
 .directions span { display:flex; align-items:center; gap:4px; }
 .stamp { pointer-events:none; position:absolute; top:75px; border:2px solid currentColor; border-radius:8px; padding:8px; font-size:14px; font-weight:800; background:var(--card); }
 .left { left:16px; color:var(--accent); transform:rotate(-10deg); }.right { right:16px; color:var(--foreground); transform:rotate(10deg); }
-.compact { padding:12px; border-radius:18px; box-shadow:0 4px 14px #0000000a; }
+.compact { padding:12px; border-radius:18px; box-shadow:inset 0 1px 0 var(--shine),0 4px 0 var(--edge),0 10px 16px -10px rgb(0 0 0 / .35); }
+.compact .head { flex-wrap:wrap; }
 .compact .swipeSurface { padding-bottom:12px; }
 .compact .swipeSurface h3 { font-size:18px; line-height:1.25; }
 .compact .grip { margin-bottom:12px; width:24px; }
@@ -26,4 +42,8 @@
 .complete { text-align:center; padding:40px 20px; border:1px solid var(--border); border-radius:24px; background:var(--card); }
 .complete svg { margin:0 auto 16px; color:var(--accent); }.complete h3 { font-size:24px; font-weight:700; }.complete p { font-size:14px; line-height:1.6; margin-top:10px; color:var(--muted-foreground); }
 @keyframes enter { from { opacity:.6; translate:0 12px; } to { opacity:1; translate:0 0; } }
-@media(prefers-reduced-motion:reduce) { .card { animation:none; }.backCard { transform:none; } }
+@media(prefers-reduced-motion:reduce) { .card { animation:none; transition:none; }.backCard { transform:none; } }
+.tools { display:flex; gap:6px; margin-top:10px; padding-top:8px; border-top:1px solid color-mix(in srgb,var(--edge) 45%,transparent); }
+.tools button { flex:1; min-height:36px; padding:6px 8px; border:0; border-radius:8px; background:transparent; color:var(--muted-foreground); font-size:12px; font-weight:600; }
+.tools button:hover { background:color-mix(in srgb,var(--ink) 10%,transparent); color:var(--foreground); }
+.tools button:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }

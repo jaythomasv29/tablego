@@ -20,8 +20,34 @@ export function inventoryChange(input: Record<string, unknown>, previous: Invent
 }
 
 export interface InventoryDraft { quantity: string; unit: string }
+// The produce run also brings fresh rice noodles, so they share one shopping section.
+export const PRODUCE_ORDER_SECTION = 'Produce & fresh noodles';
+const FRESH_NOODLE_IDS = new Set(['pho-noodles', 'chow-fun']);
+type SectionGood = { id: string; name: string; category: string; detail?: string };
+export function inventoryOrderSection(good: Pick<SectionGood, 'id' | 'category'>) {
+  return good.category === 'Produce' || FRESH_NOODLE_IDS.has(good.id) ? PRODUCE_ORDER_SECTION : good.category || 'Other';
+}
+/** Groups order lines into shopping sections in catalog category order; items sort by category, then name. */
+export function groupInventoryOrder<T>(values: T[], goodOf: (value: T) => SectionGood, catalog: Pick<SectionGood, 'category'>[] = values.map(goodOf)) {
+  const categories: string[] = [];
+  for (const good of catalog) if (!categories.includes(good.category)) categories.push(good.category);
+  const rank = (category: string) => { const index = categories.indexOf(category); return index < 0 ? categories.length : index; };
+  const sections = new Map<string, T[]>();
+  for (const value of values) { const name = inventoryOrderSection(goodOf(value)); sections.set(name, [...(sections.get(name) || []), value]); }
+  return Array.from(sections, ([name, items]) => ({ name, items: items.slice().sort((a, b) => { const x = goodOf(a), y = goodOf(b); return rank(x.category) - rank(y.category) || x.name.localeCompare(y.name, undefined, { sensitivity: 'base', numeric: true }) || (x.detail || '').localeCompare(y.detail || '', undefined, { numeric: true }); }) }))
+    .sort((a, b) => rank(a.name === PRODUCE_ORDER_SECTION ? 'Produce' : a.name) - rank(b.name === PRODUCE_ORDER_SECTION ? 'Produce' : b.name) || a.name.localeCompare(b.name));
+}
+/** Repeated names (container sizes, soup cups) keep their detail so a pasted list stays unambiguous. */
+export function inventoryOrderLabel(good: SectionGood, listed: SectionGood[]) {
+  return good.detail && listed.filter(other => other.name === good.name).length > 1 ? `${good.name} (${good.detail})` : good.name;
+}
+export function inventoryOrderSectionsText(sections: { name: string; items: SectionGood[] }[]) {
+  const listed = sections.flatMap(section => section.items);
+  return sections.map(section => [section.name, ...section.items.map(good => `• ${inventoryOrderLabel(good, listed)}`)].join('\n')).join('\n\n');
+}
 export function inventoryOrderText(items: InventoryRecords, goods: CheckGood[] = workGoods) {
-  return ['Restaurant order list', ...goods.filter(g => items[g.id]?.orderOpen).map(g => { return `• ${g.name}${g.detail && goods.filter(other => other.name === g.name).length > 1 ? ` (${g.detail})` : ''}`; })].join('\n');
+  const flagged = goods.filter(g => items[g.id]?.orderOpen);
+  return flagged.length ? `Restaurant order list\n\n${inventoryOrderSectionsText(groupInventoryOrder(flagged, g => g, goods))}` : 'Restaurant order list';
 }
 export function inventoryDefaultUnit(detail = '') {
   const value = detail.toLowerCase();

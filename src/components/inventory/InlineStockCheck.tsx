@@ -186,6 +186,8 @@ function InlineStockCheck({
     }
   }
   function order() { void save("order", true); }
+  // Card mode: the Order button is a toggle, so a mistaken tap is undone in place.
+  function toggleOrder() { if (item?.orderOpen) void save("cancelOrder"); else order(); }
   function editOrder() {
     change({
       ordering: true,
@@ -212,7 +214,7 @@ function InlineStockCheck({
       setError("Enter a count from 0 to 999999, with up to two decimals and a valid unit.");
       return;
     }
-    if (quick && !pending.current && (decision === "sufficient" || decision === "order" && flagOnly)) {
+    if (quick && !pending.current && (decision === "sufficient" || decision === "order" && flagOnly || decision === "cancelOrder" && card)) {
       try {
         quick.enqueue({ action:"checkItem", requestId:crypto.randomUUID(), itemId:good.id, version:item?.version||0, date, decision, ...(decision === "order" ? {flagOnly:true} : {}), ...(enoughCount ? {quantity:Number(draft.quantity),unit:validUnit(draft.unit)} : {}) },good.name);
         if (enoughCount) change({quantity:"",includeCount:false});
@@ -359,6 +361,7 @@ function InlineStockCheck({
       setBusy(false);
     }
   }
+  const cardState = item?.orderOpen ? "order" : item?.checkedOn === date ? "enough" : "open";
   const counted = inventoryCountedAt(item),
     lastQuantity =
       item?.stockSource === "receipt" ? item.lastCountQuantity : item?.quantity,
@@ -383,7 +386,7 @@ function InlineStockCheck({
         ))}
       </datalist>
       <details className={styles.quickCount} onToggle={event => setAddStock(event.currentTarget.open)}>
-        <summary>Add stock (optional)</summary>
+        <summary>Add stock (optional){card && draft.quantity.trim() ? <span className={styles.draftDot} role="img" aria-label="unsaved draft" /> : null}</summary>
         <p>Enter what remains, then tap Enough. Leave blank to skip.</p>
       <div data-stock-entry-fields className={styles.fields}>
         <label>
@@ -421,24 +424,34 @@ function InlineStockCheck({
           Save count
         </button>
       </div>
+      {card && <p>
+        {lastQuantity === null || lastQuantity === undefined
+          ? "No physical count yet"
+          : `Last counted ${lastQuantity} ${lastUnit}`}
+        {counted ? ` · ${format(counted)}` : ""}
+      </p>}
+      {card && <button type="button" disabled={!ready || busy || uncertain} onClick={editOrder}>Set order amount (optional)</button>}
       </details>
       <div className={styles.actions}>
         <button
           type="button"
+          aria-pressed={card ? cardState === "enough" : undefined}
           disabled={!ready || busy || uncertain}
           onClick={() => void save("sufficient")}
         >
-          {busy ? 'Saving…' : card ? '← Enough' : 'Enough'}
+          {busy ? 'Saving…' : card ? (cardState === "enough" ? '✓ Enough' : '← Enough') : 'Enough'}
         </button>
         <button
           type="button"
+          aria-pressed={card ? cardState === "order" : undefined}
+          aria-label={card && cardState === "order" ? `Remove ${good.name} from To order` : undefined}
           disabled={!ready || busy || uncertain}
-          onClick={order}
+          onClick={card ? toggleOrder : order}
         >
-          {card ? "Order →" : "Order"}
+          {card ? (cardState === "order" ? "✓ To order" : "Order →") : "Order"}
         </button>
       </div>
-      {item?.orderOpen && (
+      {item?.orderOpen && !card && (
         <div className={styles.status}>
           <strong>
             On order list
@@ -540,7 +553,7 @@ function InlineStockCheck({
           </div>
         </div>
       )}
-      <details className={styles.countDetails}>
+      {!card && <details className={styles.countDetails}>
         <summary>Count details{draft.quantity.trim() ? ' · unsaved draft' : ''}</summary>
         <button type="button" disabled={!ready || busy || uncertain} onClick={editOrder}>Set order amount (optional)</button>
       <p>
@@ -550,12 +563,12 @@ function InlineStockCheck({
         {counted ? ` · ${format(counted)}` : ""}
       </p>
       {draft.quantity.trim() && <button type="button" disabled={busy || uncertain} onClick={() => change({ quantity: "", includeCount: false })}>Discard count draft</button>}
-      </details>
-      {item?.checkedOn === date && !draft.quantity.trim() && !saved && (
+      </details>}
+      {!card && item?.checkedOn === date && !draft.quantity.trim() && !saved && (
         <p className={styles.saved}>{item.orderOpen ? "Order requested" : "Enough for now"} · {format(item.checkedAt)}</p>
       )}
-      {queued && <p role="status">{queued.payload.decision === 'cancelOrder' ? 'Order removed' : queued.payload.decision === 'order' ? 'Order' : 'Enough'} · {queued.state === 'failed' ? 'Not synced — review the sync notice above' : 'Kept on this device · Syncing…'}</p>}
-      {saved && !queued && (
+      {queued && (!card || queued.state === 'failed') && <p role="status">{queued.payload.decision === 'cancelOrder' ? 'Order removed' : queued.payload.decision === 'order' ? 'Order' : 'Enough'} · {queued.state === 'failed' ? 'Not synced — review the sync notice above' : 'Kept on this device · Syncing…'}</p>}
+      {saved && !queued && !card && (
         <p className={styles.saved} role="status">
           {saved}
         </p>
