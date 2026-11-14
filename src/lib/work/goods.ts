@@ -46,6 +46,7 @@ const groups: Record<string, [string, string, string?][]> = {
     ['bun-thap-chua', 'Bun Thap Chua dry noodles', 'For egg-roll filling'], ['rice-paper', 'Round rice paper'], ['roti', 'Frozen roti'], ['sticky-rice', 'Sweet sticky rice', '50 lbs'],
     ['white-rice', 'Long Grain Rice (White)', '50 lbs'], ['woonsen', 'Bean Thread (Woonsen / Glass Noodles)'], ['pho-noodles', 'Pho (Fresh Pho / Pad Thai Noodles)', '10 lbs/PC'],
     ['eggroll-wrappers', 'Spring Roll Wrappers (Egg-Roll Wrappers)', 'Wei Chuen brand'], ['eggroll-veggie', 'Vegetable Egg Rolls'], ['eggroll-pork', 'Pork egg rolls'], ['potstickers', 'Pork Potsticker', 'Wei Chuen brand'],
+    ['crab-rangoon', 'Crab Rangoon (Frozen)'],
   ],
   'Sauces & pantry': [
     // Additional products from the owner’s historical buy lists.
@@ -59,10 +60,14 @@ const groups: Record<string, [string, string, string?][]> = {
     ['tamarind', 'Wet tamarind'], ['white-vinegar', 'White Vinegar'], ['yellow-curry', 'Yellow curry paste', 'Mae; full brand not shown'], ['black-pepper', 'Black Pepper Powder', '5 lb bag'],
     ['cooking-oil', 'Vegetable Oil (Cooking Oil)'], ['hoisin', 'Hoisin Sauce', 'Koon Chun brand'], ['oyster-panda', 'Oyster Sauce — Panda'], ['oyster-kum-chun', 'Oyster Sauce — Kum Chun'],
     ['soy-kikkoman', 'Soy Sauce', 'Kikkoman; 5 gallons'], ['sugar', 'White Granulated Sugar', '50 lbs'], ['lime-juice', 'Lime juice'], ['sambal', 'Red chili sambal oelek'], ['bread-crumbs', 'Japanese Style Panko Bread Crumbs', '20 lb bag'],
+    ['tempura-batter', 'Tempura Batter Mix'], ['corn-starch', 'Corn Starch'], ['baking-soda', 'Baking Soda', '13.5 lbs/pc; 4 pc/case'],
+    ['salt', 'Salt (Table Salt)'], ['turmeric', 'Dried Turmeric Powder'], ['potassium-solution', 'Potassium Solution (Lye Water / Kansui)'],
+    ['clear-fry-oil', 'Clear Fry Oil (Frying Oil)'], ['creamy-shortening', 'Creamy Shortening (Frying Shortening)'],
   ],
   'Drinks, eggs & dairy': [
     // Additional products from the owner’s historical buy lists.
     ['extra-firm-tofu', 'Firm Tofu'],
+    ['soft-tofu', 'Soft Tofu (Silken)'],
     ["condensed-milk", "Condensed milk"],
     ["sake", "Sake"],
     ["kj-sauvignon", "KJ Sauvignon", "KJ as listed; confirm exact label when ordering"],
@@ -88,18 +93,20 @@ const groups: Record<string, [string, string, string?][]> = {
 
     ['plastic-6x6', 'Plastic Clear Container — One Compartment', '6×6, small'], ['plastic-8x2', 'Plastic Clear Container — One Compartment', '8×2, for satay'],
     ['togo-16', 'Microveable Food Pail — Small Rice Box (#16)', '16 oz'], ['togo-32', 'Microveable Food Pail — Large Rice Box (#32)', '32 oz'], ['black-7in', 'Black Round Container', '7 inch'],
-    ['soup-8oz', 'Plastic Soup Cup + Lid', '8 oz'], ['soup-16oz', 'Plastic Soup Cup + Lid', '16 oz'], ['soup-32oz', 'Plastic Soup Cup + Lid', '32 oz'],
+    ['soup-8oz', 'Plastic Soup Cup + Lid', '8 oz'], ['soup-16oz', 'Plastic Soup Cup + Lid', '16 oz'], ['soup-32oz', 'Plastic Soup Cup + Lid', '32 oz'], ['soup-24oz', 'Plastic Soup Cup + Lid', '24 oz'],
     ['black-24oz', 'Black Round Container', 'Size 24, for pad Thai; unit not shown'], ['black-16oz', 'Black Round Container', '16 oz, for mango sticky rice'], ['chopsticks', 'Wooden Chopsticks'],
     ['produce-bags', 'LDPE Produce Bag', '11×19; 4 rolls / case'], ['foil-pad-thai', 'Round foil containers + plastic lids', 'For pad Thai'],
-    ['paper-handled', 'Handle Paper Bag', '#1/8'], ['paper-20', 'Paper Bag', '#20'], ['paper-8', 'Paper Bag', '#735 (#1/#8)'], ['reusable-bags', 'Reusable T-shirt bags'],
+    ['paper-handled', 'Handle Paper Bag', '#1/8'], ['paper-20', 'Paper Bag', '#20'], ['paper-8', 'Paper Bag', '#735 (#1/#8)'], ['paper-12', 'Paper Bag', '#12'], ['reusable-bags', 'Reusable T-shirt bags'],
     ['drink-lids', 'Lids for To-Go Drinking Cups', '16 oz'], ['napkins', 'Dine-In Napkin', 'Tri-fold'], ['drink-cups', 'To-Go Drinking Cups', '16 oz / 18 oz'],
+    ['eco-container-1', 'Eco-Friendly Container — One Compartment', 'Corn-based'], ['bamboo-skewers', 'Bamboo Skewer', '1000 pieces/pc'],
+    ['paper-towels', 'Hand Paper Towel'], ['sterno', 'Sterno (Chafing Fuel)'],
   ],
 };
 // Kitchen nicknames heard during voice stock checks. Staff can add more per item in Edit item.
 const spokenAliases: Record<string, string[]> = {
   'green-onions': ['scallions', 'scallion'], cilantro: ['coriander'], 'chow-fun': ['ho fun', 'wide noodle', 'wide noodles'],
   'pho-noodles': ['pad thai noodle', 'pad thai noodles', 'small rice noodle'], woonsen: ['glass noodle', 'silver noodle'],
-  'bean-sprouts': ['sprouts'], 'eggroll-veggie': ['veggie egg rolls', 'veggie egg roll'], 'cooking-oil': ['fryer oil', 'oil'],
+  'bean-sprouts': ['sprouts'], 'eggroll-veggie': ['veggie egg rolls', 'veggie egg roll'], 'cooking-oil': ['vegetable oil', 'oil'], 'clear-fry-oil': ['clear fry oil', 'clear fry', 'fry oil', 'fryer oil'], 'paper-towels': ['towel', 'towels', 'paper towel'], 'soft-tofu': ['silken tofu'],
   'togo-16': ['small pail', 'small rice box'], 'togo-32': ['large pail', 'large rice box', 'big pail'],
 };
 export const workGoods: WorkGood[] = Object.entries(groups).flatMap(([category, items]) => items.map(([id, name, detail]) => ({ id, name, category, ...(detail ? { detail } : {}), ...(spokenAliases[id] ? { aliases: spokenAliases[id] } : {}) })));

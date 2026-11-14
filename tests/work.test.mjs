@@ -191,7 +191,7 @@ test('optional names default to the authoritative station team; explicit invalid
   await assert.rejects(repository.changeWork({ date, action: 'complete', taskId: other.id, version: board.day.version, memberId: 'kitchen-id' }, 'session'), /current crew member/);
 });
 test('goods catalog is deduplicated by identity and keeps size, brand and fresh/frozen distinctions', () => {
-  assert.equal(workGoods.length, 151); assert.equal(new Set(workGoods.map(g => g.id)).size, 151);
+  assert.equal(workGoods.length, 167); assert.equal(new Set(workGoods.map(g => g.id)).size, 167);
   for (const id of ['broccoli', 'carrots', 'bean-sprouts', 'green-onions', 'oyster-panda']) assert.equal(workGoods.filter(g => g.id === id).length, 1);
   for (const id of ['soup-8oz', 'soup-16oz', 'soup-32oz', 'chicken-breast-fresh', 'chicken-breast-frozen', 'oyster-kum-chun', 'oyster-panda', 'singha-large', 'singha-small']) assert.ok(workGoods.some(g => g.id === id));
   const settings = model.defaultWorkSettings(); assert.equal(settings.templates.length, 22); assert.doesNotThrow(() => model.validateWorkSettings(settings));
