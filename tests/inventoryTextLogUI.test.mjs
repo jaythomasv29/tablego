@@ -6,7 +6,8 @@ import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
-import { parseInventoryLog } from "../src/lib/inventory/dictation.ts";
+import * as dictation from "../src/lib/inventory/dictation.ts";
+const { parseInventoryLog } = dictation;
 import {
   validateInventoryUnit,
   inventoryCountedAt,
@@ -41,6 +42,8 @@ async function mount(
     storage = new Map(),
     defer = false,
     snapshot = board,
+    quick = { entries: [], enqueue() {} },
+    speech = { supported: false, listening: false, interim: "", error: "", start() {}, stop() {} },
   } = {},
 ) {
   const module = { exports: {} },
@@ -59,6 +62,9 @@ async function mount(
       module,
       exports: module.exports,
       Date,
+      setTimeout,
+      clearTimeout,
+      navigator: {},
       crypto: { randomUUID: () => `id-${++sequence}` },
       window: { addEventListener() {}, removeEventListener() {} },
       localStorage: {
@@ -81,7 +87,9 @@ async function mount(
             DialogTitle: (p) => React.createElement("h2", p),
             DialogDescription: (p) => React.createElement("p", p),
           };
-        if (name === "@/lib/inventory/dictation") return { parseInventoryLog };
+        if (name === "@/lib/inventory/dictation") return dictation;
+        if (name === "./InventoryQuickReviewProvider") return { useInventoryQuickReview: () => quick };
+        if (name === "./useSpeechCapture") return { useSpeechCapture: (onFinal) => { speech.onFinal = onFinal; return speech; } };
         if (name === "@/lib/inventory/model")
           return { validateInventoryUnit, inventoryCountedAt };
         if (name.endsWith(".module.css"))
@@ -277,4 +285,47 @@ test('unknown item can be created in the reviewed log with its count and survive
  await act(async () => button(r, 'Speak or type stock log').props.onClick());
  await act(async () => button(r, 'Retry original log').props.onClick());
  assert.equal(calls[0].body, calls[1].body);
+});
+
+test("clear spoken actions save after the undo window and skip the count review", async (t) => {
+  const queued = [];
+  const f = await mount(t, { quick: { entries: [], enqueue: (p, name) => queued.push({ ...p, name }) } });
+  await enter(f.renderer, "basil low. white rice good");
+  assert.equal(f.renderer.root.findAllByType("textarea").length, 1, "nothing left to review");
+  assert.equal(queued.length, 0, "Undo window open");
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 3100)));
+  assert.deepEqual(queued.map((p) => [p.itemId, p.decision, p.flagOnly, "quantity" in p, p.version]), [["basil", "order", true, false, 2], ["rice", "sufficient", undefined, false, 0]]);
+  assert.equal(f.calls.length, 0, "no count log request");
+});
+test("Undo stops a spoken action before it saves; counts still wait for review", async (t) => {
+  const queued = [];
+  const f = await mount(t, { quick: { entries: [], enqueue: (p) => queued.push(p) } });
+  await enter(f.renderer, "basil low. white rice 2 bags");
+  await act(async () => button(f.renderer, "Undo").props.onClick());
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 3100)));
+  assert.equal(queued.length, 0);
+  assert.ok(JSON.stringify(f.renderer.toJSON()).includes("Undone"));
+  assert.ok(button(f.renderer, "Confirm 1 stock counts"));
+});
+test("live listening saves clear phrases and keeps the rest as text for review", async (t) => {
+  const queued = [], speech = { supported: true, listening: true, interim: "", error: "", start() {}, stop() {} };
+  const f = await mount(t, { speech, quick: { entries: [], enqueue: (p) => queued.push(p) } });
+  await act(async () => button(f.renderer, "Speak or type stock log").props.onClick());
+  await act(async () => speech.onFinal("white rice good basil low"));
+  await act(async () => speech.onFinal("cilantro low"));
+  await act(async () => speech.onFinal("white rice 2 bags"));
+  assert.equal(f.renderer.root.findByType("textarea").props.value, "cilantro low\nwhite rice 2 bags", "unknown item and count kept for review");
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 3100)));
+  assert.deepEqual(queued.map((p) => [p.itemId, p.decision]), [["rice", "sufficient"], ["basil", "order"]]);
+});
+test("close matches offer one-tap item choices before saving the action", async (t) => {
+  const queued = [];
+  const snapshot = { ...board, goods: [...board.goods, { id: "op", name: "Oyster Sauce — Panda", category: "Sauces", baseUnit: "bottle" }, { id: "ok", name: "Oyster Sauce — Kum Chun", category: "Sauces", baseUnit: "bottle" }] };
+  const f = await mount(t, { snapshot, quick: { entries: [], enqueue: (p) => queued.push(p) } });
+  await enter(f.renderer, "oyster sauce order");
+  await act(async () => f.renderer.root.findAllByType("button").find((b) => b.children[0] === "Oyster Sauce — Kum Chun").props.onClick());
+  await act(async () => reviewCheck(f.renderer).props.onChange({ target: { checked: true } }));
+  await act(async () => button(f.renderer, "Save 1 entry").props.onClick());
+  assert.deepEqual(queued.map((p) => [p.itemId, p.decision]), [["ok", "order"]]);
+  assert.equal(f.calls.length, 0);
 });

@@ -178,3 +178,33 @@
 .row {
   gap: 8px;
 }
+.mic { display:flex; align-items:center; gap:12px; padding:12px; border:1px solid var(--border); border-radius:14px; background:var(--card); }
+.mic p { flex:1; min-width:0; margin:0; font-size:13px; line-height:1.4; color:var(--muted-foreground); overflow-wrap:anywhere; }
+.mic button { flex:none; display:inline-flex; align-items:center; gap:8px; min-height:52px; padding:0 18px; border-radius:999px; font-size:15px; font-weight:750; border:1px solid #365c4c; box-shadow:0 3px 0 #22392f; touch-action:manipulation; }
+.mic button:active { transform:translateY(2px); box-shadow:0 1px 0 #22392f; }
+.micOff { background:#365c4c; color:#fff; }
+.micOn { background:#b3261e !important; border-color:#b3261e !important; color:#fff; box-shadow:0 3px 0 #7a1712 !important; }
+.micDot { width:10px; height:10px; border-radius:50%; background:currentColor; }
+.micOn .micDot { animation:pulse 1.1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity:.25; transform:scale(.7); } }
+.voice { list-style:none; margin:0; padding:0; display:grid; gap:6px; max-height:38dvh; overflow-y:auto; }
+.voice li { --tone:var(--muted-foreground); display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:48px; padding:6px 6px 6px 12px; border-radius:12px; border:1px solid color-mix(in srgb,var(--tone) 35%,var(--border)); background:color-mix(in srgb,var(--tone) 10%,var(--card)); }
+.voice li[data-intent=order], .voice li[data-intent=out] { --tone:#b06a10; }
+.voice li[data-intent=enough] { --tone:#2f6b4f; }
+.voice li[data-intent=cancel] { --tone:#6b7280; }
+.voice li[data-status=undone], .voice li[data-status=skipped] { opacity:.55; }
+.voice li[data-status=failed] { --tone:#b3261e; }
+.voice span { display:grid; min-width:0; overflow-wrap:anywhere; }
+.voice strong { font-size:14px; }
+.voice small { font-size:12px; color:var(--tone); font-weight:650; }
+.voice em { flex:none; font-style:normal; font-size:12px; color:var(--muted-foreground); padding-right:6px; }
+.voice button { flex:none; min-height:40px; padding:0 14px; border-radius:10px; border:1px solid var(--border); background:var(--card); font-weight:700; }
+.intent { display:inline-block; margin-right:8px; padding:1px 8px; border-radius:999px; font-size:11px; font-weight:750; color:#8d520a; background:#fcefd9; }
+.intent[data-intent=enough] { color:#2b6448; background:#e5f1e8; }
+.intent[data-intent=cancel] { color:#4b5563; background:#eceef1; }
+:global(.dark) .intent { color:#f3c27e; background:#382814; }
+:global(.dark) .intent[data-intent=enough] { color:#a9d7bb; background:#1b3126; }
+.choices { display:flex; flex-wrap:wrap; gap:6px; }
+.choices button { display:grid; text-align:left; min-height:44px; padding:6px 12px; border-radius:10px; border:1px solid var(--border); background:var(--card); font-size:13px; font-weight:650; box-shadow:0 2px 0 var(--border); }
+.choices small { font-size:11px; font-weight:400; color:var(--muted-foreground); }
+@media(prefers-reduced-motion:reduce) { .micOn .micDot { animation:none; } .mic button:active { transform:none; } }

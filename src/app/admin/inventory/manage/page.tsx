@@ -850,6 +850,12 @@ export default function InventoryManagePage() {
                         maxLength: 300,
                         defaultValue: modal.good?.detail,
                       })}
+                      {field("aliases", "Spoken nicknames (optional, comma separated)", {
+                        required: false,
+                        maxLength: 450,
+                        placeholder: "e.g. scallions, green onion",
+                        defaultValue: modal.good?.aliases?.join(", "),
+                      })}
                     </>
                   )}
                   {modal.kind === "supplier" && (

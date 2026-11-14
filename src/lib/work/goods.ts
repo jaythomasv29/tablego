@@ -1,5 +1,5 @@
 import type { WorkTemplate } from './model';
-export interface WorkGood { id: string; name: string; category: string; detail?: string }
+export interface WorkGood { id: string; name: string; category: string; detail?: string; aliases?: string[] }
 // Transcribed from the owner's four supplier-list screenshots. Pack quantities
 // describe the supplied list, not required stock levels or reorder thresholds.
 const groups: Record<string, [string, string, string?][]> = {
@@ -95,7 +95,14 @@ const groups: Record<string, [string, string, string?][]> = {
     ['drink-lids', 'Lids for To-Go Drinking Cups', '16 oz'], ['napkins', 'Dine-In Napkin', 'Tri-fold'], ['drink-cups', 'To-Go Drinking Cups', '16 oz / 18 oz'],
   ],
 };
-export const workGoods: WorkGood[] = Object.entries(groups).flatMap(([category, items]) => items.map(([id, name, detail]) => ({ id, name, category, ...(detail ? { detail } : {}) })));
+// Kitchen nicknames heard during voice stock checks. Staff can add more per item in Edit item.
+const spokenAliases: Record<string, string[]> = {
+  'green-onions': ['scallions', 'scallion'], cilantro: ['coriander'], 'chow-fun': ['ho fun', 'wide noodle', 'wide noodles'],
+  'pho-noodles': ['pad thai noodle', 'pad thai noodles', 'small rice noodle'], woonsen: ['glass noodle', 'silver noodle'],
+  'bean-sprouts': ['sprouts'], 'eggroll-veggie': ['veggie egg rolls', 'veggie egg roll'], 'cooking-oil': ['fryer oil', 'oil'],
+  'togo-16': ['small pail', 'small rice box'], 'togo-32': ['large pail', 'large rice box', 'big pail'],
+};
+export const workGoods: WorkGood[] = Object.entries(groups).flatMap(([category, items]) => items.map(([id, name, detail]) => ({ id, name, category, ...(detail ? { detail } : {}), ...(spokenAliases[id] ? { aliases: spokenAliases[id] } : {}) })));
 export function goodsTemplates(): WorkTemplate[] {
   return workGoods.map(good => ({ id: `boh-goods-${good.id}`, title: `Check ${good.name}`, category: good.category, ...(good.detail ? { detail: good.detail } : {}), station: 'Back of house', shift: 'both', checkpoint: 'opening', offset: 0, assignee: '', enabled: true }));
 }

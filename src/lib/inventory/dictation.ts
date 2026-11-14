@@ -9,6 +9,48 @@ export interface DictationRow {
   issue: string;
   confirmed?: boolean;
   suggestedName?: string;
+  /** Spoken stock action: order/out/enough/cancel. Counts without an action leave it unset. */
+  intent?: DictationIntent;
+  /** Close item matches when the phrase fits more than one item. */
+  candidates?: string[];
+}
+export type DictationIntent = "order" | "out" | "enough" | "cancel";
+// Longest phrases win, so "almost out" orders while "out" alone marks the item out of stock.
+const intentPhrases: [string[], DictationIntent][] = (
+  [
+    ["do not order", "cancel"], ["dont order", "cancel"], ["don't order", "cancel"], ["never mind", "cancel"],
+    ["take off", "cancel"], ["cancel", "cancel"], ["remove", "cancel"],
+    ["running low", "order"], ["getting low", "order"], ["almost out", "order"], ["running out", "order"],
+    ["need more", "order"], ["get more", "order"], ["re order", "order"], ["reorder", "order"], ["order", "order"],
+    ["low", "order"], ["need", "order"], ["needs", "order"], ["buy", "order"], ["short", "order"],
+    ["out of", "out"], ["all out", "out"], ["none left", "out"], ["ran out", "out"], ["empty", "out"], ["out", "out"], ["none", "out"], ["no", "out"],
+    ["we're good", "enough"], ["all good", "enough"], ["have enough", "enough"], ["plenty of", "enough"], ["plenty", "enough"],
+    ["enough", "enough"], ["good", "enough"], ["full", "enough"], ["fine", "enough"], ["ok", "enough"], ["okay", "enough"], ["stocked", "enough"],
+  ] as [string, DictationIntent][]
+)
+  .map(([phrase, intent]) => [phrase.split(" "), intent] as [string[], DictationIntent])
+  .sort((a, b) => b[0].length - a[0].length);
+const fillerWords = new Set(["on", "the", "some", "more", "we", "are", "is", "any", "for", "please", "it", "its", "got", "have", "of", "a", "an", "we're", "were", "still", "left", "remaining", "to", "list", "the", "add", "put", "from", "off", "up"]);
+function editDistance(a: string, b: string, limit: number) {
+  if (Math.abs(a.length - b.length) > limit) return limit + 1;
+  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j++)
+      current[j] = Math.min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    previous = current;
+  }
+  return previous[b.length];
+}
+/** Misheard words are forgiven only for longer words, so short names never cross-match. */
+const sounds = (spoken: string, name: string) => {
+  if (spoken === name) return true;
+  const limit = spoken.length >= 7 ? 2 : spoken.length >= 4 ? 1 : 0;
+  return limit > 0 && spoken[0] === name[0] && editDistance(spoken, name, limit) <= limit;
+};
+/** A row is ready to save without review: one item, a spoken action and no open questions. */
+export function dictationRowReady(row: DictationRow) {
+  return Boolean(row.intent && row.itemId && !row.issue);
 }
 const small: Record<string, number> = {
   zero: 0,
@@ -299,12 +341,14 @@ export function parseInventoryLog(
   stock: InventoryRecords,
   customUnits: string[] = [],
 ): DictationRow[] {
+  const spokenName = (value: string) => normalize(value).replace(/-/g, " ").replace(/\s+/g, " ").trim();
   const aliases = goods
-    .map((g) => ({ id: g.id, name: normalize(g.name) }))
+    .flatMap((g) => [g.name, ...(g.aliases || [])].map((name) => ({ id: g.id, name: spokenName(name) })))
+    .filter((a) => a.name)
     .concat(
       offers.map((o) => ({
         id: o.itemId,
-        name: normalize(o.supplierItemName),
+        name: spokenName(o.supplierItemName),
       })),
     );
   const knownUnits = { ...units };
@@ -324,24 +368,25 @@ export function parseInventoryLog(
       if (!knownUnits[singular + "s"]) knownUnits[singular + "s"] = unit;
     }
   }
+  const aliasTokens = aliases.map((a) => a.name.split(" ").map(singularToken)).filter((tokens) => tokens.length);
   const unitAbbreviations = /\b(lbs?|oz|kgs?|g|ml|l|gal|gals|qt|qts|pt|pts|ea|pcs?|pkg)\.(?=\s|$)/gi;
   const unitKeys = Object.keys(knownUnits).sort((a, b) => b.length - a.length);
-  const parts = clauses(
+  const prepared =
     text.slice(0, 20000).replace(unitAbbreviations, (match, unit: string, offset: number, input: string) => {
       const prefix = input.slice(0, offset).split(/[,;\n]|\.(?!\d)/).at(-1)?.trim() || "";
       const quantityFirst = prefix && normalize(prefix).split(" ").every(word => isNumber(word) || ["and", "a", "an"].includes(word));
       return quantityFirst || /^\s+(?:of|left|remaining)\b/i.test(input.slice(offset + match.length)) ? unit : match;
     })
       .replace(/(\d)(?=[a-z])/gi, "$1 ")
-      .replace(/½/g, " 1/2").replace(/¼/g, " 1/4").replace(/¾/g, " 3/4"),
-    aliases.map((a) => a.name),
-  ).flatMap((source) =>
-    continuousClauses(
-      source,
-      aliases.map((a) => a.name),
-      knownUnits,
-    ),
-  );
+      .replace(/½/g, " 1/2").replace(/¼/g, " 1/4").replace(/¾/g, " 3/4");
+  const sentenceOf: number[] = [];
+  const parts = prepared
+    .split(/\n+|\.(?!\d)/)
+    .flatMap((sentence, sentenceIndex) =>
+      clauses(sentence, aliases.map((a) => a.name))
+        .flatMap((source) => continuousClauses(source, aliases.map((a) => a.name), knownUnits))
+        .map((source) => { sentenceOf.push(sentenceIndex); return source; }),
+    );
   const truncated = text.length > 20000 || parts.length > 200;
   const sources = parts.slice(0, truncated ? 199 : 200);
   const rows: DictationRow[] = sources.map((source, index) => {
@@ -353,7 +398,25 @@ export function parseInventoryLog(
       numberGroups: { words: string[]; indexes: number[] }[] = [],
       unitValues: string[] = [],
       removed = new Set<number>();
+    const intents = new Set<DictationIntent>();
+    // Words inside a spoken item name (e.g. a custom "Good Earth tea") are never actions.
+    const named = new Set<number>();
+    for (const alias of aliasTokens)
+      for (let i = 0; i + alias.length <= words.length; i++)
+        if (alias.every((token, offset) => singularToken(words[i + offset]) === token))
+          for (let offset = 0; offset < alias.length; offset++) named.add(i + offset);
     for (let i = 0; i < words.length; i++) {
+      if (named.has(i)) continue;
+      const phrase = intentPhrases.find(([tokens]) => tokens.every((token, offset) => words[i + offset] === token && !named.has(i + offset)));
+      if (!phrase) continue;
+      intents.add(phrase[1]);
+      for (let offset = 0; offset < phrase[0].length; offset++) removed.add(i + offset);
+      i += phrase[0].length - 1;
+    }
+    const intent = intents.size === 1 ? Array.from(intents)[0] : undefined;
+    if (intents.size > 1) issues.push("Mixed instructions: choose order, enough or remove");
+    for (let i = 0; i < words.length; i++) {
+      if (removed.has(i)) continue;
       const word = words[i];
       const matchedUnit = unitKeys.find(unit => unit.split(" ").every((token, offset) => words[i + offset] === token));
       if (matchedUnit) {
@@ -392,8 +455,9 @@ export function parseInventoryLog(
       quantity = numberValue(numberGroups[0].words);
     else if (numberGroups.length > 1)
       issues.push("Multiple quantities or a range: choose one exact count");
-    if (quantity === null) issues.push("Enter an exact quantity");
-    else if (
+    if (quantity === null) {
+      if (!intents.size) issues.push("Enter an exact quantity");
+    } else if (
       !Number.isFinite(quantity) ||
       quantity < 0 ||
       quantity > 999999 ||
@@ -403,6 +467,7 @@ export function parseInventoryLog(
       issues.push("Use a quantity from 0 to 999999 with up to two decimals");
     }
     if (
+      (numberGroups.length || !intents.size) &&
       /(?:^|\s)-\s*\d|\b(?:minus|negative|about|approximately|roughly|between|to|or)\b/i.test(
         source,
       )
@@ -411,7 +476,7 @@ export function parseInventoryLog(
       issues.push("Approximate, negative or ranged quantity needs review");
     }
     const query = words
-      .filter((w, i) => !removed.has(i))
+      .filter((w, i) => !removed.has(i) && !(intents.size && fillerWords.has(w)))
       .join(" ")
       .replace(
         /^(?:i have|i see|we have|we have got|we've got|there are|there is|there's|have|got|counted|check)\s+/,
@@ -430,6 +495,11 @@ export function parseInventoryLog(
         const names = a.name.split(" ").map(singularToken);
         return tokens.every((t) => names.includes(t));
       });
+      if (!candidates.length)
+        candidates = aliases.filter((a) => {
+          const names = a.name.split(" ").map(singularToken);
+          return tokens.every((t) => names.some((n) => sounds(t, n)));
+        });
     }
     const ids = Array.from(new Set(candidates.map((a) => a.id))).filter((id) =>
       goods.some((g) => g.id === id),
@@ -437,18 +507,23 @@ export function parseInventoryLog(
     const itemId = ids.length === 1 ? ids[0] : "";
     if (ids.length > 1)
       issues.push("Several items match: choose the exact item");
+    if (intent === "cancel" && quantity !== null)
+      issues.push("Save a count separately from removing an order");
     else if (!itemId) issues.push("Item not recognized: choose an item");
     let unit = unitValues[0] || "";
     if (unitValues.length > 1) {
       unit = "";
       issues.push("Multiple units: choose the counting unit");
     }
+    if (intent === "out" && quantity === null) quantity = 0;
     if (!unit) {
       unit =
         stock[itemId]?.unit ||
         goods.find((g) => g.id === itemId)?.baseUnit ||
         "";
-      issues.push("Unit not stated clearly: verify the unit");
+      // An action without a count, or an out-of-stock zero, needs no unit decision.
+      if (!(intent && (quantity === null || (intent === "out" && quantity === 0 && !numberGroups.length))))
+        issues.push("Unit not stated clearly: verify the unit");
     }
     return {
       id: `log-${index + 1}`,
@@ -458,7 +533,22 @@ export function parseInventoryLog(
       quantity,
       unit,
       issue: Array.from(new Set(issues)).join(". "),
+      ...(intent ? { intent } : {}),
+      ...(ids.length > 1 ? { candidates: ids.slice(0, 6) } : {}),
     };
+  });
+  // "Basil, cilantro and limes low": items with no count share the action spoken in the same sentence.
+  rows.forEach((row, index) => {
+    if (row.intent || row.quantity !== null || !row.issue.includes("Enter an exact quantity")) return;
+    const same = (other: number) => other >= 0 && other < rows.length && sentenceOf[other] === sentenceOf[index];
+    let source = -1;
+    for (let next = index + 1; same(next); next++) if (rows[next].intent) { source = next; break; }
+    if (source < 0) for (let back = index - 1; same(back); back--) if (rows[back].intent) { source = back; break; }
+    if (source < 0) return;
+    const intent = rows[source].intent!;
+    row.intent = intent;
+    if (intent === "out") row.quantity = 0;
+    row.issue = row.issue.split(". ").filter((value) => value !== "Enter an exact quantity" && value !== "Unit not stated clearly: verify the unit").join(". ");
   });
   const occurrences = new Map<string, number>();
   for (const r of rows)

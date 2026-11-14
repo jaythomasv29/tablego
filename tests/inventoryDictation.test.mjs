@@ -221,3 +221,68 @@ test('unit abbreviation punctuation preserves the boundary before a new unknown 
  assert.equal(rows[1].quantity, 3);
  assert.equal(parse('2 lbs. basil')[0].itemId, 'basil');
 });
+
+import { dictationRowReady } from "../src/lib/inventory/dictation.ts";
+import { aliasInput, goodInput } from "../src/lib/inventory/operations.ts";
+const shop = [
+  { id: "basil", name: "Basil", baseUnit: "lb", category: "Produce" },
+  { id: "cilantro", name: "Cilantro", baseUnit: "bunch", category: "Produce" },
+  { id: "limes", name: "Limes", baseUnit: "each", category: "Produce" },
+  { id: "green-onions", name: "Green onions", baseUnit: "case", category: "Produce", aliases: ["scallions"] },
+  { id: "oyster-panda", name: "Oyster Sauce — Panda", baseUnit: "bottle", category: "Sauces" },
+  { id: "oyster-kum", name: "Oyster Sauce — Kum Chun", baseUnit: "bottle", category: "Sauces" },
+  { id: "rice", name: "Long Grain Rice (White)", baseUnit: "bag", category: "Rice" },
+];
+const say = (text, stock = {}) => parseInventoryLog(text, shop, [], stock).map((r) => [r.itemId, r.intent || "", r.quantity, r.issue]);
+test("spoken order, out, enough and cancel actions need no count", () => {
+  assert.deepEqual(say("basil low"), [["basil", "order", null, ""]]);
+  assert.deepEqual(say("basil order"), [["basil", "order", null, ""]]);
+  assert.deepEqual(say("running low on cilantro"), [["cilantro", "order", null, ""]]);
+  assert.deepEqual(say("need limes"), [["limes", "order", null, ""]]);
+  assert.deepEqual(say("basil to order"), [["basil", "order", null, ""]]);
+  assert.deepEqual(say("out of cilantro"), [["cilantro", "out", 0, ""]]);
+  assert.deepEqual(say("basil almost out"), [["basil", "order", null, ""]]);
+  assert.deepEqual(say("basil good"), [["basil", "enough", null, ""]]);
+  assert.deepEqual(say("cancel basil"), [["basil", "cancel", null, ""]]);
+  assert.ok(parseInventoryLog("basil low", shop, [], {}).every(dictationRowReady));
+});
+test("one spoken action covers every item in the same sentence, but not the next sentence", () => {
+  assert.deepEqual(say("basil, cilantro and limes low").map((r) => [r[0], r[1]]), [["basil", "order"], ["cilantro", "order"], ["limes", "order"]]);
+  assert.deepEqual(say("basil cilantro limes low").map((r) => [r[0], r[1]]), [["basil", "order"], ["cilantro", "order"], ["limes", "order"]]);
+  assert.deepEqual(say("low on basil and cilantro").map((r) => [r[0], r[1]]), [["basil", "order"], ["cilantro", "order"]]);
+  const split = say("basil. cilantro good");
+  assert.equal(split[0][1], ""); assert.match(split[0][3], /exact quantity/); assert.equal(split[1][1], "enough");
+});
+test("counts with an action save both, while plain counts keep the review rules", () => {
+  const rows = parseInventoryLog("basil 2 bags low. rice 3 bags. limes 4", shop, [], {});
+  assert.deepEqual([rows[0].intent, rows[0].quantity, rows[0].unit, rows[0].issue], ["order", 2, "bag", ""]);
+  assert.deepEqual([rows[1].intent, rows[1].quantity, rows[1].issue], [undefined, 3, ""]);
+  assert.equal(dictationRowReady(rows[1]), false);
+  assert.match(rows[2].issue, /Unit not stated/);
+  assert.match(parseInventoryLog("cancel basil 2 lb", shop, [], {})[0].issue, /count separately/);
+  assert.match(parseInventoryLog("basil low good", shop, [], {})[0].issue, /Mixed instructions/);
+});
+test("misheard words, nicknames and close matches", () => {
+  assert.deepEqual(say("bazil low")[0].slice(0, 2), ["basil", "order"]);
+  assert.deepEqual(say("cilantra good")[0].slice(0, 2), ["cilantro", "enough"]);
+  assert.deepEqual(say("scallions order")[0].slice(0, 2), ["green-onions", "order"]);
+  assert.deepEqual(say("white rice low")[0].slice(0, 2), ["rice", "order"]);
+  assert.equal(say("lime low")[0][0], "limes");
+  assert.equal(say("bay low")[0][0], "", "short words never fuzzy-match");
+  const ambiguous = parseInventoryLog("oyster sauce order", shop, [], {})[0];
+  assert.equal(ambiguous.itemId, ""); assert.deepEqual(ambiguous.candidates, ["oyster-panda", "oyster-kum"]);
+  assert.equal(dictationRowReady(ambiguous), false);
+});
+test("nicknames are validated and optional on saved items", () => {
+  assert.deepEqual(aliasInput("scallions, green onion ,, scallions"), { aliases: ["scallions", "green onion"] });
+  assert.deepEqual(aliasInput(""), {});
+  assert.throws(() => aliasInput(Array(11).fill("x").map((x, i) => x + i)));
+  assert.throws(() => aliasInput("x".repeat(41)));
+  assert.equal("aliases" in goodInput({ name: "Basil", category: "Produce", baseUnit: "lb" }, "basil"), false);
+  assert.deepEqual(goodInput({ name: "Green onions", category: "Produce", baseUnit: "case", aliases: "scallions" }, "g").aliases, ["scallions"]);
+});
+test("action words inside an item name stay part of the name", () => {
+  const goods = [...shop, { id: "tea", name: "Good Earth tea", baseUnit: "box", category: "Drinks" }];
+  const rows = parseInventoryLog("good earth tea low. good earth tea good", goods, [], {});
+  assert.deepEqual(rows.map((r) => [r.itemId, r.intent]), [["tea", "order"], ["tea", "enough"]]);
+});

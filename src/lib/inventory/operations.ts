@@ -15,6 +15,8 @@ export interface CatalogGood {
   detail?: string;
   location?: string;
   baseUnit: string;
+  /** Spoken nicknames used by dictation, e.g. "scallions" for green onions. */
+  aliases?: string[];
 }
 export interface Supplier {
   id: string;
@@ -183,7 +185,17 @@ export function goodInput(value: unknown, id: string): CatalogGood {
     detail: textValue(v.detail, 300, false),
     location: textValue(v.location, 120, false),
     baseUnit: validateInventoryUnit(v.baseUnit),
+    ...aliasInput(v.aliases),
   };
+}
+/** Accepts a comma-separated string or a list; empty input leaves the record without nicknames. */
+export function aliasInput(value: unknown): { aliases?: string[] } {
+  if (value === undefined || value === null || value === "") return {};
+  const list = Array.isArray(value) ? value : typeof value === "string" ? value.split(",") : null;
+  if (!list || list.some((a) => typeof a !== "string")) throw new Error("Enter nicknames as text separated by commas");
+  const aliases = Array.from(new Set(list.map((a: string) => a.trim().replace(/\s+/g, " ")).filter(Boolean)));
+  if (aliases.length > 10 || aliases.some((a) => a.length > 40)) throw new Error("Use up to 10 nicknames of 40 characters or fewer");
+  return aliases.length ? { aliases } : {};
 }
 export function offerInput(
   value: unknown,
