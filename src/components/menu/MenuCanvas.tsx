@@ -19,6 +19,8 @@ const SPREAD_W = PAGE_W * MENU_PAGES.length + GAP * (MENU_PAGES.length - 1);
 const PAD = 16;
 const MAX_SCALE = 4;
 const TAP_SLOP = 6;
+// Page zoom used by the Page buttons on desktop (612pt page ≈ 860px wide).
+const READABLE_SCALE = 1.4;
 
 type View = { x: number; y: number; s: number };
 type Target = "all" | number;
@@ -43,7 +45,9 @@ const MenuCanvas = forwardRef<MenuCanvasHandle, { className?: string; selection?
   const viewportRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [view, setView] = useState<View>({ x: 0, y: 0, s: 0.5 });
-  const [target, setTarget] = useState<Target>(0);
+  // null until first measured: desktop opens on both pages, phones on page 1.
+  const [target, setTarget] = useState<Target | null>(null);
+  const homeTarget = (): Target => target ?? (size.w >= 768 ? "all" : 0);
   const [dragging, setDragging] = useState(false);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef<{ view: View; dist: number; mid: { x: number; y: number }; start: { x: number; y: number } } | null>(null);
@@ -74,10 +78,12 @@ const MenuCanvas = forwardRef<MenuCanvasHandle, { className?: string; selection?
         setView(clamp({ s: minScale, x: 0, y: 0 }));
         return;
       }
-      // Fit page width on narrow screens, whole page on wide ones.
+      // Zoom into the chosen page: full width on phones; on wider screens a readable size that is
+      // always larger than the both-pages view, so the button visibly focuses that page.
       const fitW = (size.w - PAD * 2) / PAGE_W;
       const fitH = (size.h - PAD * 2) / PAGE_H;
-      const s = size.w < 768 ? fitW : Math.min(fitW, fitH);
+      const spreadFit = (size.w - PAD * 2) / SPREAD_W;
+      const s = size.w < 768 ? fitW : Math.min(fitW, Math.max(fitH, READABLE_SCALE, spreadFit * 1.15));
       setView(clamp({ s, x: (size.w - PAGE_W * s) / 2 - pageLeft(t) * s, y: PAD }));
     },
     [size, minScale, clamp],
@@ -137,7 +143,7 @@ const MenuCanvas = forwardRef<MenuCanvasHandle, { className?: string; selection?
     const key = `${size.w}x${size.h}`;
     if (!size.w || key === lastSize.current) return;
     lastSize.current = key;
-    fitTo(target);
+    fitTo(target ?? (size.w >= 768 ? "all" : 0));
   }, [size, target, fitTo]);
 
   // Wheel: trackpad pinch / ctrl+wheel zooms, plain wheel pans. Non-passive to stop page scroll.
@@ -216,7 +222,7 @@ const MenuCanvas = forwardRef<MenuCanvasHandle, { className?: string; selection?
   const onDoubleClick = (e: React.MouseEvent) => {
     if (selection && (e.target as HTMLElement).closest("[data-dish]")) return;
     const rect = viewportRef.current!.getBoundingClientRect();
-    if (view.s >= MAX_SCALE * 0.6) fitTo(target);
+    if (view.s >= MAX_SCALE * 0.6) fitTo(homeTarget());
     else zoomAt(2, e.clientX - rect.left, e.clientY - rect.top);
   };
 
@@ -234,7 +240,7 @@ const MenuCanvas = forwardRef<MenuCanvasHandle, { className?: string; selection?
     } else if (e.key === "-") {
       zoomAt(0.8, size.w / 2, size.h / 2);
     } else if (e.key === "0") {
-      fitTo(target);
+      fitTo(homeTarget());
     }
   };
 

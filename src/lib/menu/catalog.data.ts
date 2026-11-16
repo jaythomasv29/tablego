@@ -134,7 +134,7 @@ export const MENU_DISH_DATA = [
         "x": 212,
         "y": 141.5,
         "w": 188,
-        "h": 184.1
+        "h": 183.5
       }
     ]
   },
@@ -152,7 +152,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 1,
         "x": 212,
-        "y": 326.6,
+        "y": 326,
         "w": 188,
         "h": 34.4
       }
@@ -172,9 +172,9 @@ export const MENU_DISH_DATA = [
       {
         "page": 1,
         "x": 212,
-        "y": 362,
+        "y": 361.4,
         "w": 188,
-        "h": 34.4
+        "h": 34.5
       }
     ]
   },
@@ -195,7 +195,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 1,
         "x": 212,
-        "y": 397.4,
+        "y": 396.9,
         "w": 188,
         "h": 47.9
       }
@@ -218,7 +218,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 1,
         "x": 212,
-        "y": 446.4,
+        "y": 445.8,
         "w": 188,
         "h": 47.9
       }
@@ -364,16 +364,16 @@ export const MENU_DISH_DATA = [
       {
         "page": 1,
         "x": 17,
-        "y": 524.6,
+        "y": 524,
         "w": 188,
         "h": 55.8
       },
       {
         "page": 1,
         "x": 17,
-        "y": 585.4,
+        "y": 584.8,
         "w": 188,
-        "h": 70.9
+        "h": 71
       }
     ]
   },
@@ -391,7 +391,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 1,
         "x": 17,
-        "y": 657.3,
+        "y": 656.8,
         "w": 188,
         "h": 36.7
       }
@@ -416,14 +416,14 @@ export const MENU_DISH_DATA = [
       {
         "page": 1,
         "x": 212,
-        "y": 524.6,
+        "y": 524,
         "w": 188,
         "h": 55.8
       },
       {
         "page": 1,
         "x": 212,
-        "y": 585.4,
+        "y": 584.8,
         "w": 188,
         "h": 108.6
       }
@@ -443,14 +443,14 @@ export const MENU_DISH_DATA = [
       {
         "page": 1,
         "x": 406,
-        "y": 524.6,
+        "y": 524,
         "w": 188,
         "h": 36.7
       },
       {
         "page": 1,
         "x": 406,
-        "y": 566.3,
+        "y": 565.7,
         "w": 188,
         "h": 77.1
       }
@@ -474,7 +474,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 1,
         "x": 406,
-        "y": 644.4,
+        "y": 643.8,
         "w": 188,
         "h": 47.9
       }
@@ -494,14 +494,14 @@ export const MENU_DISH_DATA = [
       {
         "page": 1,
         "x": 17,
-        "y": 722.6,
+        "y": 722,
         "w": 188,
         "h": 36.7
       },
       {
         "page": 1,
         "x": 17,
-        "y": 764.3,
+        "y": 763.7,
         "w": 188,
         "h": 82.7
       }
@@ -525,14 +525,14 @@ export const MENU_DISH_DATA = [
       {
         "page": 1,
         "x": 17,
-        "y": 848,
+        "y": 847.4,
         "w": 188,
         "h": 47.9
       },
       {
         "page": 1,
         "x": 17,
-        "y": 900.9,
+        "y": 900.3,
         "w": 188,
         "h": 72.7
       }
@@ -552,16 +552,16 @@ export const MENU_DISH_DATA = [
       {
         "page": 1,
         "x": 212,
-        "y": 723.1,
+        "y": 722.6,
         "w": 188,
         "h": 36.7
       },
       {
         "page": 1,
         "x": 212,
-        "y": 764.8,
+        "y": 764.3,
         "w": 188,
-        "h": 69.3
+        "h": 68.6
       }
     ]
   },
@@ -581,7 +581,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 1,
         "x": 212,
-        "y": 835.1,
+        "y": 833.9,
         "w": 188,
         "h": 47.9
       }
@@ -601,9 +601,9 @@ export const MENU_DISH_DATA = [
       {
         "page": 1,
         "x": 212,
-        "y": 884.6,
+        "y": 883.4,
         "w": 188,
-        "h": 34.4
+        "h": 34.5
       }
     ]
   },
@@ -621,7 +621,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 1,
         "x": 212,
-        "y": 920,
+        "y": 918.9,
         "w": 188,
         "h": 36.7
       }
@@ -641,14 +641,14 @@ export const MENU_DISH_DATA = [
       {
         "page": 1,
         "x": 406,
-        "y": 723.1,
+        "y": 722.6,
         "w": 188,
         "h": 36.7
       },
       {
         "page": 1,
         "x": 406,
-        "y": 764.8,
+        "y": 764.3,
         "w": 188,
         "h": 107.5
       }
@@ -668,9 +668,9 @@ export const MENU_DISH_DATA = [
       {
         "page": 1,
         "x": 406,
-        "y": 873.3,
+        "y": 872.8,
         "w": 188,
-        "h": 34.5
+        "h": 34.4
       }
     ]
   },
@@ -688,7 +688,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 1,
         "x": 406,
-        "y": 908.8,
+        "y": 908.2,
         "w": 188,
         "h": 47.4
       }
@@ -818,29 +818,27 @@ export const MENU_DISH_DATA = [
         "x": 212,
         "y": 127.1,
         "w": 188,
-        "h": 53.3
+        "h": 85.9
       }
     ]
   },
   {
-    "id": "sole-tamarind-sauce",
-    "name": "Sole Tamarind Sauce",
+    "id": "shaken-beef",
+    "name": "Shaken Beef",
     "section": "Signature Dishes",
-    "price": "$23",
+    "price": "$22",
     "page": 2,
     "gf": false,
-    "description": "Crispy sole fillets, shallots, red bell peppers, tangy tamarind sauce.",
-    "choices": [
-      "Steamed Sole Fillet"
-    ],
+    "description": "Wok-seared steak medallions over spring mix, pickled vegetables, tangy sauce.",
+    "choices": [],
     "addOns": [],
     "areas": [
       {
         "page": 2,
         "x": 212,
-        "y": 181.4,
+        "y": 214,
         "w": 188,
-        "h": 40.6
+        "h": 28.9
       }
     ]
   },
@@ -858,9 +856,9 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 212,
-        "y": 223,
+        "y": 243.9,
         "w": 188,
-        "h": 29.5
+        "h": 29.4
       }
     ]
   },
@@ -878,20 +876,20 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 212,
-        "y": 253.5,
+        "y": 274.3,
         "w": 188,
         "h": 31
       }
     ]
   },
   {
-    "id": "shaken-beef",
-    "name": "Shaken Beef",
+    "id": "sole-tamarind-sauce",
+    "name": "Sole Tamarind Sauce",
     "section": "Signature Dishes",
-    "price": "$22",
+    "price": "$23",
     "page": 2,
     "gf": false,
-    "description": "Wok-seared steak medallions over spring mix, pickled vegetables, tangy sauce.",
+    "description": "Crispy sole fillets, shallots, red bell peppers, tangy tamarind sauce.Also available steamed.",
     "choices": [],
     "addOns": [],
     "areas": [
@@ -1014,7 +1012,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 212,
-        "y": 342.4,
+        "y": 343,
         "w": 188,
         "h": 70.8
       }
@@ -1045,9 +1043,9 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 17,
-        "y": 375.8,
+        "y": 376.3,
         "w": 188,
-        "h": 21.9
+        "h": 22
       }
     ]
   },
@@ -1076,7 +1074,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 17,
-        "y": 398.7,
+        "y": 399.3,
         "w": 188,
         "h": 28.9
       }
@@ -1107,9 +1105,9 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 17,
-        "y": 428.6,
+        "y": 429.2,
         "w": 188,
-        "h": 30
+        "h": 29.9
       }
     ]
   },
@@ -1138,7 +1136,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 17,
-        "y": 459.6,
+        "y": 460.1,
         "w": 188,
         "h": 28.9
       }
@@ -1169,7 +1167,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 17,
-        "y": 489.5,
+        "y": 490,
         "w": 188,
         "h": 30
       }
@@ -1200,14 +1198,14 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 17,
-        "y": 520.5,
+        "y": 521,
         "w": 188,
         "h": 30.5
       },
       {
         "page": 2,
         "x": 17,
-        "y": 556,
+        "y": 556.5,
         "w": 188,
         "h": 60.2
       }
@@ -1227,16 +1225,16 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 406,
-        "y": 374.7,
+        "y": 375.2,
         "w": 188,
         "h": 28.9
       },
       {
         "page": 2,
         "x": 406,
-        "y": 470.5,
+        "y": 471,
         "w": 188,
-        "h": 59.7
+        "h": 59.8
       }
     ]
   },
@@ -1254,7 +1252,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 406,
-        "y": 404.6,
+        "y": 405.1,
         "w": 188,
         "h": 28.9
       }
@@ -1274,7 +1272,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 406,
-        "y": 434.5,
+        "y": 435,
         "w": 188,
         "h": 31
       }
@@ -1305,14 +1303,14 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 212,
-        "y": 437.7,
+        "y": 438.2,
         "w": 188,
         "h": 31
       },
       {
         "page": 2,
         "x": 212,
-        "y": 473.7,
+        "y": 474.2,
         "w": 188,
         "h": 55.4
       }
@@ -1343,7 +1341,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 212,
-        "y": 530.1,
+        "y": 530.6,
         "w": 188,
         "h": 28.9
       }
@@ -1374,7 +1372,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 212,
-        "y": 560,
+        "y": 560.5,
         "w": 188,
         "h": 28.9
       }
@@ -1397,7 +1395,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 212,
-        "y": 589.9,
+        "y": 590.4,
         "w": 188,
         "h": 40.7
       }
@@ -1428,7 +1426,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 212,
-        "y": 632.6,
+        "y": 633.2,
         "w": 188,
         "h": 31
       }
@@ -1459,14 +1457,14 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 17,
-        "y": 641.7,
+        "y": 642.2,
         "w": 188,
         "h": 25.7
       },
       {
         "page": 2,
         "x": 212,
-        "y": 807.8,
+        "y": 808.3,
         "w": 188,
         "h": 82.9
       }
@@ -1497,7 +1495,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 17,
-        "y": 668.4,
+        "y": 668.9,
         "w": 188,
         "h": 25.7
       }
@@ -1528,7 +1526,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 17,
-        "y": 695.1,
+        "y": 695.6,
         "w": 188,
         "h": 25.7
       }
@@ -1559,16 +1557,16 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 17,
-        "y": 721.8,
+        "y": 722.3,
         "w": 188,
         "h": 17.2
       },
       {
         "page": 2,
         "x": 212,
-        "y": 895.7,
+        "y": 896.2,
         "w": 188,
-        "h": 77.7
+        "h": 77.8
       }
     ]
   },
@@ -1597,7 +1595,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 17,
-        "y": 740,
+        "y": 740.5,
         "w": 188,
         "h": 25.7
       }
@@ -1628,9 +1626,9 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 17,
-        "y": 766.7,
+        "y": 767.2,
         "w": 188,
-        "h": 26.7
+        "h": 26.8
       }
     ]
   },
@@ -1648,7 +1646,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 17,
-        "y": 794.4,
+        "y": 795,
         "w": 188,
         "h": 25.7
       }
@@ -1668,9 +1666,9 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 17,
-        "y": 821.1,
+        "y": 821.7,
         "w": 188,
-        "h": 26.8
+        "h": 26.7
       }
     ]
   },
@@ -1691,7 +1689,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 17,
-        "y": 848.9,
+        "y": 849.4,
         "w": 188,
         "h": 47.1
       }
@@ -1722,7 +1720,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 17,
-        "y": 897,
+        "y": 897.5,
         "w": 188,
         "h": 25.7
       }
@@ -1753,14 +1751,14 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 17,
-        "y": 923.7,
+        "y": 924.2,
         "w": 188,
         "h": 25.7
       },
       {
         "page": 2,
         "x": 406,
-        "y": 683.1,
+        "y": 683.6,
         "w": 188,
         "h": 55.4
       }
@@ -1791,7 +1789,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 17,
-        "y": 950.4,
+        "y": 950.9,
         "w": 188,
         "h": 30.5
       }
@@ -1811,9 +1809,9 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 212,
-        "y": 688.2,
+        "y": 688.7,
         "w": 188,
-        "h": 29.9
+        "h": 30
       }
     ]
   },
@@ -1842,7 +1840,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 212,
-        "y": 719.1,
+        "y": 719.7,
         "w": 188,
         "h": 20.9
       }
@@ -1873,9 +1871,9 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 212,
-        "y": 741,
+        "y": 741.6,
         "w": 188,
-        "h": 20.4
+        "h": 20.3
       }
     ]
   },
@@ -1904,14 +1902,14 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 212,
-        "y": 762.4,
+        "y": 762.9,
         "w": 188,
         "h": 31
       },
       {
         "page": 2,
         "x": 406,
-        "y": 610.7,
+        "y": 611.2,
         "w": 188,
         "h": 67.4
       }
@@ -1931,7 +1929,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 406,
-        "y": 839.1,
+        "y": 839.6,
         "w": 188,
         "h": 13.7
       }
@@ -1951,7 +1949,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 406,
-        "y": 855.6,
+        "y": 856.2,
         "w": 188,
         "h": 13.7
       }
@@ -1971,7 +1969,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 406,
-        "y": 872.2,
+        "y": 872.7,
         "w": 188,
         "h": 13.7
       }
@@ -1991,7 +1989,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 406,
-        "y": 889.3,
+        "y": 889.8,
         "w": 188,
         "h": 13.7
       }
@@ -2011,7 +2009,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 406,
-        "y": 905.8,
+        "y": 906.4,
         "w": 188,
         "h": 13.7
       }
@@ -2031,7 +2029,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 406,
-        "y": 922.4,
+        "y": 922.9,
         "w": 188,
         "h": 13.7
       }
@@ -2051,7 +2049,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 406,
-        "y": 938.9,
+        "y": 939.5,
         "w": 188,
         "h": 13.7
       }
@@ -2071,7 +2069,7 @@ export const MENU_DISH_DATA = [
       {
         "page": 2,
         "x": 406,
-        "y": 955.5,
+        "y": 956,
         "w": 188,
         "h": 13.7
       }

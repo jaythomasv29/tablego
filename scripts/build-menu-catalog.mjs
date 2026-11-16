@@ -19,6 +19,7 @@ const PHOTO_DISHES = {
   'Kao Soi Chicken': 'Kao Soi',
   'Pad Thai Prawns': 'Pad Thai',
   'Pad See Ew Chicken': 'Pad See Ew',
+  'Chicken Eggplant Stir Fry': 'Eggplant Stir Fry',
   'Sweet Sticky Rice Mango': null,
 };
 // Small centered text that is a note, not a photo caption.
