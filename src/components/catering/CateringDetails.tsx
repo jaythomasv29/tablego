@@ -11,6 +11,7 @@ import { useTimezone } from '@/contexts/TimezoneContext';
 import { formatBusinessTimestamp, formatDateForDisplay } from '@/utils/dateUtils';
 import { cateringEmailLink, cateringStatusLabels, closedCatering, type CateringLead, type CateringStatus } from '@/lib/catering/admin';
 import CateringStage from './CateringStage';
+import { dishDetails, groupDishesBySection } from '@/lib/menu/catalog';
 interface CateringEvent { id: string; event: string; timestamp: string | null; previousStatus?: CateringStatus; status?: CateringStatus; notesChanged?: boolean; followUpChanged?: boolean; followUpDate?: string; recipient?: string; bulkClosed?: boolean }
 export default function CateringDetails({ id, timezone, onClose, onSaved }: { id: string; timezone: string; onClose: () => void; onSaved: (lead: CateringLead) => void }) {
   const { restaurant } = useTimezone();
@@ -57,7 +58,7 @@ export default function CateringDetails({ id, timezone, onClose, onSaved }: { id
           {lead.needsReview && <p className="text-sm text-amber-700 dark:text-amber-300">Some imported details need review. Confirm them with the guest.</p>}
         </div>
         <section className="space-y-3" aria-label="Guest contact"><h2 className="font-semibold">Start the conversation</h2><p className="break-all text-sm">{lead.email || 'Email not provided'}</p><p className="text-sm"><PhoneNumber phone={lead.phone} verified={lead.phoneVerified} /></p><div className="flex flex-wrap gap-2">{email && <a href={email} className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"><Mail className="h-4 w-4" aria-hidden="true" />Draft email to guest</a>}</div><p className="text-xs text-muted-foreground">Email opens your mail app. Update the stage after you’ve contacted the guest.</p></section>
-        <section className="space-y-3 border-t pt-4"><h2 className="font-semibold">Requested menu</h2>{lead.selectedDishes.length ? <ul className="flex flex-wrap gap-2">{lead.selectedDishes.map((dish, index) => <li key={`${dish}-${index}`} className="max-w-full break-words rounded-lg border bg-muted/30 px-3 py-1.5 text-sm">{dish}</li>)}</ul> : <p className="text-sm text-muted-foreground">No dishes selected yet. Discuss the menu with the guest.</p>}<h3 className="pt-1 text-sm font-medium">Guest requests</h3><p className="break-words whitespace-pre-wrap text-sm text-muted-foreground">{lead.specialRequests || 'No special requests provided.'}</p></section>
+        <section className="space-y-3 border-t pt-4"><h2 className="font-semibold">Requested menu</h2>{lead.menuSelections.length ? <RequestedMenu dishes={lead.menuSelections} /> : <p className="text-sm text-muted-foreground">No dishes selected yet. Discuss the menu with the guest.</p>}<h3 className="pt-1 text-sm font-medium">Guest requests</h3><p className="break-words whitespace-pre-wrap text-sm text-muted-foreground">{lead.specialRequests || 'No special requests provided.'}</p></section>
         <form id="catering-update" className="space-y-4 rounded-xl border bg-muted/30 p-4" onSubmit={event => { event.preventDefault(); void save(); }}>
           <h2 className="font-semibold">Staff follow-up</h2><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="catering-stage">Inquiry stage</Label><select id="catering-stage" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={stage} disabled={busy} onChange={event => { const next = event.target.value as CateringStatus; setStage(next); if (closedCatering(next)) setFollowUp(''); }}>
             {stage === 'needs-review' && <option value="needs-review" disabled>Choose a stage</option>}{Object.entries(cateringStatusLabels).filter(([value]) => value !== 'needs-review').map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -70,4 +71,15 @@ export default function CateringDetails({ id, timezone, onClose, onSaved }: { id
     </div>
     <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t bg-muted/30 px-5 py-4 sm:px-6"><p className="text-xs text-muted-foreground">{dirty ? 'Unsaved changes' : 'Staff workspace'}</p><div className="flex gap-2"><Button variant="outline" disabled={busy} onClick={close}>Close inquiry</Button><Button type="submit" form="catering-update" disabled={loading || busy || !lead || !dirty || stage === 'needs-review'}>{busy ? 'Saving…' : 'Save inquiry'}</Button></div></div>
   </DialogContent></Dialog>;
+}
+
+function RequestedMenu({ dishes }: { dishes: CateringLead['menuSelections'] }) {
+  const groups = groupDishesBySection(dishes.map(dish => ({ ...dish, id: dish.name.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') })));
+  return <div className="space-y-3">{groups.map(({ section, items }) => <div key={section}>
+    {(groups.length > 1 || section !== 'Other') && <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">{section}</h3>}
+    <ul className="divide-y rounded-lg border bg-muted/30">{items.map((dish, index) => { const details = dishDetails(dish); return <li key={`${dish.name}-${index}`} className="flex items-start justify-between gap-3 px-3 py-2 text-sm">
+      <div className="min-w-0"><p className="break-words font-medium">{dish.name}</p>{details && <p className="break-words text-muted-foreground">{details}</p>}{dish.note && <p className="break-words italic text-muted-foreground">Note: {dish.note}</p>}</div>
+      {dish.price && <span className="shrink-0 tabular-nums text-muted-foreground">{dish.price}</span>}
+    </li>; })}</ul>
+  </div>)}</div>;
 }

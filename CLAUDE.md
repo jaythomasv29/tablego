@@ -33,6 +33,8 @@ On submit, `POST /api/send-confirmation` validates allowlisted fields and a phon
 
 Other public routes: `/menu`, `/cater`, `/reservation` (deep-link to reserve), `/cancel-reservation`, `/reschedule`.
 
+`/menu`, `/admin/menu` and the `/cater` dish picker show the legal-size print menu in `MenuCanvas` (pan/zoom). Page images and the dish catalog (`src/lib/menu/catalog.data.ts`: ids, sections, prices, options, tap areas) are generated from the print PDF: `swift scripts/render-menu-pages.swift <pdf> public/images/menu scripts/menu-text.json` then `node scripts/build-menu-catalog.mjs`. Catering selections are validated server-side against this catalog; the Firestore `menu` collection does not drive them.
+
 ### Admin area (`/admin/*`)
 
 `src/middleware.ts`, alongside `src/app`, verifies a signed, expiring HttpOnly cookie. Privileged API handlers also verify its server-owned revocation record and mutation origin. The admin layout authenticates Firebase with a scoped custom token before mounting data consumers; rules check session expiry/revocation. There is no NextAuth session.

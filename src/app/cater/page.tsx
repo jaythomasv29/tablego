@@ -5,18 +5,14 @@ import { restaurantClock } from '@/lib/reservations/availability';
 import { useTimezone } from '@/contexts/TimezoneContext';
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, ChevronDown, Utensils, X } from 'lucide-react';
+import { BookOpen, CheckCircle2, Utensils, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/firebase';
+import dynamic from 'next/dynamic';
+import { dishDetails, menuDish, type DishSelection } from '@/lib/menu/catalog';
+
+const MenuDishPicker = dynamic(() => import('@/components/catering/MenuDishPicker'), { ssr: false });
 
 const ACCENT = '#A3B18A';
-
-interface MenuItem {
-  id: string;
-  name: string;
-  category: string;
-}
 
 interface FormData {
   name: string;
@@ -43,11 +39,6 @@ const initialFormData: FormData = {
 
 const EVENT_TYPES = ['Corporate', 'Wedding', 'Birthday', 'Private Party', 'Other'];
 
-const DISH_CATEGORIES = [
-  'Appetizers', 'Soup', 'Salad', 'Signature Dishes',
-  'Wok', 'Curry', 'Noodles', 'Fried Rice', 'Grill', 'Sides',
-];
-
 const BUDGET_OPTIONS = [
   'Under $500',
   '$500 – $1,000',
@@ -65,42 +56,19 @@ export default function CateringPage() {
   const { restaurant, timezone } = useTimezone();
   const submissionRef = useRef<{ key: string; payload: string } | null>(null);
   const [formData, setFormData] = useState<FormData>(initialFormData);
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [selectedDishes, setSelectedDishes] = useState<MenuItem[]>([]);
+  const [selectedDishes, setSelectedDishes] = useState<DishSelection[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [phoneVerified, setPhoneVerified] = useState(false);
-
-  useEffect(() => {
-    getDocs(collection(db, 'menu')).then(snap => {
-      setMenuItems(
-        snap.docs.map(doc => ({
-          id: doc.id,
-          name: doc.data().name || '',
-          category: doc.data().category || '',
-        }))
-      );
-    }).catch(err => console.error('Error fetching menu:', err));
-  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const toggleDish = (item: MenuItem) => {
-    setSelectedDishes(prev =>
-      prev.find(d => d.id === item.id)
-        ? prev.filter(d => d.id !== item.id)
-        : [...prev, item]
-    );
-  };
-
-  const toggleCategory = (cat: string) => {
-    setActiveCategory(prev => (prev === cat ? null : cat));
-  };
+  const removeDish = (id: string) => setSelectedDishes(prev => prev.filter(dish => dish.id !== id));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,7 +78,7 @@ export default function CateringPage() {
     setSubmitError('');
 
     try {
-      const payload = JSON.stringify({ formData: { ...formData, address: '', time: '', selectedDishes: selectedDishes.map(dish => ({ id: dish.id, name: dish.name })) } });
+      const payload = JSON.stringify({ formData: { ...formData, address: '', time: '', selectedDishes: selectedDishes.map(({ id, choice, addOns, note }) => ({ id, choice: choice || '', addOns: addOns || [], note: note?.trim() || '' })) } });
       if (submissionRef.current?.payload !== payload) submissionRef.current = { key: crypto.randomUUID(), payload };
       const response = await fetch('/api/send-proposal', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': submissionRef.current.key }, body: payload });
       const result = await response.json();
@@ -122,7 +90,6 @@ export default function CateringPage() {
       setFormData(initialFormData);
       setPhoneVerified(false);
       setSelectedDishes([]);
-      setActiveCategory(null);
     } catch (error) {
       console.error('Error submitting form:', error);
       setSubmitError(error instanceof Error ? error.message : `Failed to send your inquiry. Please call us at ${restaurant.phoneLabel}.`);
@@ -404,128 +371,71 @@ export default function CateringPage() {
 
                   {/* Menu Selection */}
                   <div>
-                    <label className={labelClass}>
+                    <p className={labelClass}>
                       Build Your Menu <span className="normal-case text-zinc-400">(optional)</span>
-                    </label>
-
-                    {/* Category pills */}
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {DISH_CATEGORIES.map(cat => {
-                        const count = selectedDishes.filter(d => d.category === cat).length;
-                        const isActive = activeCategory === cat;
-                        return (
-                          <button
-                            key={cat}
-                            type="button"
-                            onClick={() => toggleCategory(cat)}
-                            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-all"
-                            style={
-                              isActive
-                                ? { backgroundColor: ACCENT, color: '#121212' }
-                                : count > 0
-                                ? { backgroundColor: `${ACCENT}30`, color: '#3f3f46', border: `1px solid ${ACCENT}` }
-                                : { border: '1px solid #d4d4d8', color: '#71717a', backgroundColor: 'transparent' }
-                            }
-                          >
-                            {cat}
-                            {count > 0 && (
-                              <span
-                                className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold"
-                                style={{ backgroundColor: isActive ? 'rgba(0,0,0,0.15)' : ACCENT, color: '#121212' }}
-                              >
-                                {count}
-                              </span>
-                            )}
-                            <ChevronDown
-                              className="w-3 h-3 transition-transform duration-200"
-                              style={{ transform: isActive ? 'rotate(180deg)' : 'rotate(0deg)' }}
-                            />
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Expanded dish list */}
-                    <AnimatePresence>
-                      {activeCategory && (
-                        <motion.div
-                          key={activeCategory}
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.22, ease: 'easeInOut' }}
-                          className="overflow-hidden"
-                        >
-                          <div
-                            className="mt-1 mb-2 rounded-2xl p-3"
-                            style={{ backgroundColor: `${ACCENT}12`, border: `1px solid ${ACCENT}33` }}
-                          >
-                            {menuItems.filter(i => i.category === activeCategory).length === 0 ? (
-                              <p className="text-xs text-zinc-400 text-center py-2">No items in this category yet.</p>
-                            ) : (
-                              <div className="flex flex-wrap gap-2">
-                                {menuItems
-                                  .filter(i => i.category === activeCategory)
-                                  .map(item => {
-                                    const picked = selectedDishes.some(d => d.id === item.id);
-                                    return (
-                                      <button
-                                        key={item.id}
-                                        type="button"
-                                        onClick={() => toggleDish(item)}
-                                        className="rounded-full px-3 py-1.5 text-sm font-medium transition-all"
-                                        style={
-                                          picked
-                                            ? { backgroundColor: ACCENT, color: '#121212' }
-                                            : { border: '1px solid #d4d4d8', color: '#3f3f46', backgroundColor: 'white' }
-                                        }
-                                      >
-                                        {item.name}
-                                      </button>
-                                    );
-                                  })}
-                              </div>
-                            )}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setPickerOpen(true)}
+                      className="flex w-full items-center gap-3 rounded-2xl border border-dashed px-4 py-3 text-left transition-colors hover:bg-white"
+                      style={{ borderColor: ACCENT, backgroundColor: `${ACCENT}14` }}
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${ACCENT}55` }}>
+                        <BookOpen className="h-4 w-4 text-zinc-800" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-zinc-900">
+                          {selectedDishes.length ? 'Edit dishes on the menu' : 'Choose dishes from our menu'}
+                        </span>
+                        <span className="block text-xs text-zinc-500">
+                          {selectedDishes.length ? `${selectedDishes.length} selected · tap to add, remove or set options` : 'Tap dishes right on the menu to add them'}
+                        </span>
+                      </span>
+                    </button>
 
                     {/* Selected dishes summary */}
                     <AnimatePresence>
                       {selectedDishes.length > 0 && (
-                        <motion.div
+                        <motion.ul
                           initial={{ opacity: 0, y: -4 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -4 }}
                           transition={{ duration: 0.18 }}
-                          className="mt-2 rounded-2xl p-3"
-                          style={{ backgroundColor: `${ACCENT}18`, border: `1px solid ${ACCENT}44` }}
+                          className="mt-2 divide-y rounded-2xl text-sm"
+                          style={{ backgroundColor: `${ACCENT}18`, border: `1px solid ${ACCENT}44`, borderColor: `${ACCENT}44` }}
                         >
-                          <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide mb-2">
-                            Selected · {selectedDishes.length} {selectedDishes.length === 1 ? 'item' : 'items'}
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {selectedDishes.map(dish => (
-                              <span
-                                key={dish.id}
-                                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium text-zinc-800"
-                                style={{ backgroundColor: `${ACCENT}40` }}
-                              >
-                                {dish.name}
+                          {selectedDishes.map(selection => {
+                            const dish = menuDish(selection.id);
+                            if (!dish) return null;
+                            const details = dishDetails({ choice: selection.choice || '', addOns: selection.addOns || [] });
+                            return (
+                              <li key={dish.id} className="flex items-start gap-2 px-3 py-2" style={{ borderColor: `${ACCENT}33` }}>
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-zinc-800">{dish.name} <span className="font-normal text-zinc-500">{dish.price}</span></p>
+                                  {(details || selection.note) && (
+                                    <p className="truncate text-xs text-zinc-500">{[details, selection.note].filter(Boolean).join(' · ')}</p>
+                                  )}
+                                  {dish.choices.length > 0 && !selection.choice && (
+                                    <p className="text-xs text-amber-700">Option not chosen — we&apos;ll ask you</p>
+                                  )}
+                                </div>
                                 <button
                                   type="button"
-                                  onClick={() => toggleDish(dish)}
-                                  className="ml-0.5 opacity-60 hover:opacity-100 transition-opacity"
+                                  onClick={() => removeDish(dish.id)}
+                                  className="mt-0.5 rounded-full p-1 opacity-60 transition-opacity hover:opacity-100"
+                                  aria-label={`Remove ${dish.name}`}
                                 >
-                                  <X className="w-3 h-3" />
+                                  <X className="h-3.5 w-3.5" />
                                 </button>
-                              </span>
-                            ))}
-                          </div>
-                        </motion.div>
+                              </li>
+                            );
+                          })}
+                        </motion.ul>
                       )}
                     </AnimatePresence>
+                    {pickerOpen && (
+                      <MenuDishPicker open={pickerOpen} onOpenChange={setPickerOpen} value={selectedDishes} onChange={setSelectedDishes} />
+                    )}
                   </div>
 
                   {/* Submit */}

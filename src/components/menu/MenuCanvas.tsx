@@ -1,31 +1,45 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Maximize, Minus, Plus } from "lucide-react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
+import { Check, Maximize, Minus, Plus } from "lucide-react";
+import { MENU_DISHES, MENU_PAGE_SIZE, type MenuArea, type MenuDish } from "@/lib/menu/catalog";
 
 // Pages are rendered from the legal-size print menu (8.5in × 14in = 612 × 1008pt).
-// Regenerate with: swift scripts/render-menu-pages.swift <menu.pdf> public/images/menu
+// Regenerate with scripts/render-menu-pages.swift, then scripts/build-menu-catalog.mjs.
 export const MENU_PAGES = [
   { src: "/images/menu/page-1.jpg", label: "Starters, Soup & Salad" },
   { src: "/images/menu/page-2.jpg", label: "Mains & Sides" },
 ] as const;
 
-const PAGE_W = 612;
-const PAGE_H = 1008;
+const PAGE_W = MENU_PAGE_SIZE.width;
+const PAGE_H = MENU_PAGE_SIZE.height;
 const GAP = 48;
 const SPREAD_W = PAGE_W * MENU_PAGES.length + GAP * (MENU_PAGES.length - 1);
 const PAD = 16;
 const MAX_SCALE = 4;
+const TAP_SLOP = 6;
 
 type View = { x: number; y: number; s: number };
 type Target = "all" | number;
 
+export type MenuSelectionMode = {
+  selected: ReadonlySet<string>;
+  onToggle: (dish: MenuDish) => void;
+};
+export type MenuCanvasHandle = { reveal: (dishId: string) => void };
+
 function pageLeft(index: number) {
   return index * (PAGE_W + GAP);
 }
+function spreadX(area: MenuArea) {
+  return pageLeft(area.page - 1) + area.x;
+}
 
-export default function MenuCanvas({ className = "" }: { className?: string }) {
+const MenuCanvas = forwardRef<MenuCanvasHandle, { className?: string; selection?: MenuSelectionMode }>(function MenuCanvas(
+  { className = "", selection },
+  ref,
+) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [view, setView] = useState<View>({ x: 0, y: 0, s: 0.5 });
@@ -33,6 +47,7 @@ export default function MenuCanvas({ className = "" }: { className?: string }) {
   const [dragging, setDragging] = useState(false);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef<{ view: View; dist: number; mid: { x: number; y: number }; start: { x: number; y: number } } | null>(null);
+  // True once the current press has moved far enough to be a drag; suppresses the dish tap.
   const moved = useRef(false);
 
   // Smallest scale where the whole spread still fits; zooming out further is pointless.
@@ -78,6 +93,33 @@ export default function MenuCanvas({ className = "" }: { className?: string }) {
     },
     [minScale, clamp],
   );
+
+  // Pan so an area is fully visible, zooming in to a readable size if needed.
+  const revealArea = useCallback(
+    (area: MenuArea, center = false) => {
+      setView(v => {
+        const s = Math.max(v.s, Math.min(1.1, (size.w - PAD * 2) / (area.w + 24)));
+        const left = spreadX(area) * s, top = area.y * s, right = left + area.w * s, bottom = top + area.h * s;
+        let x = v.s === s ? v.x : size.w / 2 - (left + right) / 2;
+        let y = v.s === s ? v.y : size.h / 2 - (top + bottom) / 2;
+        if (center) { x = size.w / 2 - (left + right) / 2; y = size.h / 2 - (top + bottom) / 2; }
+        if (x + left < PAD) x = PAD - left;
+        if (x + right > size.w - PAD) x = size.w - PAD - right;
+        if (y + top < PAD) y = PAD - top;
+        if (y + bottom > size.h - 72) y = size.h - 72 - bottom;
+        return clamp({ s, x, y });
+      });
+      setTarget(area.page - 1);
+    },
+    [size, clamp],
+  );
+
+  useImperativeHandle(ref, () => ({
+    reveal: (dishId: string) => {
+      const dish = MENU_DISHES.find(d => d.id === dishId);
+      if (dish) revealArea(dish.areas[0], true);
+    },
+  }), [revealArea]);
 
   useLayoutEffect(() => {
     const el = viewportRef.current;
@@ -127,12 +169,18 @@ export default function MenuCanvas({ className = "" }: { className?: string }) {
     gesture.current = pts.length ? { view, dist, mid, start: mid } : null;
   };
 
+  // Pointer capture starts only once a press becomes a drag, so a plain tap still clicks the dish under it.
+  const capture = () => {
+    const el = viewportRef.current;
+    if (!el) return;
+    pointers.current.forEach((_, id) => { try { el.setPointerCapture(id); } catch { /* pointer already released */ } });
+  };
+
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0 && e.pointerType === "mouse") return;
-    e.currentTarget.setPointerCapture(e.pointerId);
     pointers.current.set(e.pointerId, local(e));
-    moved.current = false;
-    setDragging(true);
+    if (pointers.current.size === 1) moved.current = false;
+    else { moved.current = true; capture(); }
     beginGesture();
   };
 
@@ -146,13 +194,16 @@ export default function MenuCanvas({ className = "" }: { className?: string }) {
       const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
       const s = Math.min(MAX_SCALE, Math.max(minScale, g.view.s * (dist / g.dist)));
       const k = s / g.view.s;
-      moved.current = true;
       setView(clamp({ s, x: mid.x - (g.mid.x - g.view.x) * k, y: mid.y - (g.mid.y - g.view.y) * k }));
     } else {
       const dx = pts[0].x - g.start.x;
       const dy = pts[0].y - g.start.y;
-      if (Math.abs(dx) + Math.abs(dy) > 3) moved.current = true;
-      setView(clamp({ s: g.view.s, x: g.view.x + dx, y: g.view.y + dy }));
+      if (!moved.current && Math.abs(dx) + Math.abs(dy) > TAP_SLOP) {
+        moved.current = true;
+        setDragging(true);
+        capture();
+      }
+      if (moved.current) setView(clamp({ s: g.view.s, x: g.view.x + dx, y: g.view.y + dy }));
     }
   };
 
@@ -163,14 +214,14 @@ export default function MenuCanvas({ className = "" }: { className?: string }) {
   };
 
   const onDoubleClick = (e: React.MouseEvent) => {
+    if (selection && (e.target as HTMLElement).closest("[data-dish]")) return;
     const rect = viewportRef.current!.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
     if (view.s >= MAX_SCALE * 0.6) fitTo(target);
-    else zoomAt(2, px, py);
+    else zoomAt(2, e.clientX - rect.left, e.clientY - rect.top);
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.target !== e.currentTarget) return;
     const step = 80;
     const pan: Record<string, [number, number]> = {
       ArrowLeft: [step, 0], ArrowRight: [-step, 0], ArrowUp: [0, step], ArrowDown: [0, -step],
@@ -194,12 +245,19 @@ export default function MenuCanvas({ className = "" }: { className?: string }) {
 
   return (
     <div className={`relative overflow-hidden rounded-2xl bg-[#e9e4d8] ${className}`}>
+      {selection && (
+        <style>{`@keyframes menu-dish-hint{0%,100%{background:transparent;box-shadow:none}35%{background:rgba(163,177,138,.22);box-shadow:inset 0 0 0 1.5px rgba(95,122,58,.55)}}`}</style>
+      )}
       <div
         ref={viewportRef}
         role="region"
-        aria-label="Menu. Drag to move, pinch or use the zoom buttons to zoom. Arrow keys pan, plus and minus zoom, 0 resets."
+        aria-label={
+          selection
+            ? "Menu. Tap a dish to add or remove it. Drag to move, pinch or use the zoom buttons to zoom."
+            : "Menu. Drag to move, pinch or use the zoom buttons to zoom. Arrow keys pan, plus and minus zoom, 0 resets."
+        }
         tabIndex={0}
-        className={`absolute inset-0 touch-none select-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-500 ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
+        className={`absolute inset-0 touch-none select-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-500 ${dragging ? "cursor-grabbing" : selection ? "cursor-default" : "cursor-grab"}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -230,6 +288,40 @@ export default function MenuCanvas({ className = "" }: { className?: string }) {
               style={{ left: pageLeft(i), width: PAGE_W, height: PAGE_H, maxWidth: "none" }}
             />
           ))}
+
+          {selection &&
+            MENU_DISHES.map(dish => {
+              const picked = selection.selected.has(dish.id);
+              return dish.areas.map((area, index) => (
+                <button
+                  key={`${dish.id}-${index}`}
+                  type="button"
+                  data-dish={dish.id}
+                  // Photos repeat the dish's text button, so only the text area is in the tab order.
+                  tabIndex={index ? -1 : 0}
+                  aria-hidden={index ? true : undefined}
+                  aria-pressed={index ? undefined : picked}
+                  aria-label={index ? undefined : `${dish.name}, ${dish.section}, ${dish.price}`}
+                  onClick={() => { if (!moved.current) selection.onToggle(dish); }}
+                  onFocus={index ? undefined : e => { if (e.currentTarget.matches(":focus-visible")) revealArea(area); }}
+                  className={`group absolute rounded-md outline-none transition-[background-color,box-shadow] duration-150 focus-visible:ring-[3px] focus-visible:ring-zinc-900 ${
+                    picked
+                      ? "bg-[rgba(163,177,138,0.30)] shadow-[inset_0_0_0_2.5px_#5f7a3a]"
+                      : "hover:bg-[rgba(163,177,138,0.16)] hover:shadow-[inset_0_0_0_1.5px_rgba(95,122,58,0.6)]"
+                  }`}
+                  style={{
+                    left: spreadX(area), top: area.y, width: area.w, height: area.h,
+                    animation: picked ? undefined : `menu-dish-hint 1.6s ease-in-out ${0.4 + (area.y / PAGE_H) * 0.6}s 1`,
+                  }}
+                >
+                  {picked && index === 0 && (
+                    <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#5f7a3a] text-white shadow">
+                      <Check className="h-3 w-3" strokeWidth={3} />
+                    </span>
+                  )}
+                </button>
+              ));
+            })}
         </div>
       </div>
 
@@ -271,4 +363,6 @@ export default function MenuCanvas({ className = "" }: { className?: string }) {
       </div>
     </div>
   );
-}
+});
+
+export default MenuCanvas;

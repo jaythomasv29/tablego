@@ -8,13 +8,14 @@ import { act, create } from 'react-test-renderer';
 import ts from 'typescript';
 import * as catering from '../src/lib/catering/admin.ts';
 import * as dates from '../src/utils/dateUtils.ts';
+import * as menuCatalog from '../src/lib/menu/catalog.ts';
 const wrap = tag => ({ children, ...props }) => React.createElement(tag, props, children);
 const lead = catering.cateringLead('synthetic', { name: 'Synthetic Catering', email: 'catering@example.invalid', phone: '+16505550100', date: '2026-11-15', partySize: '35', budget: '$1500', address: 'Test Hall', specialRequests: 'Guest original request', selectedDishes: ['Pad Thai'], followUpDate: '2026-10-12', status: 'pending' }, 'America/Los_Angeles');
 const imports = {
   '@/components/ui/button': { Button: wrap('button') }, '@/components/ui/input': { Input: wrap('input') }, '@/components/ui/textarea': { Textarea: wrap('textarea') }, '@/components/ui/label': { Label: wrap('label') },
   '@/components/ui/dialog': { Dialog: ({ children, ...props }) => React.createElement('dialog', props, children), DialogContent: wrap('section'), DialogTitle: wrap('h1'), DialogDescription: wrap('p') },
   '@/components/PhoneNumber': { default: ({ phone }) => React.createElement('span', {}, phone) }, '@/contexts/TimezoneContext': { useTimezone: () => ({ restaurant: { name: 'Test Restaurant' } }) },
-  '@/utils/dateUtils': dates, '@/lib/catering/admin': catering, './CateringStage': { default: ({ status }) => React.createElement('span', {}, catering.cateringStatusLabels[status]) }, './CateringDetails': { default: () => null }, './BulkCloseCatering': { default: () => null },
+  '@/utils/dateUtils': dates, '@/lib/catering/admin': catering, '@/lib/menu/catalog': menuCatalog, './CateringStage': { default: ({ status }) => React.createElement('span', {}, catering.cateringStatusLabels[status]) }, './CateringDetails': { default: () => null }, './BulkCloseCatering': { default: () => null },
   'lucide-react': Object.fromEntries(['Mail', 'CalendarDays', 'MapPin', 'Users', 'ChevronRight', 'Inbox', 'RefreshCw', 'Search', 'Clock3'].map(name => [name, () => null])),
 };
 async function mount(t, component, fetch) {
@@ -38,6 +39,7 @@ test('stale catering saves retain the draft and protect unsaved-close actions', 
   await state.change('catering-stage', 'contacted'); await state.change('catering-notes', 'Call tomorrow'); await state.submit();
   assert.equal(state.renderer.root.findByProps({ id: 'catering-notes' }).props.value, 'Call tomorrow'); assert.equal(state.saves.length, 0); assert.equal(requests[0].originalStatus, 'pending'); assert.equal(requests[0].version, 1);
   assert.match(JSON.stringify(state.renderer.toJSON()), /Your draft is kept/);
+  assert.match(JSON.stringify(state.renderer.toJSON()), /Requested menu.*Pad Thai/, 'legacy dish names still render in the grouped menu');
   await act(async () => state.button('Close inquiry').props.onClick()); assert.equal(state.closes.length, 0);
   assert.ok(state.button('Keep editing')); await act(async () => state.button('Keep editing').props.onClick());
   await act(async () => state.renderer.root.findByType('dialog').props.onOpenChange(false)); assert.equal(state.closes.length, 0);
