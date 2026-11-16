@@ -15,14 +15,19 @@ export function cateringLead(id: string, record: Record<string, unknown>, timezo
   let status: CateringStatus = typeof stage === 'string' && ['pending', 'contacted', 'confirmed', 'completed', 'declined'].includes(stage) ? stage as CateringStatus : 'needs-review';
   // Older admin clients only know pending/completed. Honor their completion action.
   if (record.status === 'completed' && !closedCatering(status)) status = 'completed';
-  const selectedDishes = Array.isArray(record.selectedDishes) ? record.selectedDishes.slice(0, 30).flatMap(dish => {
-    const name = typeof dish === 'string' ? dish : dish && typeof dish === 'object' ? dish.name || dish.id : '';
-    return typeof name === 'string' && name.trim() ? [name.trim().slice(0, 120)] : [];
+  // Older inquiries stored plain names or { id, name }; current ones store catalog details and guest choices.
+  const menuSelections = Array.isArray(record.selectedDishes) ? record.selectedDishes.slice(0, 30).flatMap(dish => {
+    const item = dish && typeof dish === 'object' && !Array.isArray(dish) ? dish as Record<string, unknown> : {};
+    const name = typeof dish === 'string' ? dish : item.name || item.id;
+    if (typeof name !== 'string' || !name.trim()) return [];
+    const addOns = Array.isArray(item.addOns) ? item.addOns.filter((addOn): addOn is string => typeof addOn === 'string').slice(0, 10).map(addOn => addOn.slice(0, 80)) : [];
+    return [{ name: name.trim().slice(0, 120), section: text(item.section, 60), price: text(item.price, 30), choice: text(item.choice, 80), addOns, note: text(item.note, 200) }];
   }) : [];
+  const selectedDishes = menuSelections.map(dish => dish.name);
   return { id, name: text(record.name, 120) || 'Guest name missing', email: text(record.email, 254), phone: text(record.phone, 40), phoneVerified: serverPhoneVerified(record),
     date, time: text(record.time, 30), partySize: text(record.partySize, 30) || (typeof record.partySize === 'number' && Number.isFinite(record.partySize) ? String(record.partySize) : '') || (typeof record.guests === 'number' || typeof record.guests === 'string' ? String(record.guests).slice(0, 30) : ''),
     budget: text(record.budget, 100), eventType: text(record.eventType, 100), address: text(record.address, 500),
-    specialRequests: text(record.specialRequests).trim() || text(record.message), selectedDishes, status,
+    specialRequests: text(record.specialRequests).trim() || text(record.message), selectedDishes, menuSelections, status,
     needsReview: !date || status === 'needs-review', internalNotes: text(record.internalNotes),
     followUpDate: validDate(record.followUpDate) ? record.followUpDate : '', createdAt: timestampString(record.createdAt), updatedAt: timestampString(record.updatedAt),
     version: Number.isInteger(record.version) && Number(record.version) > 0 ? Number(record.version) : 1 };
@@ -50,7 +55,7 @@ export function filterCatering(leads: CateringLead[], options: { filter: Caterin
   const search = options.search.trim().toLowerCase();
   return leads.filter(lead => {
     const stage = options.filter === 'all' || (options.filter === 'active' ? !closedCatering(lead.status) : options.filter === 'closed' ? closedCatering(lead.status) : lead.status === options.filter);
-    return stage && (!options.dueOnly || cateringFollowUpDue(lead, timezone, now)) && (!search || [lead.name, lead.email, lead.phone, lead.eventType, lead.address, lead.specialRequests, ...lead.selectedDishes].join(' ').toLowerCase().includes(search));
+    return stage && (!options.dueOnly || cateringFollowUpDue(lead, timezone, now)) && (!search || [lead.name, lead.email, lead.phone, lead.eventType, lead.address, lead.specialRequests, ...lead.menuSelections.flatMap(dish => [dish.name, dish.choice, ...dish.addOns, dish.note])].join(' ').toLowerCase().includes(search));
   }).sort((a, b) => {
     if (options.sort === 'event') {
       const today = restaurantClock(timezone, now).date;
