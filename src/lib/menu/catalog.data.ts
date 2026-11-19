@@ -14,17 +14,17 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 1,
-        "x": 17,
-        "y": 88.6,
-        "w": 188,
-        "h": 36.7
+        "x": 23.5,
+        "y": 326.7,
+        "w": 183.8,
+        "h": 36
       },
       {
         "page": 1,
-        "x": 17,
-        "y": 130.3,
-        "w": 188,
-        "h": 73.2
+        "x": 23.5,
+        "y": 91.6,
+        "w": 183.8,
+        "h": 79.4
       }
     ]
   },
@@ -35,16 +35,16 @@ export const MENU_DISH_DATA = [
     "price": "$16",
     "page": 1,
     "gf": false,
-    "description": "5 crispy panko prawns, house sweet-and-sour sauce.",
+    "description": "5 crispy panko prawns, sweet-and-sour sauce.",
     "choices": [],
     "addOns": [],
     "areas": [
       {
         "page": 1,
-        "x": 17,
-        "y": 204.5,
-        "w": 188,
-        "h": 34.4
+        "x": 23.5,
+        "y": 363.7,
+        "w": 183.8,
+        "h": 35.9
       }
     ]
   },
@@ -55,23 +55,23 @@ export const MENU_DISH_DATA = [
     "price": "$14",
     "page": 1,
     "gf": false,
-    "description": "8 crispy battered tofu, soft inside, peanut sauce.",
+    "description": "8 crispy battered tofu, peanut sauce.",
     "choices": [],
     "addOns": [],
     "areas": [
       {
         "page": 1,
-        "x": 17,
-        "y": 239.9,
-        "w": 188,
-        "h": 36.7
+        "x": 23.5,
+        "y": 400.6,
+        "w": 183.8,
+        "h": 25.5
       },
       {
         "page": 1,
-        "x": 17,
-        "y": 281.6,
-        "w": 188,
-        "h": 68.7
+        "x": 23.5,
+        "y": 176,
+        "w": 183.8,
+        "h": 72.7
       }
     ]
   },
@@ -95,17 +95,17 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 1,
-        "x": 17,
-        "y": 351.3,
-        "w": 188,
-        "h": 55.8
+        "x": 23.5,
+        "y": 427.1,
+        "w": 183.8,
+        "h": 56.5
       },
       {
         "page": 1,
-        "x": 17,
-        "y": 412.1,
-        "w": 188,
-        "h": 82.8
+        "x": 23.5,
+        "y": 253.7,
+        "w": 183.8,
+        "h": 72
       }
     ]
   },
@@ -124,17 +124,17 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 1,
-        "x": 212,
-        "y": 88.6,
-        "w": 188,
-        "h": 47.9
+        "x": 214,
+        "y": 277.1,
+        "w": 183.8,
+        "h": 49.2
       },
       {
         "page": 1,
-        "x": 212,
-        "y": 141.5,
-        "w": 188,
-        "h": 183.5
+        "x": 214,
+        "y": 91.6,
+        "w": 183.8,
+        "h": 184.5
       }
     ]
   },
@@ -145,16 +145,16 @@ export const MENU_DISH_DATA = [
     "price": "$15",
     "page": 1,
     "gf": true,
-    "description": "5 Thai herb fish cakes, crispy outside, tender inside.",
+    "description": "5 Thai herb fish cakes, crispy outside.",
     "choices": [],
     "addOns": [],
     "areas": [
       {
         "page": 1,
-        "x": 212,
-        "y": 326,
-        "w": 188,
-        "h": 34.4
+        "x": 214,
+        "y": 327.3,
+        "w": 183.8,
+        "h": 24.9
       }
     ]
   },
@@ -165,16 +165,16 @@ export const MENU_DISH_DATA = [
     "price": "$15",
     "page": 1,
     "gf": false,
-    "description": "6 crispy wings, tangy tamarind glaze, fried shallots.",
+    "description": "6 crispy wings, tangy tamarind glaze.",
     "choices": [],
     "addOns": [],
     "areas": [
       {
         "page": 1,
-        "x": 212,
-        "y": 361.4,
-        "w": 188,
-        "h": 34.5
+        "x": 214,
+        "y": 353.2,
+        "w": 183.8,
+        "h": 25.4
       }
     ]
   },
@@ -185,7 +185,7 @@ export const MENU_DISH_DATA = [
     "price": "$13",
     "page": 1,
     "gf": false,
-    "description": "4 crispy egg rolls, sweet-and-sour dipping sauce.",
+    "description": "4 crispy egg rolls, sweet-and-sour sauce.",
     "choices": [
       "Pork",
       "Veggies"
@@ -194,10 +194,10 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 1,
-        "x": 212,
-        "y": 396.9,
-        "w": 188,
-        "h": 47.9
+        "x": 214,
+        "y": 379.6,
+        "w": 183.8,
+        "h": 38.2
       }
     ]
   },
@@ -217,10 +217,10 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 1,
-        "x": 212,
-        "y": 445.8,
-        "w": 188,
-        "h": 47.9
+        "x": 214,
+        "y": 418.8,
+        "w": 183.8,
+        "h": 49.3
       }
     ]
   },
@@ -237,17 +237,37 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 1,
-        "x": 406,
-        "y": 88.6,
-        "w": 188,
-        "h": 36.7
+        "x": 404.5,
+        "y": 326.7,
+        "w": 183.8,
+        "h": 36
       },
       {
         "page": 1,
-        "x": 406,
-        "y": 130.3,
-        "w": 188,
-        "h": 68.7
+        "x": 404.5,
+        "y": 91.6,
+        "w": 183.8,
+        "h": 79.4
+      }
+    ]
+  },
+  {
+    "id": "fried-calamari",
+    "name": "Fried Calamari",
+    "section": "Starters",
+    "price": "$17",
+    "page": 1,
+    "gf": false,
+    "description": "Crispy battered calamari, sweet chili sauce.",
+    "choices": [],
+    "addOns": [],
+    "areas": [
+      {
+        "page": 1,
+        "x": 404.5,
+        "y": 363.7,
+        "w": 183.8,
+        "h": 25.4
       }
     ]
   },
@@ -264,37 +284,17 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 1,
-        "x": 406,
-        "y": 200,
-        "w": 188,
-        "h": 36.7
+        "x": 404.5,
+        "y": 390.1,
+        "w": 183.8,
+        "h": 36
       },
       {
         "page": 1,
-        "x": 406,
-        "y": 241.7,
-        "w": 188,
-        "h": 68.7
-      }
-    ]
-  },
-  {
-    "id": "fried-calamari",
-    "name": "Fried Calamari",
-    "section": "Starters",
-    "price": "$16",
-    "page": 1,
-    "gf": false,
-    "description": "Lightly battered crispy calamari, sweet chili sauce.",
-    "choices": [],
-    "addOns": [],
-    "areas": [
-      {
-        "page": 1,
-        "x": 406,
-        "y": 311.4,
-        "w": 188,
-        "h": 34.4
+        "x": 404.5,
+        "y": 176,
+        "w": 183.8,
+        "h": 72.7
       }
     ]
   },
@@ -305,16 +305,16 @@ export const MENU_DISH_DATA = [
     "price": "$14",
     "page": 1,
     "gf": false,
-    "description": "5 crispy panko eggplant pieces, sweet chili sauce.",
+    "description": "5 panko eggplant pieces, sweet chili sauce.",
     "choices": [],
     "addOns": [],
     "areas": [
       {
         "page": 1,
-        "x": 406,
-        "y": 346.8,
-        "w": 188,
-        "h": 35
+        "x": 404.5,
+        "y": 427.1,
+        "w": 183.8,
+        "h": 24.9
       }
     ]
   },
@@ -331,17 +331,17 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 1,
-        "x": 406,
-        "y": 382.8,
-        "w": 188,
-        "h": 36.7
+        "x": 404.5,
+        "y": 453,
+        "w": 183.8,
+        "h": 38.5
       },
       {
         "page": 1,
-        "x": 406,
-        "y": 424.5,
-        "w": 188,
-        "h": 70.4
+        "x": 404.5,
+        "y": 253.7,
+        "w": 183.8,
+        "h": 72
       }
     ]
   },
@@ -363,17 +363,17 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 1,
-        "x": 17,
-        "y": 524,
-        "w": 188,
-        "h": 55.8
+        "x": 23.5,
+        "y": 595.7,
+        "w": 183.8,
+        "h": 56.9
       },
       {
         "page": 1,
-        "x": 17,
-        "y": 584.8,
-        "w": 188,
-        "h": 71
+        "x": 23.5,
+        "y": 518.8,
+        "w": 183.8,
+        "h": 75.5
       }
     ]
   },
@@ -384,16 +384,16 @@ export const MENU_DISH_DATA = [
     "price": "$8/$19",
     "page": 1,
     "gf": false,
-    "description": "Dashi broth, white miso, silky tofu, green onion, nori.",
+    "description": "Dashi broth, white miso, silky tofu, nori.",
     "choices": [],
     "addOns": [],
     "areas": [
       {
         "page": 1,
-        "x": 17,
-        "y": 656.8,
-        "w": 188,
-        "h": 36.7
+        "x": 23.5,
+        "y": 653.6,
+        "w": 183.8,
+        "h": 27.5
       }
     ]
   },
@@ -415,17 +415,17 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 1,
-        "x": 212,
-        "y": 524,
-        "w": 188,
-        "h": 55.8
+        "x": 214,
+        "y": 595.7,
+        "w": 183.8,
+        "h": 57
       },
       {
         "page": 1,
-        "x": 212,
-        "y": 584.8,
-        "w": 188,
-        "h": 108.6
+        "x": 214,
+        "y": 518.8,
+        "w": 183.8,
+        "h": 75.5
       }
     ]
   },
@@ -442,17 +442,17 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 1,
-        "x": 406,
-        "y": 524,
-        "w": 188,
-        "h": 36.7
+        "x": 404.5,
+        "y": 595.7,
+        "w": 183.8,
+        "h": 36
       },
       {
         "page": 1,
-        "x": 406,
-        "y": 565.7,
-        "w": 188,
-        "h": 77.1
+        "x": 404.5,
+        "y": 518.8,
+        "w": 183.8,
+        "h": 75.5
       }
     ]
   },
@@ -473,10 +473,10 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 1,
-        "x": 406,
-        "y": 643.8,
-        "w": 188,
-        "h": 47.9
+        "x": 404.5,
+        "y": 632.7,
+        "w": 183.8,
+        "h": 49.3
       }
     ]
   },
@@ -484,7 +484,7 @@ export const MENU_DISH_DATA = [
     "id": "grilled-salmon-salad",
     "name": "Grilled Salmon Salad",
     "section": "Salad",
-    "price": "$21",
+    "price": "$22",
     "page": 1,
     "gf": true,
     "description": "Grilled salmon, jicama, mixed greens, red onion, cilantro, lime-chili dressing.",
@@ -493,17 +493,17 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 1,
-        "x": 17,
-        "y": 722,
-        "w": 188,
-        "h": 36.7
+        "x": 23.5,
+        "y": 835.5,
+        "w": 183.8,
+        "h": 36
       },
       {
         "page": 1,
-        "x": 17,
-        "y": 763.7,
-        "w": 188,
-        "h": 82.7
+        "x": 23.5,
+        "y": 711.2,
+        "w": 183.8,
+        "h": 122.9
       }
     ]
   },
@@ -511,7 +511,7 @@ export const MENU_DISH_DATA = [
     "id": "laab-salad",
     "name": "Laab Salad",
     "section": "Salad",
-    "price": "$19",
+    "price": "$20",
     "page": 1,
     "gf": false,
     "description": "Lime-chili chicken, toasted rice powder, fresh mint, red bell pepper.",
@@ -524,17 +524,30 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 1,
-        "x": 17,
-        "y": 847.4,
-        "w": 188,
-        "h": 47.9
-      },
+        "x": 23.5,
+        "y": 872.5,
+        "w": 183.8,
+        "h": 49.1
+      }
+    ]
+  },
+  {
+    "id": "ruby-grapefruit-salad",
+    "name": "Ruby Grapefruit Salad",
+    "section": "Salad",
+    "price": "$16",
+    "page": 1,
+    "gf": false,
+    "description": "Ruby grapefruit, jicama, cabbage, mint, peanuts, light Asian vinaigrette.",
+    "choices": [],
+    "addOns": [],
+    "areas": [
       {
         "page": 1,
-        "x": 17,
-        "y": 900.3,
-        "w": 188,
-        "h": 72.7
+        "x": 23.5,
+        "y": 922.6,
+        "w": 183.8,
+        "h": 37.9
       }
     ]
   },
@@ -551,17 +564,17 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 1,
-        "x": 212,
-        "y": 722.6,
-        "w": 188,
-        "h": 36.7
+        "x": 214,
+        "y": 835.5,
+        "w": 183.8,
+        "h": 36
       },
       {
         "page": 1,
-        "x": 212,
-        "y": 764.3,
-        "w": 188,
-        "h": 68.6
+        "x": 214,
+        "y": 711.2,
+        "w": 183.8,
+        "h": 122.9
       }
     ]
   },
@@ -580,10 +593,10 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 1,
-        "x": 212,
-        "y": 833.9,
-        "w": 188,
-        "h": 47.9
+        "x": 214,
+        "y": 872.5,
+        "w": 183.8,
+        "h": 49.1
       }
     ]
   },
@@ -591,7 +604,7 @@ export const MENU_DISH_DATA = [
     "id": "mango-prawns-salad",
     "name": "Mango Prawns Salad",
     "section": "Salad",
-    "price": "$20",
+    "price": "$21",
     "page": 1,
     "gf": true,
     "description": "Fresh mango, prawns, greens, herbs, red onion, spicy lime dressing.",
@@ -600,30 +613,10 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 1,
-        "x": 212,
-        "y": 883.4,
-        "w": 188,
-        "h": 34.5
-      }
-    ]
-  },
-  {
-    "id": "ruby-grapefruit-salad",
-    "name": "Ruby Grapefruit Salad",
-    "section": "Salad",
-    "price": "$15",
-    "page": 1,
-    "gf": false,
-    "description": "Ruby grapefruit, jicama, cabbage, mint, peanuts, light Asian vinaigrette.",
-    "choices": [],
-    "addOns": [],
-    "areas": [
-      {
-        "page": 1,
-        "x": 212,
-        "y": 918.9,
-        "w": 188,
-        "h": 36.7
+        "x": 214,
+        "y": 922.6,
+        "w": 183.8,
+        "h": 37.9
       }
     ]
   },
@@ -631,7 +624,7 @@ export const MENU_DISH_DATA = [
     "id": "green-papaya-salad",
     "name": "Green Papaya Salad",
     "section": "Salad",
-    "price": "$20",
+    "price": "$21",
     "page": 1,
     "gf": false,
     "description": "Prawns, shredded green papaya, lime, chili, tomato, fish sauce, peanuts.",
@@ -640,17 +633,17 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 1,
-        "x": 406,
-        "y": 722.6,
-        "w": 188,
-        "h": 36.7
+        "x": 404.5,
+        "y": 835.5,
+        "w": 183.8,
+        "h": 36
       },
       {
         "page": 1,
-        "x": 406,
-        "y": 764.3,
-        "w": 188,
-        "h": 107.5
+        "x": 404.5,
+        "y": 711.2,
+        "w": 183.8,
+        "h": 122.9
       }
     ]
   },
@@ -667,10 +660,10 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 1,
-        "x": 406,
-        "y": 872.8,
-        "w": 188,
-        "h": 34.4
+        "x": 404.5,
+        "y": 872.5,
+        "w": 183.8,
+        "h": 35.9
       }
     ]
   },
@@ -678,7 +671,7 @@ export const MENU_DISH_DATA = [
     "id": "yum-woon-sen-thai-noodle-salad",
     "name": "Yum Woon Sen (Thai Noodle Salad)",
     "section": "Salad",
-    "price": "$19",
+    "price": "$20",
     "page": 1,
     "gf": false,
     "description": "Glass noodles, ground chicken, shrimp, tomato, red onion, zesty lime-chili dressing.",
@@ -687,10 +680,10 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 1,
-        "x": 406,
-        "y": 908.2,
-        "w": 188,
-        "h": 47.4
+        "x": 404.5,
+        "y": 909.4,
+        "w": 183.8,
+        "h": 49.5
       }
     ]
   },
@@ -710,17 +703,17 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 2,
-        "x": 17,
-        "y": 94.4,
-        "w": 188,
-        "h": 40.7
+        "x": 23.5,
+        "y": 173,
+        "w": 183.8,
+        "h": 41.5
       },
       {
         "page": 2,
-        "x": 17,
-        "y": 140.1,
-        "w": 188,
-        "h": 55.2
+        "x": 23.5,
+        "y": 88.3,
+        "w": 183.8,
+        "h": 83.4
       }
     ]
   },
@@ -728,19 +721,26 @@ export const MENU_DISH_DATA = [
     "id": "salmon-green-curry",
     "name": "Salmon Green Curry",
     "section": "Signature Dishes",
-    "price": "$23",
+    "price": "$24",
     "page": 2,
     "gf": true,
-    "description": "Salmon in green curry, green beans, eggplant, red bell pepper, basil.",
+    "description": "Salmon in green curry, green beans, eggplant, basil.",
     "choices": [],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 17,
-        "y": 196.3,
-        "w": 188,
-        "h": 30
+        "x": 23.5,
+        "y": 216.5,
+        "w": 183.8,
+        "h": 22
+      },
+      {
+        "page": 2,
+        "x": 214,
+        "y": 487,
+        "w": 183.8,
+        "h": 54.5
       }
     ]
   },
@@ -757,10 +757,10 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 2,
-        "x": 17,
-        "y": 227.3,
-        "w": 188,
-        "h": 30
+        "x": 23.5,
+        "y": 239.5,
+        "w": 183.8,
+        "h": 30.4
       }
     ]
   },
@@ -771,7 +771,7 @@ export const MENU_DISH_DATA = [
     "price": "$21",
     "page": 2,
     "gf": true,
-    "description": "Fresh mango in red curry, basil, green beans, peas, bell peppers.",
+    "description": "Fresh mango in red curry, green beans, peas, basil.",
     "choices": [
       "Chicken",
       "Veggie",
@@ -781,17 +781,16 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 17,
-        "y": 258.3,
-        "w": 188,
-        "h": 31
+        "x": 23.5,
+        "y": 270.9,
+        "w": 183.8,
+        "h": 22.7
       }
     ]
   },
@@ -808,17 +807,17 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 2,
-        "x": 212,
-        "y": 91.1,
-        "w": 188,
-        "h": 31
+        "x": 214,
+        "y": 173,
+        "w": 183.8,
+        "h": 30.4
       },
       {
         "page": 2,
-        "x": 212,
-        "y": 127.1,
-        "w": 188,
-        "h": 85.9
+        "x": 214,
+        "y": 88.3,
+        "w": 183.8,
+        "h": 83.4
       }
     ]
   },
@@ -826,19 +825,19 @@ export const MENU_DISH_DATA = [
     "id": "shaken-beef",
     "name": "Shaken Beef",
     "section": "Signature Dishes",
-    "price": "$22",
+    "price": "$23",
     "page": 2,
     "gf": false,
-    "description": "Wok-seared steak medallions over spring mix, pickled vegetables, tangy sauce.",
+    "description": "Wok-seared steak medallions over spring mix, pickled onions, carrot, tangy sauce.",
     "choices": [],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 212,
-        "y": 214,
-        "w": 188,
-        "h": 28.9
+        "x": 214,
+        "y": 204.4,
+        "w": 183.8,
+        "h": 31
       }
     ]
   },
@@ -846,19 +845,19 @@ export const MENU_DISH_DATA = [
     "id": "pumpkin-red-curry-chicken",
     "name": "Pumpkin Red Curry Chicken",
     "section": "Signature Dishes",
-    "price": "$20",
+    "price": "$21",
     "page": 2,
     "gf": true,
-    "description": "Chicken and pumpkin in red curry, green beans, peas, bell peppers.",
+    "description": "Chicken and pumpkin in red curry, green beans, peas.",
     "choices": [],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 212,
-        "y": 243.9,
-        "w": 188,
-        "h": 29.4
+        "x": 214,
+        "y": 236.4,
+        "w": 183.8,
+        "h": 22
       }
     ]
   },
@@ -866,7 +865,7 @@ export const MENU_DISH_DATA = [
     "id": "rama-s-chicken",
     "name": "Rama's Chicken",
     "section": "Signature Dishes",
-    "price": "$18",
+    "price": "$19",
     "page": 2,
     "gf": false,
     "description": "Sautéed chicken, mushrooms, carrot, cabbage, spinach, peanut curry sauce.",
@@ -875,10 +874,10 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 2,
-        "x": 212,
-        "y": 274.3,
-        "w": 188,
-        "h": 31
+        "x": 214,
+        "y": 259.4,
+        "w": 183.8,
+        "h": 31.1
       }
     ]
   },
@@ -886,7 +885,7 @@ export const MENU_DISH_DATA = [
     "id": "sole-tamarind-sauce",
     "name": "Sole Tamarind Sauce",
     "section": "Signature Dishes",
-    "price": "$23",
+    "price": "$24",
     "page": 2,
     "gf": false,
     "description": "Crispy sole fillets, shallots, red bell peppers, tangy tamarind sauce.Also available steamed.",
@@ -895,17 +894,17 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 2,
-        "x": 406,
-        "y": 91.1,
-        "w": 188,
-        "h": 31
+        "x": 404.5,
+        "y": 173,
+        "w": 183.8,
+        "h": 30.4
       },
       {
         "page": 2,
-        "x": 406,
-        "y": 127.1,
-        "w": 188,
-        "h": 54.3
+        "x": 404.5,
+        "y": 88.3,
+        "w": 183.8,
+        "h": 83.4
       }
     ]
   },
@@ -916,16 +915,16 @@ export const MENU_DISH_DATA = [
     "price": "$21",
     "page": 2,
     "gf": false,
-    "description": "Pan-fried beef, garlic,onion, chilies, topped with crispy rice noodles.",
+    "description": "Beef, garlic,onion, chilies, crispy rice noodles.",
     "choices": [],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 406,
-        "y": 182.5,
-        "w": 188,
-        "h": 28.9
+        "x": 404.5,
+        "y": 204.4,
+        "w": 183.8,
+        "h": 22.1
       }
     ]
   },
@@ -936,16 +935,16 @@ export const MENU_DISH_DATA = [
     "price": "$19",
     "page": 2,
     "gf": true,
-    "description": "Lemongrass chicken stir-fried with ginger, green beans, mushrooms, red bell peppers.",
+    "description": "Lemongrass chicken, ginger, green beans, mushrooms.",
     "choices": [],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 406,
-        "y": 212.4,
-        "w": 188,
-        "h": 29.9
+        "x": 404.5,
+        "y": 227.5,
+        "w": 183.8,
+        "h": 30.9
       }
     ]
   },
@@ -956,7 +955,7 @@ export const MENU_DISH_DATA = [
     "price": "$18",
     "page": 2,
     "gf": false,
-    "description": "Sautéed with garlic,onion, bell peppers, fragrant Thai basil.",
+    "description": "Garlic,onion, bell peppers, fragrant Thai basil.",
     "choices": [
       "Chicken",
       "Veggie",
@@ -966,55 +965,43 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 406,
-        "y": 243.3,
-        "w": 188,
-        "h": 29.5
+        "x": 404.5,
+        "y": 259.4,
+        "w": 183.8,
+        "h": 21.5
       }
     ]
   },
   {
-    "id": "mango-cashew",
-    "name": "Mango Cashew",
+    "id": "mango-cashew-chicken",
+    "name": "Mango Cashew Chicken",
     "section": "Signature Dishes",
-    "price": "$20",
+    "price": "$21",
     "page": 2,
     "gf": false,
-    "description": "Sautéed fresh mango, cashews, bell peppers,onion, scallions.",
-    "choices": [
-      "Chicken",
-      "Veggie",
-      "Pork (+$2.50)",
-      "Shrimp (+$3.50)",
-      "Sole Fish (+$5.50)",
-      "Seafood (+$5.50)",
-      "Salmon (+$5.50)",
-      "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
-    ],
+    "description": "Fresh mango, cashews, bell peppers,onion.",
+    "choices": [],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 406,
-        "y": 273.8,
-        "w": 188,
-        "h": 31
+        "x": 404.5,
+        "y": 281.9,
+        "w": 183.8,
+        "h": 22.7
       },
       {
         "page": 2,
-        "x": 212,
-        "y": 343,
-        "w": 188,
-        "h": 70.8
+        "x": 214,
+        "y": 374.6,
+        "w": 183.8,
+        "h": 60.3
       }
     ]
   },
@@ -1022,10 +1009,10 @@ export const MENU_DISH_DATA = [
     "id": "green-bean-prig-khing",
     "name": "Green Bean Prig Khing",
     "section": "Wok",
-    "price": "$18",
+    "price": "$19",
     "page": 2,
     "gf": false,
-    "description": "Green beans stir-fried in red curry, kaffir lime, Thai spices.",
+    "description": "Green beans and bell peppers in red curry, kaffir lime.",
     "choices": [
       "Chicken",
       "Veggie",
@@ -1035,17 +1022,16 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 17,
-        "y": 376.3,
-        "w": 188,
-        "h": 22
+        "x": 23.5,
+        "y": 435.2,
+        "w": 183.8,
+        "h": 22.1
       }
     ]
   },
@@ -1066,17 +1052,16 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 17,
-        "y": 399.3,
-        "w": 188,
-        "h": 28.9
+        "x": 23.5,
+        "y": 458.3,
+        "w": 183.8,
+        "h": 30.4
       }
     ]
   },
@@ -1084,10 +1069,10 @@ export const MENU_DISH_DATA = [
     "id": "broccoli-and-mushroom",
     "name": "Broccoli & Mushroom",
     "section": "Wok",
-    "price": "$18",
+    "price": "$19",
     "page": 2,
     "gf": false,
-    "description": "Shiitake mushrooms and broccoli in a savory oyster sauce.",
+    "description": "Shiitake and broccoli in savory oyster sauce.",
     "choices": [
       "Chicken",
       "Veggie",
@@ -1097,48 +1082,16 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 17,
-        "y": 429.2,
-        "w": 188,
-        "h": 29.9
-      }
-    ]
-  },
-  {
-    "id": "kung-pao",
-    "name": "Kung Pao",
-    "section": "Wok",
-    "price": "$18",
-    "page": 2,
-    "gf": false,
-    "description": "Bell peppers,onion, water chestnuts, scallions, chilies, peanuts.",
-    "choices": [
-      "Chicken",
-      "Veggie",
-      "Pork (+$2.50)",
-      "Shrimp (+$3.50)",
-      "Sole Fish (+$5.50)",
-      "Seafood (+$5.50)",
-      "Salmon (+$5.50)",
-      "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
-    ],
-    "addOns": [],
-    "areas": [
-      {
-        "page": 2,
-        "x": 17,
-        "y": 460.1,
-        "w": 188,
-        "h": 28.9
+        "x": 23.5,
+        "y": 489.7,
+        "w": 183.8,
+        "h": 22
       }
     ]
   },
@@ -1146,10 +1099,10 @@ export const MENU_DISH_DATA = [
     "id": "garlic-and-black-pepper",
     "name": "Garlic & Black Pepper",
     "section": "Wok",
-    "price": "$18",
+    "price": "$19",
     "page": 2,
     "gf": false,
-    "description": "Garlic, mushrooms, broccoli, Thai herbs, cracked black pepper, cilantro.",
+    "description": "Garlic, mushrooms, broccoli, carrot, Thai herbs, black pepper, cilantro.",
     "choices": [
       "Chicken",
       "Veggie",
@@ -1159,17 +1112,46 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 17,
-        "y": 490,
-        "w": 188,
-        "h": 30
+        "x": 23.5,
+        "y": 512.7,
+        "w": 183.8,
+        "h": 30.9
+      }
+    ]
+  },
+  {
+    "id": "jalapeno-stir-fry",
+    "name": "Jalapeño Stir Fry",
+    "section": "Wok",
+    "price": "$19",
+    "page": 2,
+    "gf": false,
+    "description": "Jalapeños, bell pepper, mushrooms,onions, green onion, garlic.",
+    "choices": [
+      "Chicken",
+      "Veggie",
+      "Pork (+$2.50)",
+      "Shrimp (+$3.50)",
+      "Sole Fish (+$5.50)",
+      "Seafood (+$5.50)",
+      "Salmon (+$5.50)",
+      "Duck (+$5.50)",
+      "Beef (+$4.50)"
+    ],
+    "addOns": [],
+    "areas": [
+      {
+        "page": 2,
+        "x": 23.5,
+        "y": 544.6,
+        "w": 183.8,
+        "h": 30.4
       }
     ]
   },
@@ -1190,24 +1172,23 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 17,
-        "y": 521,
-        "w": 188,
-        "h": 30.5
+        "x": 23.5,
+        "y": 576,
+        "w": 183.8,
+        "h": 31.6
       },
       {
         "page": 2,
-        "x": 17,
-        "y": 556.5,
-        "w": 188,
-        "h": 60.2
+        "x": 23.5,
+        "y": 374.6,
+        "w": 183.8,
+        "h": 59.6
       }
     ]
   },
@@ -1218,23 +1199,23 @@ export const MENU_DISH_DATA = [
     "price": "$19",
     "page": 2,
     "gf": false,
-    "description": "Marinated grilled chicken, house Thai sweet-and-spicy BBQ sauce.",
+    "description": "Grilled marinated chicken, sweet-spicy Thai BBQ sauce.",
     "choices": [],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 406,
-        "y": 375.2,
-        "w": 188,
-        "h": 28.9
+        "x": 404.5,
+        "y": 435.2,
+        "w": 183.8,
+        "h": 30.9
       },
       {
         "page": 2,
-        "x": 406,
-        "y": 471,
-        "w": 188,
-        "h": 59.8
+        "x": 404.5,
+        "y": 374.6,
+        "w": 183.8,
+        "h": 59.6
       }
     ]
   },
@@ -1245,16 +1226,16 @@ export const MENU_DISH_DATA = [
     "price": "$21",
     "page": 2,
     "gf": false,
-    "description": "Marinated grilled pork chop, house Thai sweet-and-spicy BBQ sauce.",
+    "description": "Grilled pork chop, sweet-spicy Thai BBQ sauce.",
     "choices": [],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 406,
-        "y": 405.1,
-        "w": 188,
-        "h": 28.9
+        "x": 404.5,
+        "y": 467.1,
+        "w": 183.8,
+        "h": 21.6
       }
     ]
   },
@@ -1265,16 +1246,16 @@ export const MENU_DISH_DATA = [
     "price": "$21",
     "page": 2,
     "gf": false,
-    "description": "Hoisin-honey pork ribs, coriander, cucumber salad, sweet chili sauce.",
+    "description": "Hoisin-honey pork ribs, cucumber salad, sweet chili.",
     "choices": [],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 406,
-        "y": 435,
-        "w": 188,
-        "h": 31
+        "x": 404.5,
+        "y": 489.7,
+        "w": 183.8,
+        "h": 22.7
       }
     ]
   },
@@ -1285,7 +1266,7 @@ export const MENU_DISH_DATA = [
     "price": "$19",
     "page": 2,
     "gf": true,
-    "description": "Coconut yellow curry with cumin, turmeric, potatoes, tomato.",
+    "description": "Yellow curry, turmeric, potatoes, tomato.",
     "choices": [
       "Chicken",
       "Veggie",
@@ -1295,24 +1276,16 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 212,
-        "y": 438.2,
-        "w": 188,
-        "h": 31
-      },
-      {
-        "page": 2,
-        "x": 212,
-        "y": 474.2,
-        "w": 188,
-        "h": 55.4
+        "x": 214,
+        "y": 459.3,
+        "w": 183.8,
+        "h": 22.7
       }
     ]
   },
@@ -1333,17 +1306,16 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 212,
-        "y": 530.6,
-        "w": 188,
-        "h": 28.9
+        "x": 214,
+        "y": 542.5,
+        "w": 183.8,
+        "h": 30.4
       }
     ]
   },
@@ -1354,7 +1326,7 @@ export const MENU_DISH_DATA = [
     "price": "$19",
     "page": 2,
     "gf": true,
-    "description": "Mild green coconut curry, peas, carrots, bell pepper, eggplant, basil.",
+    "description": "Green coconut curry, peas, bell pepper, eggplant, basil.",
     "choices": [
       "Chicken",
       "Veggie",
@@ -1364,17 +1336,16 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 212,
-        "y": 560.5,
-        "w": 188,
-        "h": 28.9
+        "x": 214,
+        "y": 573.9,
+        "w": 183.8,
+        "h": 30.9
       }
     ]
   },
@@ -1394,10 +1365,10 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 2,
-        "x": 212,
-        "y": 590.4,
-        "w": 188,
-        "h": 40.7
+        "x": 214,
+        "y": 605.8,
+        "w": 183.8,
+        "h": 41.5
       }
     ]
   },
@@ -1418,17 +1389,16 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 212,
-        "y": 633.2,
-        "w": 188,
-        "h": 31
+        "x": 214,
+        "y": 649.3,
+        "w": 183.8,
+        "h": 31.1
       }
     ]
   },
@@ -1436,7 +1406,7 @@ export const MENU_DISH_DATA = [
     "id": "pad-thai",
     "name": "Pad Thai",
     "section": "Noodles",
-    "price": "$18",
+    "price": "$19",
     "page": 2,
     "gf": true,
     "description": "Thin rice noodles stir-fried with egg, green onion, bean sprouts, sweet-tangy sauce.",
@@ -1449,24 +1419,23 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 17,
-        "y": 642.2,
-        "w": 188,
-        "h": 25.7
+        "x": 23.5,
+        "y": 636.7,
+        "w": 183.8,
+        "h": 27.8
       },
       {
         "page": 2,
-        "x": 212,
-        "y": 808.3,
-        "w": 188,
-        "h": 82.9
+        "x": 214,
+        "y": 812.2,
+        "w": 183.8,
+        "h": 81.2
       }
     ]
   },
@@ -1474,10 +1443,10 @@ export const MENU_DISH_DATA = [
     "id": "singapore-noodles",
     "name": "Singapore Noodles",
     "section": "Noodles",
-    "price": "$18",
+    "price": "$19",
     "page": 2,
     "gf": false,
-    "description": "Thin vermicelli, egg, sesame, soy, chili, carrots, bell peppers.",
+    "description": "Thin vermicelli, egg, sesame, soy, chili, carrots, bean sprouts, scallions.",
     "choices": [
       "Chicken",
       "Veggie",
@@ -1487,17 +1456,16 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 17,
-        "y": 668.9,
-        "w": 188,
-        "h": 25.7
+        "x": 23.5,
+        "y": 665.5,
+        "w": 183.8,
+        "h": 27.2
       }
     ]
   },
@@ -1505,7 +1473,7 @@ export const MENU_DISH_DATA = [
     "id": "chow-mein",
     "name": "Chow Mein",
     "section": "Noodles",
-    "price": "$18",
+    "price": "$19",
     "page": 2,
     "gf": false,
     "description": "Egg noodles, bok choy, carrot, broccoli, tomato, bean sprouts, green onion.",
@@ -1518,17 +1486,16 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 17,
-        "y": 695.6,
-        "w": 188,
-        "h": 25.7
+        "x": 23.5,
+        "y": 693.7,
+        "w": 183.8,
+        "h": 27.8
       }
     ]
   },
@@ -1536,7 +1503,7 @@ export const MENU_DISH_DATA = [
     "id": "pad-see-ew",
     "name": "Pad See Ew",
     "section": "Noodles",
-    "price": "$18",
+    "price": "$19",
     "page": 2,
     "gf": false,
     "description": "Wide rice noodles, broccoli, egg, savory house sauce.",
@@ -1549,24 +1516,23 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 17,
-        "y": 722.3,
-        "w": 188,
-        "h": 17.2
+        "x": 23.5,
+        "y": 722.5,
+        "w": 183.8,
+        "h": 18.9
       },
       {
         "page": 2,
-        "x": 212,
-        "y": 896.2,
-        "w": 188,
-        "h": 77.8
+        "x": 214,
+        "y": 898.4,
+        "w": 183.8,
+        "h": 76
       }
     ]
   },
@@ -1574,10 +1540,10 @@ export const MENU_DISH_DATA = [
     "id": "pad-woon-sen",
     "name": "Pad Woon Sen",
     "section": "Noodles",
-    "price": "$18",
+    "price": "$19",
     "page": 2,
     "gf": false,
-    "description": "Glass noodles stir-fried with egg, cabbage, tomato,onion, carrot, scallions.",
+    "description": "Glass noodles, egg, cabbage, tomato,onion, carrot, bean sprouts, scallions.",
     "choices": [
       "Chicken",
       "Veggie",
@@ -1587,17 +1553,16 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 17,
-        "y": 740.5,
-        "w": 188,
-        "h": 25.7
+        "x": 23.5,
+        "y": 742.4,
+        "w": 183.8,
+        "h": 27.3
       }
     ]
   },
@@ -1608,7 +1573,7 @@ export const MENU_DISH_DATA = [
     "price": "$20",
     "page": 2,
     "gf": false,
-    "description": "Egg noodles in green curry, eggplant, bell pepper, peas, carrots, basil.",
+    "description": "Egg noodles in green curry, eggplant, peas, basil.",
     "choices": [
       "Chicken",
       "Veggie",
@@ -1618,17 +1583,16 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 17,
-        "y": 767.2,
-        "w": 188,
-        "h": 26.8
+        "x": 23.5,
+        "y": 770.7,
+        "w": 183.8,
+        "h": 18.9
       }
     ]
   },
@@ -1645,30 +1609,10 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 2,
-        "x": 17,
-        "y": 795,
-        "w": 188,
-        "h": 25.7
-      }
-    ]
-  },
-  {
-    "id": "beef-noodle-soup",
-    "name": "Beef Noodle Soup",
-    "section": "Noodles",
-    "price": "$20",
-    "page": 2,
-    "gf": false,
-    "description": "Rice noodles, sliced beef, savory broth, bean sprouts, cilantro, green onion.",
-    "choices": [],
-    "addOns": [],
-    "areas": [
-      {
-        "page": 2,
-        "x": 17,
-        "y": 821.7,
-        "w": 188,
-        "h": 26.7
+        "x": 23.5,
+        "y": 790.6,
+        "w": 183.8,
+        "h": 27.2
       }
     ]
   },
@@ -1679,7 +1623,7 @@ export const MENU_DISH_DATA = [
     "price": "$20",
     "page": 2,
     "gf": false,
-    "description": "Rice noodles in a rich, spiced broth, sprouts, spinach, basil, cilantro, scallion.No substitutions or modifications, for best results and consistent flavor.",
+    "description": "Rice noodles in rich spiced broth, sprouts, spinach, basil.No substitutions or modifications, for consistent flavor.",
     "choices": [
       "Sliced Beef",
       "Sliced Pork"
@@ -1688,10 +1632,10 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 2,
-        "x": 17,
-        "y": 849.4,
-        "w": 188,
-        "h": 47.1
+        "x": 23.5,
+        "y": 818.8,
+        "w": 183.8,
+        "h": 48.2
       }
     ]
   },
@@ -1712,17 +1656,16 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 17,
-        "y": 897.5,
-        "w": 188,
-        "h": 25.7
+        "x": 23.5,
+        "y": 868,
+        "w": 183.8,
+        "h": 27.3
       }
     ]
   },
@@ -1743,24 +1686,23 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 17,
-        "y": 924.2,
-        "w": 188,
-        "h": 25.7
+        "x": 23.5,
+        "y": 896.3,
+        "w": 183.8,
+        "h": 27.8
       },
       {
         "page": 2,
-        "x": 406,
-        "y": 683.6,
-        "w": 188,
-        "h": 55.4
+        "x": 404.5,
+        "y": 824.5,
+        "w": 183.8,
+        "h": 69.9
       }
     ]
   },
@@ -1781,17 +1723,16 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 17,
-        "y": 950.9,
-        "w": 188,
-        "h": 30.5
+        "x": 23.5,
+        "y": 925.1,
+        "w": 183.8,
+        "h": 31.6
       }
     ]
   },
@@ -1802,16 +1743,16 @@ export const MENU_DISH_DATA = [
     "price": "$24",
     "page": 2,
     "gf": false,
-    "description": "Crab and prawns, egg,onion, tomato, carrot, scallions, cilantro.",
+    "description": "Crab and prawns, egg,onion, tomato, scallions.",
     "choices": [],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 212,
-        "y": 688.7,
-        "w": 188,
-        "h": 30
+        "x": 214,
+        "y": 705.8,
+        "w": 183.8,
+        "h": 22
       }
     ]
   },
@@ -1832,17 +1773,16 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 212,
-        "y": 719.7,
-        "w": 188,
-        "h": 20.9
+        "x": 214,
+        "y": 728.8,
+        "w": 183.8,
+        "h": 22
       }
     ]
   },
@@ -1863,17 +1803,16 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 212,
-        "y": 741.6,
-        "w": 188,
-        "h": 20.3
+        "x": 214,
+        "y": 751.8,
+        "w": 183.8,
+        "h": 21.5
       }
     ]
   },
@@ -1884,7 +1823,7 @@ export const MENU_DISH_DATA = [
     "price": "$18",
     "page": 2,
     "gf": false,
-    "description": "Signature sauce, egg,onion, scallions, tomato, carrot, cilantro.",
+    "description": "Signature sauce, egg,onion, tomato, carrot, scallions.",
     "choices": [
       "Chicken",
       "Veggie",
@@ -1894,24 +1833,23 @@ export const MENU_DISH_DATA = [
       "Seafood (+$5.50)",
       "Salmon (+$5.50)",
       "Duck (+$5.50)",
-      "Beef (+$4.50)",
-      "Protein Style (+$1)"
+      "Beef (+$4.50)"
     ],
     "addOns": [],
     "areas": [
       {
         "page": 2,
-        "x": 212,
-        "y": 762.9,
-        "w": 188,
-        "h": 31
+        "x": 214,
+        "y": 774.3,
+        "w": 183.8,
+        "h": 22.7
       },
       {
         "page": 2,
-        "x": 406,
-        "y": 611.2,
-        "w": 188,
-        "h": 67.4
+        "x": 404.5,
+        "y": 738.4,
+        "w": 183.8,
+        "h": 81.1
       }
     ]
   },
@@ -1928,10 +1866,10 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 2,
-        "x": 406,
-        "y": 839.6,
-        "w": 188,
-        "h": 13.7
+        "x": 404.5,
+        "y": 635,
+        "w": 183.8,
+        "h": 11
       }
     ]
   },
@@ -1948,10 +1886,10 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 2,
-        "x": 406,
-        "y": 856.2,
-        "w": 188,
-        "h": 13.7
+        "x": 404.5,
+        "y": 647,
+        "w": 183.8,
+        "h": 11
       }
     ]
   },
@@ -1968,10 +1906,10 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 2,
-        "x": 406,
-        "y": 872.7,
-        "w": 188,
-        "h": 13.7
+        "x": 404.5,
+        "y": 659,
+        "w": 183.8,
+        "h": 11.1
       }
     ]
   },
@@ -1988,10 +1926,10 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 2,
-        "x": 406,
-        "y": 889.8,
-        "w": 188,
-        "h": 13.7
+        "x": 404.5,
+        "y": 671.1,
+        "w": 183.8,
+        "h": 11
       }
     ]
   },
@@ -2008,10 +1946,10 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 2,
-        "x": 406,
-        "y": 906.4,
-        "w": 188,
-        "h": 13.7
+        "x": 404.5,
+        "y": 683.1,
+        "w": 183.8,
+        "h": 11
       }
     ]
   },
@@ -2028,10 +1966,10 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 2,
-        "x": 406,
-        "y": 922.9,
-        "w": 188,
-        "h": 13.7
+        "x": 404.5,
+        "y": 695.1,
+        "w": 183.8,
+        "h": 11.1
       }
     ]
   },
@@ -2048,10 +1986,10 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 2,
-        "x": 406,
-        "y": 939.5,
-        "w": 188,
-        "h": 13.7
+        "x": 404.5,
+        "y": 707.2,
+        "w": 183.8,
+        "h": 11
       }
     ]
   },
@@ -2068,10 +2006,10 @@ export const MENU_DISH_DATA = [
     "areas": [
       {
         "page": 2,
-        "x": 406,
-        "y": 956,
-        "w": 188,
-        "h": 13.7
+        "x": 404.5,
+        "y": 719.2,
+        "w": 183.8,
+        "h": 14.2
       }
     ]
   }

@@ -6,6 +6,7 @@ import { renderCateringNotification } from '../src/lib/catering/notification.ts'
 import { cateringLead, filterCatering } from '../src/lib/catering/admin.ts';
 import { defaultRestaurant } from '../src/lib/restaurant/config.ts';
 
+const padThaiPrice = menuDish('pad-thai').price;
 const base = { name: 'Synthetic Catering', email: 'catering@example.invalid', phone: '(650) 555-0100', date: '2026-11-15', partySize: '40', budget: '$1000 – $2,500' };
 
 test('menu catalog has unique dishes with tap areas inside the printed pages that never overlap', () => {
@@ -34,7 +35,7 @@ test('dish selections resolve to catalog names and prices and reject anything of
     { id: 'pad-thai', name: 'Free lobster', price: '$0', choice: 'Shrimp (+$3.50)', note: '  mild please ' },
     { id: 'fresh-spring-rolls', addOns: ['Avocado (+$1.50)', 'Avocado (+$1.50)'] },
   ]);
-  assert.deepEqual(pad, { id: 'pad-thai', name: 'Pad Thai', section: 'Noodles', price: '$18', choice: 'Shrimp (+$3.50)', addOns: [], note: 'mild please' });
+  assert.deepEqual(pad, { id: 'pad-thai', name: 'Pad Thai', section: 'Noodles', price: padThaiPrice, choice: 'Shrimp (+$3.50)', addOns: [], note: 'mild please' });
   assert.deepEqual(rolls.addOns, ['Avocado (+$1.50)']);
   assert.throws(() => resolveDishSelections([{ id: 'firestore-doc-id', name: 'Pad Thai' }]), /no longer on the menu/);
   assert.throws(() => resolveDishSelections([{ id: 'pad-thai', choice: 'Lobster' }]), /listed option/);
@@ -47,8 +48,8 @@ test('dish selections resolve to catalog names and prices and reject anything of
 });
 
 test('catering input stores resolved dishes from the catalog', () => {
-  const inquiry = cateringInput({ ...base, selectedDishes: [{ id: 'kung-pao', choice: 'Veggie' }] });
-  assert.deepEqual(inquiry.selectedDishes, [{ id: 'kung-pao', name: 'Kung Pao', section: 'Wok', price: '$18', choice: 'Veggie', addOns: [], note: '' }]);
+  const inquiry = cateringInput({ ...base, selectedDishes: [{ id: 'jalapeno-stir-fry', choice: 'Veggie' }] });
+  assert.deepEqual(inquiry.selectedDishes, [{ id: 'jalapeno-stir-fry', name: 'Jalapeño Stir Fry', section: 'Wok', price: menuDish('jalapeno-stir-fry').price, choice: 'Veggie', addOns: [], note: '' }]);
 });
 
 test('restaurant email lists dishes by section with options, notes and prices, escaped', () => {
@@ -59,9 +60,9 @@ test('restaurant email lists dishes by section with options, notes and prices, e
   assert.match(staff.subject, /Catering inquiry — Synthetic Catering/);
   assert.ok(staff.html.indexOf('Starters') < staff.html.indexOf('Noodles'), 'sections follow menu order');
   assert.match(staff.html, /Pad Thai<\/td><td[^>]*>Shrimp \(\+\$3\.50\)/);
-  assert.match(staff.html, /\$18/); assert.match(staff.html, /As listed/);
+  assert.ok(staff.html.includes(padThaiPrice)); assert.match(staff.html, /As listed/);
   assert.ok(staff.html.includes('&lt;b&gt;no peanuts&lt;/b&gt;') && !staff.html.includes('<b>no peanuts'));
-  assert.match(staff.text, /Noodles:\n- Pad Thai \(\$18\) — Shrimp \(\+\$3\.50\) — Note: <b>no peanuts<\/b>/);
+  assert.ok(staff.text.includes(`Noodles:\n- Pad Thai (${padThaiPrice}) — Shrimp (+$3.50) — Note: <b>no peanuts</b>`));
   assert.match(staff.text, /catering@example\.invalid/);
   const guest = renderCateringNotification({ recipient: 'guest', inquiry }, defaultRestaurant);
   assert.equal(guest.to, 'catering@example.invalid'); assert.match(guest.html, /Requested menu · 2 dishes/);

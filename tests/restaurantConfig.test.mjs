@@ -51,3 +51,9 @@ test('open status uses restaurant clock and custom hours independently of bookin
   assert.equal(openAt(partial, new Date('2026-11-16T01:00:00Z')), true);
   assert.equal(openAt({ ...partial, specialDates: [...partial.specialDates, { date: '2026-11-15', closureType: 'dinner' }] }, new Date('2026-11-16T01:00:00Z')), false);
 });
+
+test('menu download defaults to the current print menu and upgrades the old default path', () => {
+  assert.equal(defaultRestaurant.menuPdf, '/images/menu/Thaiphoon-Menu.pdf');
+  assert.equal(restaurantIdentity({ ...defaultRestaurant, menuPdf: '/images/Thaiphoon_Food_Pics/Thaiphoon Dinner Menu.pdf' }).menuPdf, '/images/menu/Thaiphoon-Menu.pdf');
+  assert.equal(restaurantIdentity({ ...defaultRestaurant, menuPdf: '/images/custom-menu.pdf' }).menuPdf, '/images/custom-menu.pdf');
+});

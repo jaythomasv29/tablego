@@ -11,7 +11,7 @@ import { useTimezone } from '@/contexts/TimezoneContext';
 import { formatBusinessTimestamp, formatDateForDisplay } from '@/utils/dateUtils';
 import { cateringEmailLink, cateringStatusLabels, closedCatering, type CateringLead, type CateringStatus } from '@/lib/catering/admin';
 import CateringStage from './CateringStage';
-import { dishDetails, groupDishesBySection } from '@/lib/menu/catalog';
+import { MENU_DISHES, dishDetails, groupDishesBySection } from '@/lib/menu/catalog';
 interface CateringEvent { id: string; event: string; timestamp: string | null; previousStatus?: CateringStatus; status?: CateringStatus; notesChanged?: boolean; followUpChanged?: boolean; followUpDate?: string; recipient?: string; bulkClosed?: boolean }
 export default function CateringDetails({ id, timezone, onClose, onSaved }: { id: string; timezone: string; onClose: () => void; onSaved: (lead: CateringLead) => void }) {
   const { restaurant } = useTimezone();
@@ -74,7 +74,7 @@ export default function CateringDetails({ id, timezone, onClose, onSaved }: { id
 }
 
 function RequestedMenu({ dishes }: { dishes: CateringLead['menuSelections'] }) {
-  const groups = groupDishesBySection(dishes.map(dish => ({ ...dish, id: dish.name.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') })));
+  const groups = groupDishesBySection(dishes.map(dish => ({ ...dish, id: MENU_DISHES.find(item => item.name === dish.name)?.id })));
   return <div className="space-y-3">{groups.map(({ section, items }) => <div key={section}>
     {(groups.length > 1 || section !== 'Other') && <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">{section}</h3>}
     <ul className="divide-y rounded-lg border bg-muted/30">{items.map((dish, index) => { const details = dishDetails(dish); return <li key={`${dish.name}-${index}`} className="flex items-start justify-between gap-3 px-3 py-2 text-sm">
