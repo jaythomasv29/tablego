@@ -8,10 +8,12 @@ export const defaultRestaurant = {
   email: 'thaiphoonpaloalto@gmail.com', website: 'https://thaiphoonpa.com',
   mapsUrl: 'https://maps.google.com/?q=543+Emerson+St+Palo+Alto+CA+94301',
   orderUrl: 'https://order.online/business/Thaiphoon-450', cateringUrl: '/cater',
-  menuPdf: '/images/Thaiphoon_Food_Pics/Thaiphoon Dinner Menu.pdf',
+  menuPdf: '/images/menu/Thaiphoon-Menu.pdf',
   promotion: '', promotionUrl: '',
 };
 export type RestaurantIdentity = typeof defaultRestaurant;
+// Earlier default menu downloads. Saved settings that still point here get the current print menu.
+const LEGACY_MENU_PDFS = ['/images/Thaiphoon_Food_Pics/Thaiphoon Dinner Menu.pdf'];
 export function validateRestaurant(value: unknown): RestaurantIdentity {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Restaurant configuration is required');
   const input = value as Record<string, unknown>;
@@ -31,6 +33,7 @@ export function validateRestaurant(value: unknown): RestaurantIdentity {
     try { const parsed = new URL(url); if (parsed.protocol !== 'https:' || parsed.username || parsed.password) throw new Error(); }
     catch { throw new Error(`${key} must be a local path or HTTPS URL`); }
   }
+  if (LEGACY_MENU_PDFS.includes(result.menuPdf)) result.menuPdf = defaultRestaurant.menuPdf;
   return result;
 }
 export function restaurantIdentity(value: unknown): RestaurantIdentity {

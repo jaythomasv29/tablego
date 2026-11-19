@@ -12,7 +12,6 @@ const PHOTO_DISHES = {
   'Roti': 'Roti & Two Curry Sauce',
   'Spicy New York Steak Salad': 'Spicy NY Steak Salad',
   'Panang Curry Prawns': 'Prawns Chu Chee',
-  'Mango Cashew Chicken': 'Mango Cashew',
   'Yellow Curry Chicken': 'Yellow Curry',
   'Thai BBQ Chicken': 'BBQ Chicken',
   'Thaiphoon House Fried Rice Prawns': 'Thaiphoon House Fried Rice',
@@ -31,7 +30,6 @@ const NOT_DISHES = [/complete the meal/i];
 const PROTEIN_SECTIONS = new Set(['Signature Dishes', 'Wok', 'Curry', 'Noodles', 'Fried Rice']);
 const NAMED_PROTEIN = /chicken|beef|pork|duck|prawn|shrimp|salmon|sole|crab|seafood|ribs|tofu/i;
 
-const COLUMNS = [{ left: 21, right: 201 }, { left: 216, right: 396 }, { left: 410, right: 590 }];
 const PAGE = { width: 612, height: 1008, header: 60, footer: 978 };
 const PRICE = /\s(\$\d[\d.]*(?:\/\$?\d[\d.]*)*)$/;
 
@@ -40,9 +38,17 @@ const runs = JSON.parse(readFileSync(SOURCE, 'utf8'))
   .map(r => ({ ...r, bottom: r.y + r.h, base: r.y + r.h }));
 
 const colOf = x => (x < 208 ? 0 : x < 403 ? 1 : 2);
+// Section headings are short all-caps bold lines (e.g. "STARTERS", "SIGN"+"ATURE DISHES"); dish titles are other bold text.
+const isHeadingRun = r => r.bold && r.size >= 10.5 && r.size < 20 && /^[A-Z& ]+$/.test(r.text) && r.text !== 'THAIPHOON';
+const isTitleRun = r => r.bold && r.size >= 6.5 && r.size < 12 && !isHeadingRun(r);
+// Column edges come from where priced dish titles sit, so layout changes in the PDF are picked up.
+const COLUMNS = [0, 1, 2].map(c => {
+  const titled = runs.filter(r => isTitleRun(r) && colOf(r.x) === c && /\$\d/.test(r.text));
+  return { left: Math.min(...titled.map(r => r.x)), right: Math.max(...titled.map(r => r.x + r.w)) };
+});
 const covers = (r, c) => Math.min(r.x + r.w, COLUMNS[c].right) - Math.max(r.x, COLUMNS[c].left) > 10;
 const titleCase = s => s.toLowerCase().replace(/\b\w/g, m => m.toUpperCase());
-const slug = s => s.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const slug = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const round = n => Math.round(n * 10) / 10;
 
 // Join runs sitting on one visual line, inserting a space only where the PDF left a word gap.
@@ -56,9 +62,9 @@ function join(group) {
 }
 
 // Group runs into lines: same page, column, weight, similar size and baseline.
-function lines(filter) {
+function lines(filter, source = runs) {
   const out = [];
-  for (const r of runs.filter(filter)) {
+  for (const r of source.filter(filter)) {
     const line = out.find(l => l.page === r.page && l.col === colOf(r.x) && l.bold === r.bold
       && Math.abs(l.size - r.size) < 1.5 && Math.abs(l.base - r.base) < 2.5);
     if (line) { line.runs.push(r); line.base = Math.max(line.base, r.base); }
@@ -69,12 +75,8 @@ function lines(filter) {
 }
 
 const isGF = r => r.bold && r.text === 'GF';
-const headings = lines(r => r.bold && r.size >= 10 && r.size < 20).map(h => ({ ...h, name: titleCase(h.text) === 'Starters' ? 'Starters' : titleCase(h.text) }));
-const boldLines = lines(r => r.bold && r.size >= 6.5 && r.size < 10 && !isGF(r)).sort((a, b) => a.page - b.page || a.col - b.col || a.y - b.y);
-const captions = lines(r => !r.bold && r.size <= 6.2).filter(l => {
-  const c = COLUMNS[l.col]; return !NOT_CAPTIONS.test(l.text) && Math.abs((l.x + l.right) / 2 - (c.left + c.right) / 2) < 12;
-});
-
+const headings = lines(isHeadingRun).map(h => ({ ...h, name: titleCase(h.text) === 'Starters' ? 'Starters' : titleCase(h.text) }));
+const boldLines = lines(r => isTitleRun(r) && !isGF(r)).sort((a, b) => a.page - b.page || a.col - b.col || a.y - b.y);
 // Titles: bold lines ending in a price; a priceless bold line right below a title continues it.
 const titles = [];
 for (const line of boldLines) {
@@ -84,6 +86,33 @@ for (const line of boldLines) {
     prev.lines.push(line); prev.bottom = line.bottom;
   }
 }
+
+const titleName = t => t.lines.map(l => l.text.replace(PRICE, '')).join(' ').replace(/\s+/g, ' ').trim();
+
+// A row of photo captions can come out of the PDF as one run spanning several columns
+// ("Tom Kha Tom Yum Won Ton Soup"). Split it on known dish names / captions, one per column.
+function splitCaptionRun(r) {
+  const cols = [0, 1, 2].filter(c => covers(r, c));
+  if (cols.length < 2) return [r];
+  const names = [...titles.map(titleName), ...Object.keys(PHOTO_DISHES)].sort((a, b) => b.length - a.length);
+  const parts = [];
+  let rest = r.text;
+  while (rest) {
+    const name = names.find(n => rest.startsWith(n));
+    if (!name) return [r];
+    parts.push(name);
+    rest = rest.slice(name.length).trim();
+  }
+  if (parts.length !== cols.length) return [r];
+  return parts.map((text, i) => {
+    const c = COLUMNS[cols[i]], w = (r.w * text.length) / r.text.length;
+    return { ...r, text, x: (c.left + c.right) / 2 - w / 2, w };
+  });
+}
+const captionRuns = runs.filter(r => !r.bold && r.size <= 6.2).flatMap(splitCaptionRun);
+const captions = lines(() => true, captionRuns).filter(l => {
+  const c = COLUMNS[l.col]; return !NOT_CAPTIONS.test(l.text) && Math.abs((l.x + l.right) / 2 - (c.left + c.right) / 2) < 12;
+});
 
 function sectionFor(t) {
   const above = headings.filter(h => h.page === t.page && h.y < t.y);
@@ -105,20 +134,25 @@ function parseChips(text) {
 const bannerTitle = runs.find(r => /^ENTREE PROTEIN OPTIONS/.test(r.text));
 const banner = bannerTitle ? runs.filter(r => r.page === bannerTitle.page && r.bold && r.y > bannerTitle.bottom + 2 && r.y < bannerTitle.bottom + 20)
   .sort((a, b) => a.x - b.x).map(r => r.text).join(' ') : '';
-const PROTEINS = ['Chicken', 'Veggie', ...[...banner.matchAll(/([A-Z][a-z]+(?: [A-Z][a-z]+)?) \+\$(\d[\d.]*)/g)].map(m => `${m[1]} (+$${m[2]})`)];
+const PROTEINS = ['Chicken', 'Veggie', ...[...banner.matchAll(/([A-Z][a-z]+(?: [A-Z][a-z]+)?) \+\$(\d[\d.]*)/g)].filter(m => !/protein style/i.test(m[1])).map(m => `${m[1]} (+$${m[2]})`)];
 
 const dishes = [];
 titles.forEach((t, i) => {
   const [, price] = t.lines[0].text.match(PRICE);
-  const name = t.lines.map(l => l.text.replace(PRICE, '')).join(' ').replace(/\s+/g, ' ').trim();
+  const name = titleName(t);
   if (NOT_DISHES.some(re => re.test(name))) return;
   const next = [titles[i + 1], ...headings, ...captions].filter(x => x && x.page === t.page && x.col === t.col && x.y > t.bottom - 1);
   // The protein banner spans every column and ends the dishes above it.
   const band = bannerTitle && bannerTitle.page === t.page && bannerTitle.y > t.bottom ? [bannerTitle.y - 4] : [];
   const limit = Math.min(PAGE.footer, ...band, ...next.map(x => x.y));
-  const own = runs.filter(r => r.page === t.page && colOf(r.x) === t.col && r.y >= t.bottom - 1 && r.y < limit && !(r.bold && r.size >= 10));
+  const own = runs.filter(r => r.page === t.page && colOf(r.x) === t.col && r.y >= t.bottom - 1 && r.y < limit && !isHeadingRun(r));
   const desc = lines(r => own.includes(r) && !r.bold && r.size >= 6.5).sort((a, b) => a.y - b.y);
-  const chips = lines(r => own.includes(r) && r.bold && r.size < 6.5 && !isGF(r)).sort((a, b) => a.y - b.y || a.x - b.x);
+  // Option tags start with "Choose:"/"Add" or wrap directly below one; other small bold text (e.g. "BEST VALUE") is not the dish's.
+  const chips = [];
+  for (const line of lines(r => own.includes(r) && r.bold && r.size < 6.5 && !isGF(r)).sort((a, b) => a.y - b.y || a.x - b.x)) {
+    const prev = chips.at(-1);
+    if (/^(choose:|add\s)/i.test(line.text) || (prev && line.y - prev.y < 12)) chips.push(line);
+  }
   const bottom = Math.max(t.bottom, ...desc.map(l => l.bottom), ...chips.map(l => l.bottom));
   const { choices, addOns } = parseChips(chips.map(c => c.text).join(' '));
   const section = sectionFor(t);
@@ -141,7 +175,9 @@ for (const cap of captions) {
   if (!target) continue;
   const dish = dishes.find(d => d.name === target);
   if (!dish) throw new Error(`Caption "${cap.text}" maps to unknown dish "${target}"`);
-  const top = Math.max(PAGE.header, ...runs.filter(r => r.page === cap.page && covers(r, cap.col) && r.bottom < cap.y - 4).map(r => r.bottom),
+  // Section headings span their row, so a photo in a column without its own heading still starts below it.
+  const headingRow = headings.filter(h => h.page === cap.page && h.bottom < cap.y - 20).map(h => h.bottom);
+  const top = Math.max(PAGE.header, ...headingRow, ...runs.filter(r => r.page === cap.page && covers(r, cap.col) && r.bottom < cap.y - 4).map(r => r.bottom),
     ...dishes.flatMap(d => d.areas).filter(a => a.page === cap.page && colOf(a.x + 4) === cap.col && a.y + a.h < cap.y).map(a => a.y + a.h));
   const c = COLUMNS[cap.col];
   dish.areas.push({ page: cap.page, x: round(c.left - 4), y: round(top + 5), w: round(c.right - c.left + 8), h: round(cap.bottom - top - 3) });
@@ -155,7 +191,9 @@ all.forEach((a, i) => {
 });
 
 // Reading order: sections as they appear on the menu, then column, then top to bottom.
-const sectionOrder = [...new Set([...headings].sort((a, b) => a.page - b.page || a.y - b.y || a.col - b.col).map(h => h.name))];
+// Sides always go last, wherever their box sits on the page.
+const sectionOrder = [...new Set([...headings].sort((a, b) => a.page - b.page || a.y - b.y || a.col - b.col).map(h => h.name))]
+  .sort((a, b) => (a === 'Sides') - (b === 'Sides'));
 const at = d => d.areas[0];
 dishes.sort((a, b) => sectionOrder.indexOf(a.section) - sectionOrder.indexOf(b.section) || a.page - b.page || at(a).x - at(b).x || at(a).y - at(b).y);
 
