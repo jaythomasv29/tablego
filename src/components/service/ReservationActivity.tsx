@@ -3,7 +3,7 @@ import { useEffect, useId, useMemo, useState } from 'react';
 import { Bell, Check, X } from 'lucide-react';
 import { Popover } from 'radix-ui';
 import { Button } from '@/components/ui/button';
-import { statusLabels } from '@/lib/reservations/domain';
+import { statusLabel } from '@/lib/reservations/domain';
 import type { ServiceReservation } from '@/lib/reservations/service';
 import { mergeActivityReadMarkers, parseActivityReadMarker, readReservationActivity, recentReservationActivity, unreadReservationActivity, type ActivityReadMarker } from '@/lib/reservations/activity';
 import { formatBusinessTimestamp, formatReadableDatePST } from '@/utils/dateUtils';
@@ -59,7 +59,7 @@ export default function ReservationActivity({ bookings, timezone, synced }: { bo
         <p role="status" className="flex items-center gap-2 border-b px-4 py-2 text-xs text-muted-foreground"><Check className="h-3.5 w-3.5" aria-hidden="true" />{synced ? 'You’re up to date' : 'Reconnecting to live activity…'}</p>
         <div className="max-h-[min(400px,50vh)] overflow-y-auto overscroll-contain">
           {displayed.length ? <ol className="divide-y" aria-label="New reservations">{displayed.map(booking => <li key={booking.id} className="space-y-1 px-4 py-3">
-            <div className="flex items-start justify-between gap-3"><p className="min-w-0 break-words text-sm font-medium">{booking.name}</p><span className="shrink-0 text-xs text-muted-foreground">{booking.status === 'pending' ? 'Pending' : booking.status === 'needs-review' ? 'Details incomplete' : statusLabels[booking.status]}</span></div>
+            <div className="flex items-start justify-between gap-3"><p className="min-w-0 break-words text-sm font-medium">{booking.name}</p><span className="shrink-0 text-xs text-muted-foreground">{booking.status === 'pending' ? 'Pending' : booking.status === 'needs-review' ? 'Details incomplete' : statusLabel(booking.status, booking.name)}</span></div>
             <p className="text-sm">{booking.date ? formatReadableDatePST(booking.date, timezone) : 'Date not recorded'} · {booking.time || 'Time not recorded'}</p>
             <p className="text-xs text-muted-foreground">{booking.guests} {booking.guests === 1 ? 'guest' : 'guests'} · Created {formatBusinessTimestamp(booking.createdAt!, timezone)}</p>
           </li>)}</ol> : <p className="p-5 text-sm text-muted-foreground">New reservations will appear here.</p>}

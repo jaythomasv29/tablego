@@ -22,9 +22,14 @@ export function transition(state: BookingState, action: StaffAction): BookingSta
 }
 export const isGuestEditable = (state: BookingState) => state === 'pending' || state === 'confirmed';
 export const statusLabels: Record<BookingState, string> = {
-  pending: 'Awaiting restaurant acceptance', confirmed: 'Confirmed', seated: 'Seated',
+  pending: 'Awaiting restaurant acceptance', confirmed: 'Confirmed', seated: 'Guest Here',
   completed: 'Completed', cancelled: 'Cancelled', 'no-show': 'No-show', 'needs-review': 'Needs staff review',
 };
+// Arrived parties read as "<Guest name> Here"; other states use the shared label.
+export function statusLabel(status: BookingState, name?: string): string {
+  const guest = name?.trim();
+  return status === 'seated' && guest ? `${guest} Here` : statusLabels[status];
+}
 
 // Missing legacy settings adopt automatic confirmation for future submissions.
 // Existing reservation records are never reclassified by this setting.

@@ -2,10 +2,10 @@
 import { useState } from 'react';
 import NotificationStatus from './NotificationStatus';
 import { Button } from './ui/button';
-import { bookingState, type StaffAction } from '@/lib/reservations/domain';
+import { bookingState, statusLabel, type StaffAction } from '@/lib/reservations/domain';
 import { staffReservationAction } from '@/lib/reservations/client';
 export default function ReservationActions({ reservation, onUpdated, showDelivery = true }: {
-  reservation: { id: string; status: string; attendanceStatus?: string; phone?: string; canNoShow?: boolean };
+  reservation: { id: string; name?: string; status: string; attendanceStatus?: string; phone?: string; canNoShow?: boolean };
   onUpdated: (record: { status: string; attendanceStatus?: 'show' | 'no-show' }) => void;
   showDelivery?: boolean;
 }) {
@@ -13,7 +13,7 @@ export default function ReservationActions({ reservation, onUpdated, showDeliver
   const state = bookingState(reservation);
   const actions: { action: StaffAction; label: string }[] = [];
   if (state === 'pending') actions.push({ action: 'confirm', label: 'Confirm' });
-  if (state === 'confirmed') actions.push({ action: 'seat', label: 'Seat' });
+  if (state === 'confirmed') actions.push({ action: 'seat', label: statusLabel('seated', reservation.name) });
   if (state === 'seated') actions.push({ action: 'complete', label: 'Complete' });
   if (state === 'confirmed' && reservation.canNoShow) actions.push({ action: 'no-show', label: 'No-show' });
   if (state === 'pending' || state === 'confirmed') actions.push({ action: 'cancel', label: 'Cancel' });

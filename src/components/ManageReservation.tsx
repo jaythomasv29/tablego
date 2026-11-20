@@ -9,7 +9,7 @@ import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription } 
 import { formatReadableDatePST } from '@/utils/dateUtils';
 import { restaurantClock } from '@/lib/reservations/availability';
 import { Label } from '@/components/ui/label';
-import { statusLabels, isGuestEditable, type BookingState } from '@/lib/reservations/domain';
+import { statusLabel, isGuestEditable, type BookingState } from '@/lib/reservations/domain';
 import { CalendarDays, Clock, Users, MapPin, ArrowUpRight } from 'lucide-react';
 import ReservationMoment from '@/components/reservations/ReservationMoment';
 import ShareReservation from '@/components/reservations/ShareReservation';
@@ -105,7 +105,7 @@ export default function ManageReservation({ id, initialAction }: { id: string; i
           <div className="reservation-details relative space-y-5 rounded-2xl bg-[#EAE0D5] p-5 sm:p-7">
             <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0 flex-1"><p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#586747]">Reserved for</p>
             <p className="mt-2 break-words text-3xl italic" style={{ fontFamily: 'var(--font-editorial), Georgia, serif' }}>{reservation.name}</p></div>
-            <p className="inline-block rounded-full border border-zinc-900/15 bg-white/60 px-3 py-1 text-xs font-medium">{statusLabels[reservation.status]}</p>
+            <p className="inline-block rounded-full border border-zinc-900/15 bg-white/60 px-3 py-1 text-xs font-medium">{statusLabel(reservation.status, reservation.name)}</p>
             </div>
             <div className="space-y-4 border-t border-zinc-900/10 pt-5"><div className="flex items-start gap-3"><CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-[#586747]" aria-hidden="true" /><div><p className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">The day</p><p className="mt-1 text-base font-medium">{formatReadableDatePST(reservation.date, reservation.timezone)}</p></div></div>
               <div className="grid grid-cols-2 gap-4"><div className="flex items-start gap-3"><Clock className="mt-0.5 h-4 w-4 shrink-0 text-[#586747]" aria-hidden="true" /><div><p className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">Arrival</p><p className="mt-1 text-xl font-medium tabular-nums">{reservation.time}</p></div></div><div className="flex items-start gap-3"><Users className="mt-0.5 h-4 w-4 shrink-0 text-[#586747]" aria-hidden="true" /><div><p className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">Your party</p><p className="mt-1 text-xl font-medium">{reservation.guests} <span className="text-sm">{reservation.guests === 1 ? 'guest' : 'guests'}</span></p></div></div></div>

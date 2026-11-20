@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import ReservationActions from '@/components/ReservationActions';
-import { statusLabels, isGuestEditable, type BookingState } from '@/lib/reservations/domain';
+import { statusLabels, statusLabel, isGuestEditable, type BookingState } from '@/lib/reservations/domain';
 import { guestProfiles, guestKey, arrivalDue, todayReservations, reservationTimePassed, type ServiceReservation } from '@/lib/reservations/service';
 import { restaurantClock, timeMinutes } from '@/lib/reservations/availability';
 import { formatReadableDatePST, formatBusinessTimestamp } from '@/utils/dateUtils';
@@ -73,7 +73,7 @@ export default function ServiceConsole({ today = false }: { today?: boolean }) {
         {timePassed && <span className="rounded-full border border-amber-500 bg-amber-100 px-3 py-1 text-sm font-medium text-amber-950 dark:border-amber-600 dark:bg-amber-900/60 dark:text-amber-100">Time passed</span>}
         {!today && <span className="rounded-full border px-3 py-1 text-sm font-medium">{booking.guests} {booking.guests === 1 ? 'guest' : 'guests'}</span>}
         {today && booking.guests >= 6 && <span className="rounded-full border px-3 py-1 text-sm">Large party</span>}
-        <span className={`rounded-full border px-3 py-1 text-sm ${stateColors[booking.status]}`}>{statusLabels[booking.status]}</span>
+        <span className={`rounded-full border px-3 py-1 text-sm ${stateColors[booking.status]}`}>{statusLabel(booking.status, booking.name)}</span>
       </div></div>
       {booking.needsReview && <p className="text-sm text-orange-700 dark:text-orange-300">Some imported details need review. Contact the guest before acting.</p>}
       {booking.comments && <p className="rounded-md bg-muted p-3 text-sm"><strong>Guest request:</strong> {booking.comments}</p>}

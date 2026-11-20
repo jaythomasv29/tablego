@@ -7,6 +7,7 @@ import React from 'react';
 import { act, create } from 'react-test-renderer';
 import ts from 'typescript';
 import * as activity from '../src/lib/reservations/activity.ts';
+import * as domain from '../src/lib/reservations/domain.ts';
 
 const filename = new URL('../src/components/service/ReservationActivity.tsx', import.meta.url);
 const compiled = ts.transpileModule(readFileSync(filename, 'utf8'), {
@@ -24,7 +25,7 @@ async function mount(t, bookings, { saved = new Map(), synced = true } = {}) {
     'radix-ui': { Popover: { Root, Trigger: Pass, Portal: Pass, Content, Close: Pass } },
     '@/components/ui/button': { Button: props => React.createElement('button', props) },
     '@/lib/reservations/activity': activity,
-    '@/lib/reservations/domain': { statusLabels: { confirmed: 'Confirmed' } },
+    '@/lib/reservations/domain': domain,
     '@/utils/dateUtils': { formatReadableDatePST: value => value, formatBusinessTimestamp: value => value },
   };
   const require = createRequire(filename);
